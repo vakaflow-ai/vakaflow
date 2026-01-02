@@ -1,0 +1,201 @@
+import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { actionsApi, ActionItem } from '../lib/actions'
+import { assessmentsApi } from '../lib/assessments'
+import { authApi } from '../lib/auth'
+import Layout from '../components/Layout'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Badge } from '../components/ui/badge'
+import { showToast } from '../utils/toast'
+import { 
+  InboxIcon, CheckCircleIcon, ClockIcon, AlertCircleIcon, 
+  FileTextIcon, ShieldCheckIcon
+} from '../components/Icons'
+import { Clock, CheckCircle, AlertCircle } from 'lucide-react'
+import { cn } from '@/lib/utils'
+
+type TabType = 'pending' | 'completed' | 'overdue'
+
+export default function MyActions() {
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const [user, setUser] = useState<any>(null)
+  const [activeTab, setActiveTab] = useState<TabType>('pending')
+  const [searchQuery, setSearchQuery] = useState<string>('')
+
+  useEffect(() => {
+    authApi.getCurrentUser().then(setUser).catch(() => navigate('/login'))
+  }, [navigate])
+
+  const { data: inboxData, isLoading } = useQuery({
+    queryKey: ['actions-inbox', activeTab],
+    queryFn: () => actionsApi.getInbox(activeTab),
+    enabled: !!user?.tenant_id,
+  })
+
+  const items = inboxData?.items || []
+  const pendingCount = items.filter(i => i.status === 'pending').length
+  const completedCount = items.filter(i => i.status === 'completed').length
+  const overdueCount = items.filter(i => i.status === 'overdue').length
+
+  const filteredItems = items.filter(item => {
+    if (!searchQuery) return true
+    const searchLower = searchQuery.toLowerCase()
+    return (
+      item.title?.toLowerCase().includes(searchLower) ||
+      item.description?.toLowerCase().includes(searchLower) ||
+      item.metadata?.workflow_ticket_id?.toLowerCase().includes(searchLower)
+    )
+  })
+
+  return (
+    <Layout user={user}>
+      <div className="space-y-6">
+        {/* Header */}
+        <div>
+          <h1 className="text-3xl font-bold text-foreground mb-2">My Actions</h1>
+          <p className="text-muted-foreground">
+            Manage your assigned tasks and workflows
+          </p>
+        </div>
+
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Card 
+            className={cn(
+              "cursor-pointer transition-colors",
+              activeTab === 'pending' && "border-primary"
+            )}
+            onClick={() => setActiveTab('pending')}
+          >
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Pending</CardTitle>
+              <Clock className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{pendingCount}</div>
+              <p className="text-xs text-muted-foreground mt-1">Items requiring action</p>
+            </CardContent>
+          </Card>
+
+          <Card 
+            className={cn(
+              "cursor-pointer transition-colors",
+              activeTab === 'completed' && "border-primary"
+            )}
+            onClick={() => setActiveTab('completed')}
+          >
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Completed</CardTitle>
+              <CheckCircle className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{completedCount}</div>
+              <p className="text-xs text-muted-foreground mt-1">Finished items</p>
+            </CardContent>
+          </Card>
+
+          <Card 
+            className={cn(
+              "cursor-pointer transition-colors",
+              activeTab === 'overdue' && "border-primary"
+            )}
+            onClick={() => setActiveTab('overdue')}
+          >
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Overdue</CardTitle>
+              <AlertCircle className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{overdueCount}</div>
+              <p className="text-xs text-muted-foreground mt-1">Past due items</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Search and Filters */}
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-4">
+              <div className="flex-1 relative">
+                <Input
+                  placeholder="Search actions..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 bg-background text-foreground"
+                />
+                <InboxIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Actions List */}
+        <Card>
+          <CardHeader>
+            <CardTitle>
+              {activeTab === 'pending' && 'Pending Actions'}
+              {activeTab === 'completed' && 'Completed Actions'}
+              {activeTab === 'overdue' && 'Overdue Actions'}
+            </CardTitle>
+            <CardDescription>
+              {filteredItems.length} item{filteredItems.length !== 1 ? 's' : ''} found
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="text-center py-12">
+                <div className="inline-block h-8 w-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+                <p className="mt-4 text-muted-foreground">Loading actions...</p>
+              </div>
+            ) : filteredItems.length === 0 ? (
+              <div className="text-center py-12">
+                <InboxIcon className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
+                <p className="text-muted-foreground">No {activeTab} actions found</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {filteredItems.map((item: ActionItem) => (
+                  <div
+                    key={item.id}
+                    className="flex items-center justify-between p-4 rounded-lg border hover:bg-muted/50 transition-colors cursor-pointer"
+                    onClick={() => {
+                      if (item.source_type === 'assessment_assignment' && item.source_id) {
+                        navigate(`/assessments/${item.source_id}`)
+                      }
+                    }}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-3 mb-2">
+                        <h3 className="font-semibold text-foreground truncate">{item.title}</h3>
+                        {item.metadata?.workflow_ticket_id && (
+                          <Badge variant="outline" className="text-xs">
+                            {item.metadata.workflow_ticket_id}
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-sm text-muted-foreground line-clamp-2">{item.description}</p>
+                      {item.due_date && (
+                        <p className="text-xs text-muted-foreground mt-2">
+                          Due: {new Date(item.due_date).toLocaleDateString()}
+                        </p>
+                      )}
+                    </div>
+                    <div className="ml-4 flex-shrink-0">
+                      <Button variant="ghost" size="sm" className="hover:bg-muted">
+                        View
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </Layout>
+  )
+}

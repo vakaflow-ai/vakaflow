@@ -1,0 +1,10 @@
+[MASTER]
+ignore=venv,__pycache__,migrations
+disable=import-error,no-member,no-name-in-module
+
+[MESSAGES CONTROL]
+disable=import-error,no-member,no-name-in-module,missing-module-docstring,missing-class-docstring,missing-function-docstring
+
+[TYPECHECK]
+ignored-modules=onelogin,jwt,pyotp,qrcode,sentence_transformers,prometheus_client,qdrant_client,redis,bcrypt,jose,aiofiles
+
