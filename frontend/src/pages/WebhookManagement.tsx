@@ -77,77 +77,77 @@ export default function WebhookManagement() {
   return (
     <Layout user={user}>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground mb-2">Webhook Management</h1>
-            <p className="text-muted-foreground">
+        <div className="flex items-start justify-between mb-6 gap-4">
+          <div className="flex-1">
+            <h1 className="text-2xl font-semibold text-gray-900 mb-2">Webhook Management</h1>
+            <p className="text-sm text-gray-600">
               Configure webhooks to receive real-time events
             </p>
           </div>
           <button
             onClick={() => setShowCreate(!showCreate)}
-            className="compact-button-primary"
+            className="px-5 py-2.5 text-sm font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2"
           >
-            + Create Webhook
+            <span>+</span> Create Webhook
           </button>
         </div>
 
         {showCreate && (
-          <div className="compact-card-elevated">
-            <h2 className="text-xl font-medium mb-4">Create New Webhook</h2>
-            <div className="space-y-4">
+          <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-6">
+            <h2 className="text-xl font-semibold text-gray-900 mb-6">Create New Webhook</h2>
+            <div className="space-y-6">
               <div>
-                <label className="text-sm font-medium mb-2 block">Webhook Name</label>
+                <label className="block text-sm font-semibold text-gray-900 mb-2">Webhook Name</label>
                 <input
                   type="text"
-                  className="compact-input"
+                  className="w-full px-4 py-2.5 text-sm rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                   placeholder="My Webhook"
                   value={newWebhook.name}
                   onChange={(e) => setNewWebhook(prev => ({ ...prev, name: e.target.value }))}
                 />
               </div>
               <div>
-                <label className="text-sm font-medium mb-2 block">Webhook URL</label>
+                <label className="block text-sm font-semibold text-gray-900 mb-2">Webhook URL</label>
                 <input
                   type="url"
-                  className="compact-input"
+                  className="w-full px-4 py-2.5 text-sm rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                   placeholder="https://example.com/webhook"
                   value={newWebhook.url}
                   onChange={(e) => setNewWebhook(prev => ({ ...prev, url: e.target.value }))}
                 />
               </div>
               <div>
-                <label className="text-sm font-medium mb-2 block">Events</label>
-                <div className="grid grid-cols-2 gap-2">
+                <label className="block text-sm font-semibold text-gray-900 mb-3">Events</label>
+                <div className="grid grid-cols-2 gap-3">
                   {eventOptions.map(event => (
-                    <label key={event} className="flex items-center gap-2 cursor-pointer">
+                    <label key={event} className="flex items-center gap-3 cursor-pointer p-2 rounded hover:bg-gray-50 transition-colors">
                       <input
                         type="checkbox"
                         checked={newWebhook.events.includes(event)}
                         onChange={() => toggleEvent(event)}
-                        className="rounded border-input"
+                        className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-2 focus:ring-indigo-500"
                       />
-                      <span className="text-sm">{event}</span>
+                      <span className="text-sm text-gray-700">{event}</span>
                     </label>
                   ))}
                 </div>
               </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => createMutation.mutate()}
-                  className="compact-button-primary"
-                  disabled={!newWebhook.name || !newWebhook.url || newWebhook.events.length === 0}
-                >
-                  Create
-                </button>
+              <div className="flex gap-3 justify-end pt-4 border-t border-gray-200">
                 <button
                   onClick={() => {
                     setShowCreate(false)
                     setNewWebhook({ name: '', url: '', events: [] })
                   }}
-                  className="compact-button-ghost"
+                  className="px-5 py-2.5 text-sm font-semibold text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
                 >
                   Cancel
+                </button>
+                <button
+                  onClick={() => createMutation.mutate()}
+                  className="px-5 py-2.5 text-sm font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  disabled={!newWebhook.name || !newWebhook.url || newWebhook.events.length === 0}
+                >
+                  Create
                 </button>
               </div>
             </div>
@@ -155,41 +155,45 @@ export default function WebhookManagement() {
         )}
 
         {isLoading ? (
-          <div className="text-center py-8 text-muted-foreground">Loading webhooks...</div>
+          <div className="text-center py-12 text-gray-600">Loading webhooks...</div>
         ) : webhooks && webhooks.length > 0 ? (
           <div className="space-y-4">
             {webhooks.map(webhook => (
-              <div key={webhook.id} className="compact-card-elevated">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h3 className="text-lg font-medium">{webhook.name}</h3>
-                      <span className={`status-badge ${webhook.is_active ? 'status-badge-success' : 'status-badge-info'}`}>
+              <div key={webhook.id} className="bg-white border border-gray-200 rounded-lg shadow-sm p-6">
+                <div className="flex items-start justify-between mb-5">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-3 mb-3">
+                      <h3 className="text-lg font-semibold text-gray-900">{webhook.name}</h3>
+                      <span className={`px-2.5 py-1 text-xs font-semibold rounded-full ${
+                        webhook.is_active 
+                          ? 'bg-green-100 text-green-700' 
+                          : 'bg-gray-100 text-gray-700'
+                      }`}>
                         {webhook.is_active ? 'Active' : 'Inactive'}
                       </span>
                     </div>
-                    <p className="text-sm text-muted-foreground font-mono">{webhook.url}</p>
-                    <div className="mt-2">
-                      <p className="text-xs text-muted-foreground mb-1">Events:</p>
-                      <div className="flex flex-wrap gap-1">
+                    <p className="text-sm text-gray-600 font-mono mb-4 break-all">{webhook.url}</p>
+                    <div>
+                      <p className="text-xs font-semibold text-gray-900 mb-2">Events:</p>
+                      <div className="flex flex-wrap gap-2">
                         {webhook.events.map(event => (
-                          <span key={event} className="status-badge status-badge-info text-xs">
+                          <span key={event} className="px-2.5 py-1 text-xs font-medium bg-blue-100 text-blue-700 rounded-full">
                             {event}
                           </span>
                         ))}
                       </div>
                     </div>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 ml-4 flex-shrink-0">
                     <button
                       onClick={() => toggleMutation.mutate({ id: webhook.id, activate: !webhook.is_active })}
-                      className="compact-button-secondary text-xs"
+                      className="px-3 py-1.5 text-xs font-semibold text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
                     >
                       {webhook.is_active ? 'Deactivate' : 'Activate'}
                     </button>
                     <button
                       onClick={() => setSelectedWebhook(selectedWebhook === webhook.id ? null : webhook.id)}
-                      className="compact-button-ghost text-xs"
+                      className="px-3 py-1.5 text-xs font-semibold text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
                     >
                       {selectedWebhook === webhook.id ? 'Hide' : 'View'} Deliveries
                     </button>
@@ -199,7 +203,7 @@ export default function WebhookManagement() {
                           deleteMutation.mutate(webhook.id)
                         }
                       }}
-                      className="compact-button-ghost text-xs text-red-600"
+                      className="px-3 py-1.5 text-xs font-semibold text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
                     >
                       Delete
                     </button>
@@ -207,26 +211,26 @@ export default function WebhookManagement() {
                 </div>
 
                 {selectedWebhook === webhook.id && deliveries && (
-                  <div className="mt-4 pt-4 border-t border-border">
-                    <h4 className="font-medium mb-3">Delivery History</h4>
+                  <div className="mt-5 pt-5 border-t border-gray-200">
+                    <h4 className="text-base font-semibold text-gray-900 mb-4">Delivery History</h4>
                     {deliveries.length > 0 ? (
-                      <div className="space-y-2">
+                      <div className="space-y-2.5">
                         {deliveries.map(delivery => (
-                          <div key={delivery.id} className="flex items-center justify-between p-2 bg-muted/50 rounded">
-                            <div>
-                              <span className={`status-badge ${
-                                delivery.status === 'success' ? 'status-badge-success' :
-                                delivery.status === 'failed' ? 'status-badge-error' :
-                                'status-badge-warning'
+                          <div key={delivery.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                            <div className="flex items-center gap-3">
+                              <span className={`px-2.5 py-1 text-xs font-semibold rounded-full ${
+                                delivery.status === 'success' ? 'bg-green-100 text-green-700' :
+                                delivery.status === 'failed' ? 'bg-red-100 text-red-700' :
+                                'bg-yellow-100 text-yellow-700'
                               }`}>
                                 {delivery.status}
                               </span>
-                              <span className="text-xs text-muted-foreground ml-2">
+                              <span className="text-xs text-gray-600">
                                 {new Date(delivery.attempted_at).toLocaleString()}
                               </span>
                             </div>
                             {delivery.response_code && (
-                              <span className="text-xs text-muted-foreground">
+                              <span className="text-xs text-gray-600 font-mono">
                                 HTTP {delivery.response_code}
                               </span>
                             )}
@@ -234,7 +238,7 @@ export default function WebhookManagement() {
                         ))}
                       </div>
                     ) : (
-                      <p className="text-sm text-muted-foreground">No deliveries yet</p>
+                      <p className="text-sm text-gray-600">No deliveries yet</p>
                     )}
                   </div>
                 )}
@@ -242,11 +246,11 @@ export default function WebhookManagement() {
             ))}
           </div>
         ) : (
-          <div className="compact-card text-center py-8">
-            <p className="text-muted-foreground mb-4">No webhooks configured</p>
+          <div className="bg-white border border-gray-200 rounded-lg shadow-sm text-center py-12 px-6">
+            <p className="text-gray-600 mb-4">No webhooks configured</p>
             <button
               onClick={() => setShowCreate(true)}
-              className="compact-button-primary"
+              className="px-5 py-2.5 text-sm font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors"
             >
               Create Your First Webhook
             </button>

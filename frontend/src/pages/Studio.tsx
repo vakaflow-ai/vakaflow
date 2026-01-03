@@ -12,6 +12,8 @@ import FlowExecutionMonitor from '../components/FlowExecutionMonitor'
 import AgentSettingsModal, { AgentUpdate } from '../components/AgentSettingsModal'
 import FlowSettingsModal, { FlowUpdate } from '../components/FlowSettingsModal'
 import { showToast } from '../utils/toast'
+import { MaterialCard, MaterialButton, MaterialChip } from '../components/material'
+import { SparklesIcon, CogIcon, ChatIcon, ActivityIcon, EyeIcon, PencilIcon } from '../components/Icons'
 
 export default function Studio() {
   const navigate = useNavigate()
@@ -351,83 +353,162 @@ export default function Studio() {
               </div>
             ) : agents && agents.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {agents.map((agent) => (
-                  <div
-                    key={agent.id}
-                    className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow cursor-pointer"
-                    onClick={() => setSelectedAgent(agent)}
-                  >
-                    <div className="flex items-start justify-between mb-4">
-                      <div>
-                        <h3 className="text-subheading font-medium text-gray-900">
-                          {agent.name}
-                        </h3>
-                        <p className="text-caption text-gray-500 mt-1">
-                          {agent.agent_type}
-                        </p>
+                {agents.map((agent) => {
+                  // Get icon based on agent type
+                  const getAgentIcon = () => {
+                    const type = agent.agent_type?.toUpperCase() || ''
+                    if (type.includes('AI_AGENT') || type.includes('AI') || type.includes('GRC')) {
+                      return <SparklesIcon className="w-6 h-6 text-blue-600" />
+                    } else if (type.includes('AUTOMATION') || type.includes('AUTO') || type.includes('COMPLIANCE')) {
+                      return <CogIcon className="w-6 h-6 text-purple-600" />
+                    } else if (type.includes('BOT') || type.includes('REVIEW')) {
+                      return <ChatIcon className="w-6 h-6 text-green-600" />
+                    }
+                    return <SparklesIcon className="w-6 h-6 text-gray-600" />
+                  }
+
+                  const getTypeColor = () => {
+                    const type = agent.agent_type?.toUpperCase() || ''
+                    if (type.includes('AI_AGENT') || type.includes('AI') || type.includes('GRC')) {
+                      return {
+                        iconBg: 'bg-blue-50',
+                        bg: 'bg-blue-50',
+                        text: 'text-blue-700',
+                        border: 'border-blue-200'
+                      }
+                    } else if (type.includes('AUTOMATION') || type.includes('AUTO') || type.includes('COMPLIANCE')) {
+                      return {
+                        iconBg: 'bg-purple-50',
+                        bg: 'bg-purple-50',
+                        text: 'text-purple-700',
+                        border: 'border-purple-200'
+                      }
+                    } else if (type.includes('BOT') || type.includes('REVIEW')) {
+                      return {
+                        iconBg: 'bg-green-50',
+                        bg: 'bg-green-50',
+                        text: 'text-green-700',
+                        border: 'border-green-200'
+                      }
+                    }
+                    return {
+                      iconBg: 'bg-gray-50',
+                      bg: 'bg-gray-50',
+                      text: 'text-gray-700',
+                      border: 'border-gray-200'
+                    }
+                  }
+
+                  const typeColors = getTypeColor()
+                  const sourceColor = agent.source === 'vaka'
+                    ? 'bg-blue-100 text-blue-800 border-blue-200'
+                    : agent.source === 'external'
+                    ? 'bg-green-100 text-green-800 border-green-200'
+                    : 'bg-purple-100 text-purple-800 border-purple-200'
+
+                  return (
+                    <MaterialCard
+                      key={agent.id}
+                      elevation={1}
+                      hover
+                      className="cursor-pointer border-none flex flex-col h-full group transition-all duration-300"
+                      onClick={() => setSelectedAgent(agent)}
+                    >
+                      <div className="p-6 flex flex-col h-full">
+                        {/* Header with Icon and Type Badge */}
+                        <div className="flex items-start justify-between mb-4">
+                          <div className="flex items-start gap-3 flex-1 min-w-0">
+                            <div className={`flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center ${typeColors.iconBg} transition-transform group-hover:scale-110 shadow-sm`}>
+                              {getAgentIcon()}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h3 className="text-lg font-semibold text-gray-900 line-clamp-1 group-hover:text-blue-600 transition-colors">
+                                {agent.name}
+                              </h3>
+                              <div className={`inline-block px-2 py-0.5 rounded-md text-xs font-medium mt-1.5 border ${typeColors.bg} ${typeColors.text} ${typeColors.border}`}>
+                                {agent.agent_type || 'Unknown'}
+                              </div>
+                            </div>
+                          </div>
+                          <MaterialChip
+                            label={agent.source}
+                            size="small"
+                            variant="filled"
+                            className={`text-xs font-medium ${sourceColor}`}
+                          />
+                        </div>
+                        
+                        {/* Description */}
+                        {agent.description && (
+                          <p className="text-sm text-gray-600 mb-4 line-clamp-3 leading-relaxed flex-1">
+                            {agent.description}
+                          </p>
+                        )}
+                        
+                        {/* Owner/Department/Organization */}
+                        {(agent.owner_name || agent.department || agent.organization) && (
+                          <div className="text-xs text-gray-500 mb-4 space-y-1">
+                            {agent.owner_name && (
+                              <p>Owner: <span className="font-medium text-gray-700">{agent.owner_name}</span></p>
+                            )}
+                            {agent.department && (
+                              <p>Department: <span className="font-medium text-gray-700">{agent.department}</span></p>
+                            )}
+                            {agent.organization && (
+                              <p>Organization: <span className="font-medium text-gray-700">{agent.organization}</span></p>
+                            )}
+                          </div>
+                        )}
+                        
+                        {/* Skills Tags */}
+                        {agent.skills && agent.skills.length > 0 && (
+                          <div className="flex flex-wrap gap-2 mb-4">
+                            {agent.skills.map((skill) => (
+                              <MaterialChip
+                                key={skill}
+                                label={skill}
+                                size="small"
+                                variant="outlined"
+                                color="neutral"
+                                className="text-xs"
+                              />
+                            ))}
+                          </div>
+                        )}
+                        
+                        {/* Footer Actions */}
+                        <div className="flex gap-2 pt-4 border-t border-gray-100 mt-auto">
+                          <MaterialButton
+                            variant="outlined"
+                            color="neutral"
+                            size="small"
+                            fullWidth
+                            startIcon={<CogIcon className="w-4 h-4" />}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleOpenAgentSettings(agent)
+                            }}
+                          >
+                            Settings
+                          </MaterialButton>
+                          <MaterialButton
+                            variant="contained"
+                            color="primary"
+                            size="small"
+                            fullWidth
+                            startIcon={<ActivityIcon className="w-4 h-4" />}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleExecuteAgent(agent)
+                            }}
+                          >
+                            Execute
+                          </MaterialButton>
+                        </div>
                       </div>
-                      <span
-                        className={`badge-text px-2 py-1 rounded ${
-                          agent.source === 'vaka'
-                            ? 'bg-blue-100 text-blue-800'
-                            : agent.source === 'external'
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-purple-100 text-purple-800'
-                        }`}
-                      >
-                        {agent.source}
-                      </span>
-                    </div>
-                    {agent.description && (
-                      <p className="text-body text-gray-600 mb-4">
-                        {agent.description}
-                      </p>
-                    )}
-                    {(agent.owner_name || agent.department || agent.organization) && (
-                      <div className="text-caption text-gray-500 mb-2 space-y-1">
-                        {agent.owner_name && (
-                          <p>Owner: <span className="font-medium">{agent.owner_name}</span></p>
-                        )}
-                        {agent.department && (
-                          <p>Department: <span className="font-medium">{agent.department}</span></p>
-                        )}
-                        {agent.organization && (
-                          <p>Organization: <span className="font-medium">{agent.organization}</span></p>
-                        )}
-                      </div>
-                    )}
-                    <div className="flex flex-wrap gap-2 mb-4">
-                      {agent.skills.map((skill) => (
-                        <span
-                          key={skill}
-                          className="badge-text px-2 py-1 bg-gray-100 text-gray-700 rounded"
-                        >
-                          {skill}
-                        </span>
-                      ))}
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleOpenAgentSettings(agent)
-                        }}
-                        className="compact-button-ghost flex-1"
-                      >
-                        Settings
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleExecuteAgent(agent)
-                        }}
-                        className="compact-button-primary flex-1"
-                      >
-                        Execute
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                    </MaterialCard>
+                  )
+                })}
               </div>
             ) : (
               <div className="text-center py-12">
@@ -459,92 +540,131 @@ export default function Studio() {
                 <p className="mt-2 text-gray-600">Loading flows...</p>
               </div>
             ) : flows && flows.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {flows.map((flow) => (
-                  <div
-                    key={flow.id}
-                    className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow"
-                  >
-                    <div className="flex items-start justify-between mb-4">
-                      <div>
-                        <h3 className="text-subheading font-medium text-gray-900">
-                          {flow.name}
-                        </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {flows.map((flow) => {
+                  const statusColor = flow.status === 'active'
+                    ? 'bg-green-50 text-green-700 border-green-200'
+                    : flow.status === 'draft'
+                    ? 'bg-gray-50 text-gray-700 border-gray-200'
+                    : 'bg-yellow-50 text-yellow-700 border-yellow-200'
+
+                  return (
+                    <MaterialCard
+                      key={flow.id}
+                      elevation={1}
+                      hover
+                      className="border-none flex flex-col h-full group transition-all duration-300"
+                    >
+                      <div className="p-6 flex flex-col h-full">
+                        {/* Header with Icon and Status Badge */}
+                        <div className="flex items-start justify-between mb-4">
+                          <div className="flex items-start gap-3 flex-1 min-w-0">
+                            <div className="flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center bg-indigo-50 transition-transform group-hover:scale-110 shadow-sm">
+                              <CogIcon className="w-6 h-6 text-indigo-600" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h3 className="text-lg font-semibold text-gray-900 line-clamp-1 group-hover:text-blue-600 transition-colors">
+                                {flow.name}
+                              </h3>
+                              {flow.category && (
+                                <div className="inline-block px-2 py-0.5 rounded-md text-xs font-medium mt-1.5 border bg-gray-50 text-gray-700 border-gray-200">
+                                  {flow.category}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          <MaterialChip
+                            label={flow.status}
+                            size="small"
+                            variant="filled"
+                            className={`text-xs font-medium ${statusColor}`}
+                          />
+                        </div>
+                        
+                        {/* Description */}
                         {flow.description && (
-                          <p className="text-body text-gray-600 mt-1">
+                          <p className="text-sm text-gray-600 mb-4 line-clamp-3 leading-relaxed flex-1">
                             {flow.description}
                           </p>
                         )}
+                        
+                        {/* Flow Info */}
+                        <div className="flex items-center gap-2 mb-4">
+                          <span className="text-xs text-gray-500">
+                            {flow.flow_definition?.nodes?.length || 0} nodes
+                          </span>
+                        </div>
+                        
+                        {/* Footer Actions */}
+                        <div className="flex flex-wrap gap-2 pt-4 border-t border-gray-100 mt-auto">
+                          <MaterialButton
+                            variant="outlined"
+                            color="neutral"
+                            size="small"
+                            startIcon={<CogIcon className="w-3.5 h-3.5" />}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleOpenFlowSettings(flow)
+                            }}
+                            className="flex-1 min-w-[100px]"
+                          >
+                            Settings
+                          </MaterialButton>
+                          <MaterialButton
+                            variant="outlined"
+                            color="primary"
+                            size="small"
+                            startIcon={<EyeIcon className="w-3.5 h-3.5" />}
+                            onClick={() => {
+                              setViewingFlow(flow)
+                              setShowFlowDetails(true)
+                            }}
+                            className="flex-1 min-w-[100px]"
+                          >
+                            View
+                          </MaterialButton>
+                          <MaterialButton
+                            variant="outlined"
+                            color="neutral"
+                            size="small"
+                            startIcon={<PencilIcon className="w-3.5 h-3.5" />}
+                            onClick={() => {
+                              setEditingFlow(flow)
+                              setShowFlowBuilder(true)
+                            }}
+                            className="flex-1 min-w-[100px]"
+                          >
+                            Edit
+                          </MaterialButton>
+                          <MaterialButton
+                            variant="outlined"
+                            color="secondary"
+                            size="small"
+                            startIcon={<ActivityIcon className="w-3.5 h-3.5" />}
+                            onClick={() => {
+                              setMonitoringFlowId(flow.id)
+                              setShowExecutionMonitor(true)
+                            }}
+                            className="flex-1 min-w-[100px]"
+                          >
+                            Monitor
+                          </MaterialButton>
+                          <MaterialButton
+                            variant="contained"
+                            color="primary"
+                            size="small"
+                            startIcon={<ActivityIcon className="w-3.5 h-3.5" />}
+                            onClick={() => handleExecuteFlow(flow.id)}
+                            disabled={executeFlowMutation.isPending}
+                            className="flex-1 min-w-[100px]"
+                          >
+                            {executeFlowMutation.isPending ? 'Executing...' : 'Execute'}
+                          </MaterialButton>
+                        </div>
                       </div>
-                      <span
-                        className={`badge-text px-2 py-1 rounded ${
-                          flow.status === 'active'
-                            ? 'bg-green-100 text-green-800'
-                            : flow.status === 'draft'
-                            ? 'bg-gray-100 text-gray-800'
-                            : 'bg-yellow-100 text-yellow-800'
-                        }`}
-                      >
-                        {flow.status}
-                      </span>
-                    </div>
-                    {flow.category && (
-                      <p className="text-body text-gray-500 mb-4">
-                        Category: {flow.category}
-                      </p>
-                    )}
-                    <div className="flex items-center justify-between">
-                      <span className="text-body text-gray-600">
-                        {flow.flow_definition.nodes.length} nodes
-                      </span>
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleOpenFlowSettings(flow)
-                          }}
-                          className="px-3 py-1 bg-gray-600 text-white rounded hover:bg-gray-700 text-sm"
-                        >
-                          Settings
-                        </button>
-                        <button
-                          onClick={() => {
-                            setViewingFlow(flow)
-                            setShowFlowDetails(true)
-                          }}
-                          className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
-                        >
-                          View
-                        </button>
-                        <button
-                          onClick={() => {
-                            setEditingFlow(flow)
-                            setShowFlowBuilder(true)
-                          }}
-                          className="px-3 py-1 bg-gray-600 text-white rounded hover:bg-gray-700 text-sm"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => {
-                            setMonitoringFlowId(flow.id)
-                            setShowExecutionMonitor(true)
-                          }}
-                          className="px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-700 text-sm"
-                        >
-                          Monitor
-                        </button>
-                        <button
-                          onClick={() => handleExecuteFlow(flow.id)}
-                          className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-sm"
-                          disabled={executeFlowMutation.isPending}
-                        >
-                          {executeFlowMutation.isPending ? 'Executing...' : 'Execute'}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                    </MaterialCard>
+                  )
+                })}
               </div>
             ) : (
               <div className="text-center py-12">

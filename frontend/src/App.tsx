@@ -121,16 +121,26 @@ function App() {
           <Route path="/admin/users" element={<UserManagement />} />
           <Route path="/admin/role-permissions" element={<RolePermissions />} />
           <Route path="/admin/custom-fields" element={<CustomFields />} />
+          <Route path="/admin/entity-fields" element={<CustomFields />} />
           <Route path="/admin/tenants" element={<TenantManagement />} />
           <Route path="/admin/workflows" element={<WorkflowManagement />} />
           <Route path="/admin/integrations" element={<IntegrationManagement />} />
+          <Route path="/admin/logs" element={<ApplicationLogs />} />
+          <Route path="/admin/export" element={<ExportData />} />
+          <Route path="/admin/webhooks" element={<WebhookManagement />} />
+          <Route path="/admin/predictive" element={<PredictiveAnalytics />} />
+          <Route path="/admin/recommendations" element={<Recommendations />} />
+          <Route path="/admin/audit" element={<AuditTrail />} />
           <Route path="/workflows" element={<WorkflowManagement />} />
           <Route path="/form-designer" element={<FormDesignerList />} />
           <Route path="/compliance/:agentId" element={<ComplianceChecks />} />
           <Route path="/compliance" element={<ComplianceChecks />} />
           <Route path="/frameworks" element={<Navigate to="/compliance" replace />} />
           <Route path="/cve/settings" element={<CVESettings />} />
+          <Route path="/admin/cve/settings" element={<CVESettings />} />
+          <Route path="/admin/cve/dashboard" element={<CVEDashboard />} />
           <Route path="/cve/:id" element={<CVEDetail />} />
+          <Route path="/admin/cve/:id" element={<CVEDetail />} />
           <Route path="/cve" element={<CVEDashboard />} />
           <Route path="/vendors/:vendorId/security" element={<VendorSecurity />} />
           <Route path="/admin/question-library" element={<QuestionLibrary />} />

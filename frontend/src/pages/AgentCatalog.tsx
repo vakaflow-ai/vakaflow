@@ -7,6 +7,30 @@ import Layout from '../components/Layout'
 import { MaterialCard, MaterialButton, MaterialChip, MaterialInput } from '../components/material'
 import { SearchIcon, FilterIcon, ChevronLeftIcon, ChevronRightIcon, SparklesIcon, CogIcon, ChatIcon } from '../components/Icons'
 
+// Color palette for agent avatars - vibrant and distinct
+const AVATAR_COLORS = [
+  { bg: 'bg-blue-500', text: 'text-white', border: 'border-blue-600' },
+  { bg: 'bg-indigo-500', text: 'text-white', border: 'border-indigo-600' },
+  { bg: 'bg-purple-500', text: 'text-white', border: 'border-purple-600' },
+  { bg: 'bg-pink-500', text: 'text-white', border: 'border-pink-600' },
+  { bg: 'bg-red-500', text: 'text-white', border: 'border-red-600' },
+  { bg: 'bg-orange-500', text: 'text-white', border: 'border-orange-600' },
+  { bg: 'bg-amber-500', text: 'text-white', border: 'border-amber-600' },
+  { bg: 'bg-yellow-500', text: 'text-white', border: 'border-yellow-600' },
+  { bg: 'bg-lime-500', text: 'text-white', border: 'border-lime-600' },
+  { bg: 'bg-green-500', text: 'text-white', border: 'border-green-600' },
+  { bg: 'bg-emerald-500', text: 'text-white', border: 'border-emerald-600' },
+  { bg: 'bg-teal-500', text: 'text-white', border: 'border-teal-600' },
+  { bg: 'bg-cyan-500', text: 'text-white', border: 'border-cyan-600' },
+  { bg: 'bg-sky-500', text: 'text-white', border: 'border-sky-600' },
+]
+
+// Get avatar color based on agent name (deterministic)
+const getAvatarColor = (name: string) => {
+  const index = name.charCodeAt(0) % AVATAR_COLORS.length
+  return AVATAR_COLORS[index]
+}
+
 export default function AgentCatalog() {
   const navigate = useNavigate()
   const [user, setUser] = useState<any>(null)
@@ -81,7 +105,7 @@ export default function AgentCatalog() {
                 <select
                   value={categoryFilter}
                   onChange={(e) => setCategoryFilter(e.target.value)}
-                  className="w-full pl-10 pr-3 py-1.5 h-9 text-sm border border-gray-200 rounded-md bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-0 focus:border-blue-500 focus:ring-primary-500/50 transition-all duration-200"
+                  className="enterprise-input w-full pl-10 pr-3 h-9 cursor-pointer"
                 >
                   <option value="">All Categories</option>
                   {categories.map(cat => (
@@ -89,17 +113,15 @@ export default function AgentCatalog() {
                   ))}
                 </select>
               </div>
-              <MaterialButton
-                variant="text"
-                size="small"
+              <button
                 onClick={() => {
                   setSearchQuery('')
                   setCategoryFilter('')
                 }}
-                className="text-gray-500 whitespace-nowrap flex-shrink-0"
+                className="btn-secondary text-sm whitespace-nowrap flex-shrink-0"
               >
                 Clear Filters
-              </MaterialButton>
+              </button>
             </div>
           </div>
         </MaterialCard>
@@ -221,26 +243,22 @@ export default function AgentCatalog() {
               Showing {agentsData.agents.length} of {agentsData.total} agents
             </div>
             <div className="flex gap-2">
-              <MaterialButton
-                variant="outlined"
-                size="small"
+              <button
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={page === 1}
-                startIcon={<ChevronLeftIcon className="w-4 h-4" />}
-                className="border-outline/10"
+                className="btn-secondary text-sm flex items-center gap-1.5"
               >
+                <ChevronLeftIcon className="w-4 h-4" />
                 Previous
-              </MaterialButton>
-              <MaterialButton
-                variant="outlined"
-                size="small"
+              </button>
+              <button
                 onClick={() => setPage(p => p + 1)}
                 disabled={page >= Math.ceil(agentsData.total / limit)}
-                endIcon={<ChevronRightIcon className="w-4 h-4" />}
-                className="border-outline/10"
+                className="btn-secondary text-sm flex items-center gap-1.5"
               >
                 Next
-              </MaterialButton>
+                <ChevronRightIcon className="w-4 h-4" />
+              </button>
             </div>
           </div>
         )}

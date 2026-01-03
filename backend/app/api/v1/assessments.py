@@ -1820,7 +1820,7 @@ async def save_assessment_responses(
                 if is_resubmission:
                     # Get questions that were previously marked as in_progress or fail
                     from app.models.assessment_review import AssessmentReview
-                    from app.models.assessment import AssessmentQuestion
+                    # AssessmentQuestion is already imported at the top of the file
                     
                     # Get the most recent review
                     recent_review = db.query(AssessmentReview).filter(

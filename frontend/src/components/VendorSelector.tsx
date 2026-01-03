@@ -127,7 +127,7 @@ export default function VendorSelector({
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 w-full min-w-0">
       {/* Filters */}
       <div className="space-y-2 p-3 bg-gray-50 rounded-md border border-gray-200">
         <div className="text-xs font-medium text-gray-700 mb-2">Filter Vendors</div>
@@ -139,7 +139,7 @@ export default function VendorSelector({
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Search vendors by name..."
-            className="unified-search"
+            className="unified-search w-full min-w-0"
           />
         </div>
 
@@ -150,7 +150,7 @@ export default function VendorSelector({
             <select
               value={filterCategory}
               onChange={(e) => setFilterCategory(e.target.value)}
-              className="unified-select"
+              className="unified-select w-full min-w-0"
             >
               <option value="">All Categories</option>
               {categories.map(cat => (
@@ -167,7 +167,7 @@ export default function VendorSelector({
             <select
               value={filterAgentType}
               onChange={(e) => setFilterAgentType(e.target.value)}
-              className="unified-select"
+              className="unified-select w-full min-w-0"
             >
               <option value="">All Agent Types</option>
               {agentTypes.map(type => (

@@ -296,6 +296,7 @@ class ActionItemService:
             if user_role == "vendor_user":
                 # Vendors should only see assessment assignments and resubmissions
                 # Exclude items where the underlying assignment is already completed
+                # Note: AssessmentAssignment is imported at the top of the file
                 assessment_query = self.db.query(ActionItem).join(
                     AssessmentAssignment,
                     ActionItem.source_id == AssessmentAssignment.id
@@ -379,7 +380,6 @@ class ActionItemService:
             assignments_map = {}
             assessments_map = {}
             if assignment_ids:
-                from app.models.assessment import AssessmentAssignment, Assessment
                 # Filter by tenant_id to ensure tenant isolation
                 assignments = self.db.query(AssessmentAssignment).filter(
                     AssessmentAssignment.id.in_(assignment_ids),

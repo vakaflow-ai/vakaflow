@@ -1113,6 +1113,48 @@ export default function AgentSubmission() {
     }))
   }
 
+  const getMissingFields = (step: number): string[] => {
+    const missing: string[] = []
+    switch (step) {
+      case 1:
+        if (!formData.name) missing.push('Name')
+        if (!formData.type) missing.push('Type')
+        if (!formData.version) missing.push('Version')
+        break
+      case 2:
+        if (!formData.llm_vendor) {
+          missing.push('LLM Vendor')
+        } else {
+          if (formData.llm_vendor === 'Customer Choice' || formData.llm_vendor === 'Other') {
+            if (!formData.llm_model) {
+              missing.push('LLM Model')
+            }
+          } else {
+            if (!formData.llm_model) {
+              missing.push('LLM Model')
+            } else if (formData.llm_model === 'Custom' && !formData.llm_model_custom) {
+              missing.push('Custom LLM Model Name')
+            }
+          }
+        }
+        break
+      case 8:
+        if (requirements) {
+          const requiredReqs = requirements.filter(r => r.is_required)
+          requiredReqs.forEach(req => {
+            const value = requirementResponses[req.id]
+            if (value === undefined || value === null || value === '') {
+              missing.push(req.name || req.id)
+            }
+          })
+        }
+        break
+      default:
+        break
+    }
+    return missing
+  }
+
   const validateStep = (step: number): boolean => {
     switch (step) {
       case 1:
@@ -1356,7 +1398,12 @@ export default function AgentSubmission() {
         setCurrentStep(currentStep + 1)
       }
     } else {
-      showToast.warning('Please fill in all required fields before proceeding.')
+      const missingFields = getMissingFields(currentStep)
+      if (missingFields.length > 0) {
+        showToast.warning(`Please fill in all required fields before proceeding. Missing: ${missingFields.join(', ')}`)
+      } else {
+        showToast.warning('Please fill in all required fields before proceeding.')
+      }
     }
   }
 
@@ -1371,7 +1418,12 @@ export default function AgentSubmission() {
     if (step < currentStep || validateStep(currentStep)) {
       setCurrentStep(step)
     } else {
-      showToast.warning('Please complete the current step before proceeding.')
+      const missingFields = getMissingFields(currentStep)
+      if (missingFields.length > 0) {
+        showToast.warning(`Please complete the current step before proceeding. Missing: ${missingFields.join(', ')}`)
+      } else {
+        showToast.warning('Please complete the current step before proceeding.')
+      }
     }
   }
 

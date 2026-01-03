@@ -1,3 +1,4 @@
+/* Cache bust: 2025-01-02 - Fixed font-size/letter-spacing conflicts */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -84,6 +85,7 @@
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
   }
 
   :root {
@@ -119,51 +121,65 @@
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
-    font-size: 15px;
+    font-size: 14px;
     line-height: 1.6;
+    font-weight: 400;
+    color: #374151;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
   }
 
-  /* Enterprise Typography Scale */
+  /* Harmonized Typography Scale - Clear and Crisp */
   h1 {
-    @apply text-3xl font-semibold leading-tight tracking-tight;
-    font-size: 28px;
-    line-height: 1.2;
+    font-size: 24px;
+    line-height: 1.3;
+    font-weight: 600;
+    color: #111827;
+    letter-spacing: -0.01em;
   }
 
   h2 {
-    @apply text-2xl font-semibold leading-tight tracking-tight;
-    font-size: 24px;
-    line-height: 1.3;
+    font-size: 20px;
+    line-height: 1.4;
+    font-weight: 600;
+    color: #111827;
+    letter-spacing: -0.01em;
   }
 
   h3 {
-    @apply text-xl font-semibold leading-snug;
-    font-size: 20px;
+    font-size: 18px;
     line-height: 1.4;
+    font-weight: 600;
+    color: #111827;
   }
 
   h4 {
-    @apply text-lg font-semibold leading-snug;
-    font-size: 18px;
-    line-height: 1.4;
+    font-size: 16px;
+    line-height: 1.5;
+    font-weight: 600;
+    color: #111827;
   }
 
   h5 {
-    @apply text-base font-semibold leading-normal;
-    font-size: 16px;
+    font-size: 14px;
     line-height: 1.5;
+    font-weight: 600;
+    color: #374151;
   }
 
   h6 {
-    @apply text-sm font-semibold leading-normal;
     font-size: 14px;
     line-height: 1.5;
+    font-weight: 500;
+    color: #374151;
   }
 
   p {
-    @apply text-base leading-relaxed;
-    font-size: 15px;
+    font-size: 14px;
     line-height: 1.6;
+    font-weight: 400;
+    color: #374151;
   }
 
   /* Smooth scrolling */
@@ -173,9 +189,10 @@
 
   /* Button refinements */
   button {
-    @apply font-medium;
+    @apply font-normal;
     cursor: pointer;
-    font-size: 15px;
+    font-size: 14px;
+    font-weight: 400;
   }
 
   button:disabled {
@@ -191,19 +208,24 @@
   textarea,
   select {
     @apply text-foreground;
-    font-size: 15px;
+    font-size: 14px;
+    font-weight: 400;
+    color: #111827;
   }
 
   input::placeholder,
   textarea::placeholder {
-    @apply text-muted-foreground/60;
-    font-size: 15px;
+    @apply text-muted-foreground;
+    font-size: 14px;
+    color: #9ca3af;
+    opacity: 1;
   }
 
   /* Link refinements */
   a {
-    @apply text-primary hover:text-primary/80 transition-colors;
-    font-size: 15px;
+    @apply text-primary hover:text-primary/90 transition-colors;
+    font-size: 14px;
+    font-weight: 400;
   }
 
   /* Focus visible improvements */
@@ -213,28 +235,32 @@
 
   /* Table text sizes */
   table {
-    font-size: 15px;
+    font-size: 14px;
+    font-weight: 400;
   }
 
   th {
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 600;
+    color: #111827;
   }
 
   td {
-    font-size: 15px;
+    font-size: 14px;
+    font-weight: 400;
+    color: #374151;
   }
 }
 
 @layer components {
-  /* Clean, Elegant Button Styles - Enterprise Sizing */
+  /* Clean, Elegant Button Styles - Enterprise Sizing - No Shadows */
   .btn {
-    @apply inline-flex items-center justify-center rounded-lg font-medium;
-    @apply transition-all duration-200 ease-in-out;
-    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2;
+    @apply inline-flex items-center justify-center rounded-lg font-normal;
+    @apply transition-colors duration-150;
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1;
     @apply disabled:pointer-events-none disabled:opacity-50 disabled:cursor-not-allowed;
-    @apply active:scale-[0.98];
-    font-size: 15px;
+    font-size: 14px;
+    font-weight: 400;
   }
   
   /* Note: .btn-primary and .btn-secondary are defined below in the components layer */
@@ -249,24 +275,31 @@
   }
   
   .btn-sm {
-    @apply h-9 px-4 text-sm;
+    @apply h-9 px-4;
     font-size: 14px;
   }
   
   .btn-lg {
-    @apply h-12 px-6 text-base;
+    @apply h-12 px-6;
     font-size: 16px;
   }
 
   /* Clean Input Styles - Enterprise Sizing */
   .input {
     @apply flex h-11 w-full rounded-lg border bg-background px-4 py-2.5;
-    @apply ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium;
-    @apply placeholder:text-muted-foreground/60;
-    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2;
+    @apply ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-normal;
+    @apply placeholder:text-muted-foreground;
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1;
     @apply disabled:cursor-not-allowed disabled:opacity-50;
-    @apply transition-all duration-200;
-    font-size: 15px;
+    @apply transition-colors duration-150;
+    font-size: 14px;
+    font-weight: 400;
+    color: #111827;
+  }
+
+  .input::placeholder {
+    color: #9ca3af;
+    opacity: 1;
   }
   
   .input:focus-visible {
@@ -277,10 +310,10 @@
     @apply border-ring/50;
   }
 
-  /* Elegant Card Styles */
+  /* Elegant Card Styles - No Shadows */
   .card {
-    @apply rounded-xl border border-border bg-card text-card-foreground;
-    @apply transition-all duration-300 ease-in-out;
+    @apply rounded-lg border border-border bg-card text-card-foreground;
+    @apply transition-colors duration-150;
   }
   
   .card-header {
@@ -289,13 +322,18 @@
 
   .card-header h3,
   .card-header .card-title {
-    @apply text-xl font-semibold;
-    font-size: 20px;
+    font-size: 18px;
+    font-weight: 600;
+    color: #111827;
+    line-height: 1.4;
   }
   
   .card-content {
     @apply p-6 pt-0;
-    font-size: 15px;
+    font-size: 14px;
+    font-weight: 400;
+    color: #374151;
+    line-height: 1.6;
   }
   
   .card-footer {
@@ -305,23 +343,27 @@
   /* Clean Table Styles - Enterprise Sizing */
   .table {
     @apply w-full border-collapse;
-    font-size: 15px;
+    font-size: 14px;
+    font-weight: 400;
   }
   
   .table thead {
-    @apply bg-muted/30;
+    @apply bg-gray-50;
   }
   
   .table th {
-    @apply h-14 px-5 text-left align-middle font-semibold;
-    @apply border-b border-border;
-    font-size: 14px;
+    @apply h-12 px-5 text-left align-middle;
+    @apply border-b border-gray-200;
+    font-size: 13px;
     font-weight: 600;
+    color: #111827;
   }
   
   .table td {
-    @apply h-16 px-5 align-middle border-b border-border;
-    font-size: 15px;
+    @apply h-14 px-5 align-middle border-b border-gray-100;
+    font-size: 14px;
+    font-weight: 400;
+    color: #374151;
   }
   
   .table tbody tr {
@@ -329,21 +371,23 @@
   }
 
   .table tbody tr:hover {
-    @apply bg-muted/30;
+    @apply bg-gray-50;
   }
 
   /* Badge/Chip Styles - Enterprise Sizing */
   .badge {
     @apply inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 font-medium;
-    @apply transition-all duration-200;
+    @apply transition-colors duration-150;
     font-size: 13px;
+    font-weight: 500;
   }
 
   /* Label Styles */
   label {
-    @apply text-sm font-medium leading-none;
+    @apply leading-none;
     font-size: 14px;
     font-weight: 500;
+    color: #374151;
   }
 
   /* Loading Spinner */
@@ -353,16 +397,18 @@
 
   /* Form Helper Text */
   .form-helper {
-    @apply text-sm text-muted-foreground;
-    font-size: 14px;
+    font-size: 13px;
+    font-weight: 400;
     line-height: 1.5;
+    color: #6b7280;
   }
 
   /* Error Text */
   .form-error {
-    @apply text-sm text-destructive;
-    font-size: 14px;
+    font-size: 13px;
+    font-weight: 400;
     line-height: 1.5;
+    color: #dc2626;
   }
 
   /* Enterprise Form Field Styles - Standardized Alignment */
@@ -388,63 +434,75 @@
     margin-bottom: 0;
   }
 
-  /* Compact Button Styles - Primary and Secondary */
+  /* Compact Button Styles - Primary and Secondary - No Shadows */
   .btn-primary {
     @apply inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-lg;
     @apply bg-blue-600 text-white;
-    @apply hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2;
+    @apply hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1;
     @apply disabled:opacity-50 disabled:cursor-not-allowed;
-    @apply transition-all duration-200;
-    @apply shadow-sm hover:shadow-md;
+    @apply transition-colors duration-150;
     min-height: 38px;
   }
 
   .btn-secondary {
     @apply inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-lg;
     @apply bg-white text-gray-700 border border-gray-300;
-    @apply hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2;
+    @apply hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1;
     @apply disabled:opacity-50 disabled:cursor-not-allowed;
-    @apply transition-all duration-200;
-    @apply shadow-sm hover:shadow;
+    @apply transition-colors duration-150;
     min-height: 38px;
   }
 
   .btn-danger {
     @apply inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-lg;
     @apply bg-red-600 text-white;
-    @apply hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2;
+    @apply hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1;
     @apply disabled:opacity-50 disabled:cursor-not-allowed;
-    @apply transition-all duration-200;
-    @apply shadow-sm hover:shadow-md;
+    @apply transition-colors duration-150;
     min-height: 38px;
   }
 
-  /* Compact Card Styles */
+  /* Compact Card Styles - No Shadows */
   .card-compact {
-    @apply bg-white rounded-lg border border-gray-200 shadow-sm;
+    @apply bg-white rounded-lg border border-gray-200;
     @apply p-6;
-    @apply transition-shadow duration-200;
+    @apply transition-colors duration-150;
   }
 
   .card-compact:hover {
-    @apply shadow-md;
+    @apply border-gray-300;
   }
 
   .enterprise-label {
-    @apply text-sm font-medium text-gray-700;
-    margin-bottom: 0.5rem; /* Consistent 8px spacing between label and input */
+    @apply font-medium;
+    margin-bottom: 0.5rem;
     display: block;
     line-height: 1.5;
+    font-size: 14px;
+    font-weight: 500;
+    color: #374151;
   }
 
   .enterprise-input {
     @apply w-full px-3 py-2.5 border border-gray-300 rounded-lg;
-    @apply text-sm text-gray-900 bg-white;
+    @apply bg-transparent;
     @apply focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500;
-    @apply disabled:bg-gray-50 disabled:cursor-not-allowed disabled:text-gray-500;
-    @apply transition-all duration-200;
-    min-height: 42px; /* Consistent input height */
+    @apply disabled:bg-gray-50 disabled:cursor-not-allowed;
+    @apply transition-colors duration-150;
+    min-height: 42px;
     line-height: 1.5;
+    font-size: 14px;
+    font-weight: 400;
+    color: #111827;
+  }
+
+  .enterprise-input::placeholder {
+    color: #9ca3af;
+    opacity: 1;
+  }
+
+  .enterprise-input:disabled {
+    color: #6b7280;
   }
 
   .enterprise-input-error {
@@ -452,9 +510,10 @@
   }
 
   .enterprise-error-message {
-    @apply text-sm text-red-600 mt-1.5;
+    @apply text-red-600 mt-1.5;
     display: block;
     line-height: 1.5;
+    font-size: 14px;
   }
 
   /* Textarea specific styling */
@@ -547,12 +606,90 @@
   .grid > * {
     min-width: 0; /* Prevent overflow */
   }
+
+  /* Unified Typography Classes - Harmonized */
+  .unified-page-title {
+    font-size: 24px;
+    font-weight: 600;
+    line-height: 1.3;
+    color: #111827;
+    letter-spacing: -0.01em;
+  }
+
+  .unified-page-subtitle {
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 1.5;
+    color: #6b7280;
+  }
+
+  .unified-section-title {
+    font-size: 18px;
+    font-weight: 600;
+    line-height: 1.4;
+    color: #111827;
+  }
+
+  .unified-card-title {
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1.5;
+    color: #111827;
+  }
+
+  .unified-card-subtitle {
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 1.5;
+    color: #6b7280;
+  }
+
+  .text-heading {
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1.5;
+    color: #111827;
+  }
+
+  .text-subheading {
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.5;
+    color: #374151;
+  }
+
+  .text-body {
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 1.6;
+    color: #374151;
+  }
+
+  .text-caption {
+    font-size: 13px;
+    font-weight: 400;
+    line-height: 1.5;
+    color: #6b7280;
+  }
+
+  .text-label {
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.5;
+    color: #374151;
+  }
+
+  .badge-text {
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1.4;
+  }
 }
 
 @layer utilities {
-  /* Smooth transitions */
+  /* Smooth transitions - Simplified for clarity */
   .transition-smooth {
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
   }
 
   /* Text truncation */

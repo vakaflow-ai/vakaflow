@@ -16,6 +16,7 @@ import {
 } from '../components/Icons'
 import { Clock, CheckCircle, AlertCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import InboxGrid from '../components/InboxGrid'
 
 type TabType = 'pending' | 'completed' | 'overdue'
 
@@ -133,7 +134,7 @@ export default function MyActions() {
           </CardContent>
         </Card>
 
-        {/* Actions List */}
+        {/* Actions Grid */}
         <Card>
           <CardHeader>
             <CardTitle>
@@ -146,53 +147,26 @@ export default function MyActions() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {isLoading ? (
-              <div className="text-center py-12">
-                <div className="inline-block h-8 w-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-                <p className="mt-4 text-muted-foreground">Loading actions...</p>
-              </div>
-            ) : filteredItems.length === 0 ? (
-              <div className="text-center py-12">
-                <InboxIcon className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-50" />
-                <p className="text-muted-foreground">No {activeTab} actions found</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {filteredItems.map((item: ActionItem) => (
-                  <div
-                    key={item.id}
-                    className="flex items-center justify-between p-4 rounded-lg border hover:bg-muted/50 transition-colors cursor-pointer"
-                    onClick={() => {
-                      if (item.source_type === 'assessment_assignment' && item.source_id) {
-                        navigate(`/assessments/${item.source_id}`)
-                      }
-                    }}
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="font-semibold text-foreground truncate">{item.title}</h3>
-                        {item.metadata?.workflow_ticket_id && (
-                          <Badge variant="outline" className="text-xs">
-                            {item.metadata.workflow_ticket_id}
-                          </Badge>
-                        )}
-                      </div>
-                      <p className="text-sm text-muted-foreground line-clamp-2">{item.description}</p>
-                      {item.due_date && (
-                        <p className="text-xs text-muted-foreground mt-2">
-                          Due: {new Date(item.due_date).toLocaleDateString()}
-                        </p>
-                      )}
-                    </div>
-                    <div className="ml-4 flex-shrink-0">
-                      <Button variant="ghost" size="sm" className="hover:bg-muted">
-                        View
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+            <InboxGrid
+              items={filteredItems}
+              isLoading={isLoading}
+              onItemClick={(item) => {
+                // Navigate based on action type
+                if (item.type === 'approval' || item.source_type === 'assessment_approval') {
+                  // For approvers: navigate to approver review page
+                  if (item.source_id) {
+                    navigate(`/assessments/approver/${item.source_id}`)
+                  } else if (item.action_url) {
+                    navigate(item.action_url)
+                  }
+                } else if (item.source_type === 'assessment_assignment' && item.source_id) {
+                  // For vendors: navigate to assessment completion page
+                  navigate(`/assessments/${item.source_id}`)
+                } else if (item.action_url) {
+                  navigate(item.action_url)
+                }
+              }}
+            />
           </CardContent>
         </Card>
       </div>

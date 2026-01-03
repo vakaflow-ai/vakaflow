@@ -25,7 +25,8 @@ import {
   XCircle,
   HelpCircle,
   Users,
-  X
+  X,
+  Workflow
 } from 'lucide-react'
 
 interface AssessmentApproverPageProps {}
@@ -35,7 +36,8 @@ export default function AssessmentApproverPage({}: AssessmentApproverPageProps) 
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [user, setUser] = useState<any>(null)
-  const [activeTab, setActiveTab] = useState<'details' | 'history'>('details')
+  const [activeTab, setActiveTab] = useState<'details' | 'history' | 'workflow'>('details')
+  const [showSidebar, setShowSidebar] = useState(true)
   const [decisionComment, setDecisionComment] = useState('')
   const [showDecisionDialog, setShowDecisionDialog] = useState(false)
   const [pendingDecision, setPendingDecision] = useState<'accepted' | 'denied' | 'need_info' | null>(null)
@@ -160,6 +162,23 @@ export default function AssessmentApproverPage({}: AssessmentApproverPageProps) 
     enabled: !!id,
   })
 
+  // Question review mutation
+  const reviewQuestionMutation = useMutation({
+    mutationFn: ({ questionId, status, comment }: {
+      questionId: string
+      status: 'pass' | 'fail' | 'in_progress'
+      comment?: string
+    }) => assessmentsApi.reviewQuestion(id!, questionId, status, comment),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['question-reviews-approver', id] })
+      queryClient.invalidateQueries({ queryKey: ['assessment-assignment-approver', id] })
+      showToast.success('Question review saved')
+    },
+    onError: (err: any) => {
+      showToast.error(err?.response?.data?.detail || err.message || 'Failed to review question')
+    }
+  })
+
   // Decision mutation
   const submitDecisionMutation = useMutation({
     mutationFn: ({ decision, comment, forward_to_user_id }: {
@@ -168,10 +187,12 @@ export default function AssessmentApproverPage({}: AssessmentApproverPageProps) 
       forward_to_user_id?: string
     }) => assessmentsApi.submitFinalDecision(id!, decision, comment, forward_to_user_id),
     onSuccess: (result) => {
+      console.log('Decision submitted successfully:', result)
       queryClient.invalidateQueries({ queryKey: ['assessment-assignment-approver', id] })
       queryClient.invalidateQueries({ queryKey: ['assignment-reviews-approver', id] })
       queryClient.invalidateQueries({ queryKey: ['question-reviews-approver', id] })
-      showToast.success(`Assessment ${result.decision}`)
+      queryClient.invalidateQueries({ queryKey: ['workflow-history-approver', id] })
+      showToast.success(`Assessment ${result.decision || result.mapped_decision || 'decision submitted'}`)
       setShowDecisionDialog(false)
       setDecisionComment('')
       setPendingDecision(null)
@@ -179,7 +200,9 @@ export default function AssessmentApproverPage({}: AssessmentApproverPageProps) 
       setTimeout(() => navigate('/my-actions'), 2000)
     },
     onError: (err: any) => {
-      showToast.error(err?.response?.data?.detail || err.message || 'Failed to submit decision')
+      console.error('Decision submission error:', err)
+      const errorMessage = err?.response?.data?.detail || err.message || 'Failed to submit decision'
+      showToast.error(errorMessage)
     }
   })
 
@@ -248,9 +271,16 @@ export default function AssessmentApproverPage({}: AssessmentApproverPageProps) 
       return
     }
 
+    console.log('Submitting decision:', { decision: pendingDecision, comment, assignmentId: id })
+    
     submitDecisionMutation.mutate({
       decision: pendingDecision,
       comment: comment?.trim() || undefined
+    }, {
+      onError: (error: any) => {
+        console.error('Decision submission error:', error)
+        showToast.error(error?.response?.data?.detail || error.message || 'Failed to submit decision')
+      }
     })
   }
 
@@ -288,6 +318,21 @@ export default function AssessmentApproverPage({}: AssessmentApproverPageProps) 
       userId: forwardUserId,
       comment: forwardComment || undefined
     })
+  }
+
+  // Handle individual question review
+  const handleQuestionReview = (questionId: string, status: 'pass' | 'fail' | 'in_progress', comment?: string) => {
+    // For fail and in_progress, require a comment
+    if ((status === 'fail' || status === 'in_progress') && !comment?.trim()) {
+      const commentText = prompt(`Please provide a comment for ${status === 'fail' ? 'denying' : 'requesting more info on'} this question:`)
+      if (!commentText?.trim()) {
+        showToast.error('Comment is required for this action')
+        return
+      }
+      reviewQuestionMutation.mutate({ questionId, status, comment: commentText })
+    } else {
+      reviewQuestionMutation.mutate({ questionId, status, comment })
+    }
   }
 
   const getDecisionButtonColor = (decision: string) => {
@@ -360,7 +405,43 @@ export default function AssessmentApproverPage({}: AssessmentApproverPageProps) 
 
   return (
     <Layout user={user}>
-      <div className="max-w-7xl mx-auto p-6">
+      <div className="max-w-7xl mx-auto p-6 relative">
+        {/* Right Side Floating Icon Menu */}
+        <div className="fixed right-6 top-1/2 -translate-y-1/2 z-50 flex flex-col gap-3">
+          <button
+            onClick={() => setActiveTab('history')}
+            className={`p-3 rounded-full shadow-lg border-2 transition-all ${
+              activeTab === 'history'
+                ? 'bg-blue-600 text-white border-blue-700'
+                : 'bg-white text-gray-700 border-gray-300 hover:bg-blue-50 hover:border-blue-400'
+            }`}
+            title="View History & Audit"
+          >
+            <History className="w-5 h-5" />
+          </button>
+          <button
+            onClick={() => setActiveTab('workflow')}
+            className={`p-3 rounded-full shadow-lg border-2 transition-all ${
+              activeTab === 'workflow'
+                ? 'bg-purple-600 text-white border-purple-700'
+                : 'bg-white text-gray-700 border-gray-300 hover:bg-purple-50 hover:border-purple-400'
+            }`}
+            title="View Workflow"
+          >
+            <Workflow className="w-5 h-5" />
+          </button>
+          <button
+            onClick={() => setActiveTab('details')}
+            className={`p-3 rounded-full shadow-lg border-2 transition-all ${
+              activeTab === 'details'
+                ? 'bg-green-600 text-white border-green-700'
+                : 'bg-white text-gray-700 border-gray-300 hover:bg-green-50 hover:border-green-400'
+            }`}
+            title="View Assessment Details"
+          >
+            <Eye className="w-5 h-5" />
+          </button>
+        </div>
         {/* Header */}
         <div className="mb-6">
           <button
@@ -425,8 +506,8 @@ export default function AssessmentApproverPage({}: AssessmentApproverPageProps) 
                     {reviewStats.in_progress || 0} More Info
                   </MaterialChip>
                 </div>
-                {/* Approve/Deny Buttons in Header */}
-                {isApprover && assignment?.status === 'pending_approval' && (
+                {/* Approve/Deny/Need Info Buttons in Header */}
+                {isApprover && (assignment?.status === 'pending_approval' || assignment?.status === 'completed') && (
                   <div className="flex gap-2 justify-end">
                     <MaterialButton
                       onClick={() => handleDecisionClick('accepted')}
@@ -450,13 +531,24 @@ export default function AssessmentApproverPage({}: AssessmentApproverPageProps) 
                       <XCircle className="w-4 h-4 mr-2" />
                       Deny
                     </MaterialButton>
+                    <MaterialButton
+                      onClick={() => handleDecisionClick('need_info')}
+                      color="warning"
+                      variant="outlined"
+                      size="medium"
+                      disabled={submitDecisionMutation.isPending}
+                      loading={submitDecisionMutation.isPending && pendingDecision === 'need_info'}
+                    >
+                      <HelpCircle className="w-4 h-4 mr-2" />
+                      Need Info
+                    </MaterialButton>
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Tab Navigation */}
-            <div className="border-b border-gray-200">
+            {/* Tab Navigation - Hidden, using floating icons instead */}
+            <div className="border-b border-gray-200 hidden">
               <nav className="-mb-px flex space-x-8">
                 <button
                   onClick={() => setActiveTab('details')}
@@ -724,7 +816,7 @@ export default function AssessmentApproverPage({}: AssessmentApproverPageProps) 
                               </div>
 
                               {/* Response Display */}
-                              <div className="bg-gray-50 rounded p-3">
+                              <div className="bg-gray-50 rounded p-3 mb-3">
                                 <div className="text-sm text-gray-700">
                                   <strong>Response:</strong>
                                   {response?.value ? (
@@ -739,6 +831,51 @@ export default function AssessmentApproverPage({}: AssessmentApproverPageProps) 
                                     <div className="mt-1 whitespace-pre-wrap">{response.comment}</div>
                                   </div>
                                 )}
+                              </div>
+
+                              {/* Review Actions */}
+                              <div className="flex items-center gap-2 pt-2 border-t border-gray-200">
+                                <MaterialButton
+                                  variant="outlined"
+                                  color="success"
+                                  size="small"
+                                  onClick={() => handleQuestionReview(String(question.id), 'pass')}
+                                  disabled={reviewQuestionMutation.isPending}
+                                  loading={reviewQuestionMutation.isPending}
+                                >
+                                  <CheckCircle className="w-4 h-4 mr-1" />
+                                  Accept
+                                </MaterialButton>
+                                <MaterialButton
+                                  variant="outlined"
+                                  color="error"
+                                  size="small"
+                                  onClick={() => {
+                                    const comment = prompt('Please provide a reason for denying this question:')
+                                    if (comment?.trim()) {
+                                      handleQuestionReview(String(question.id), 'fail', comment)
+                                    }
+                                  }}
+                                  disabled={reviewQuestionMutation.isPending}
+                                >
+                                  <XCircle className="w-4 h-4 mr-1" />
+                                  Deny
+                                </MaterialButton>
+                                <MaterialButton
+                                  variant="outlined"
+                                  color="warning"
+                                  size="small"
+                                  onClick={() => {
+                                    const comment = prompt('Please specify what additional information is needed:')
+                                    if (comment?.trim()) {
+                                      handleQuestionReview(String(question.id), 'in_progress', comment)
+                                    }
+                                  }}
+                                  disabled={reviewQuestionMutation.isPending}
+                                >
+                                  <HelpCircle className="w-4 h-4 mr-1" />
+                                  More Info
+                                </MaterialButton>
                               </div>
                             </div>
                           )
@@ -925,6 +1062,87 @@ export default function AssessmentApproverPage({}: AssessmentApproverPageProps) 
             </div>
           </div>
           )}
+
+          {activeTab === 'workflow' && (
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+              <div className="p-6">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Workflow Status</h3>
+                
+                {assignment && (
+                  <div className="space-y-4">
+                    {/* Workflow Ticket ID */}
+                    {assignment.workflow_ticket_id && (
+                      <div>
+                        <div className="text-xs text-muted-foreground mb-1">Workflow Ticket ID</div>
+                        <div className="font-mono text-lg font-semibold bg-blue-50 px-3 py-2 rounded border border-blue-200">
+                          {assignment.workflow_ticket_id}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Assignment Status */}
+                    <div>
+                      <div className="text-xs text-muted-foreground mb-1">Status</div>
+                      <div>
+                        <span className={`inline-block px-3 py-1 rounded text-sm font-medium ${
+                          assignment.status === 'approved' ? 'bg-green-100 text-green-800' :
+                          assignment.status === 'denied' ? 'bg-red-100 text-red-800' :
+                          assignment.status === 'completed' ? 'bg-blue-100 text-blue-800' :
+                          assignment.status === 'in_progress' ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-gray-100 text-gray-800'
+                        }`}>
+                          {assignment.status?.replace('_', ' ').toUpperCase()}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Submitted At */}
+                    {assignment.completed_at && (
+                      <div>
+                        <div className="text-xs text-muted-foreground mb-1">Submitted At</div>
+                        <div className="text-sm">{new Date(assignment.completed_at).toLocaleString()}</div>
+                      </div>
+                    )}
+
+                    {/* Due Date */}
+                    {assignment.due_date && (
+                      <div>
+                        <div className="text-xs text-muted-foreground mb-1">Due Date</div>
+                        <div className="text-sm">{new Date(assignment.due_date).toLocaleString()}</div>
+                      </div>
+                    )}
+
+                    {/* Questions Summary */}
+                    <div>
+                      <div className="text-xs text-muted-foreground mb-1">Questions</div>
+                      <div className="text-sm">
+                        {assignment.total_questions || 0} total, {assignment.answered_questions || 0} answered
+                      </div>
+                    </div>
+
+                    {/* Review Progress */}
+                    <div>
+                      <div className="text-xs text-muted-foreground mb-2">Review Progress</div>
+                      <div className="grid grid-cols-3 gap-2">
+                        <div className="bg-green-50 border border-green-200 rounded p-2 text-center">
+                          <div className="text-lg font-bold text-green-600">{reviewStats.pass || 0}</div>
+                          <div className="text-xs text-green-700">Accepted</div>
+                        </div>
+                        <div className="bg-red-50 border border-red-200 rounded p-2 text-center">
+                          <div className="text-lg font-bold text-red-600">{reviewStats.fail || 0}</div>
+                          <div className="text-xs text-red-700">Denied</div>
+                        </div>
+                        <div className="bg-yellow-50 border border-yellow-200 rounded p-2 text-center">
+                          <div className="text-lg font-bold text-yellow-600">{reviewStats.in_progress || 0}</div>
+                          <div className="text-xs text-yellow-700">More Info</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </>
 
         {/* Overall Approval Actions - Only shown when all questions are accepted */}
@@ -960,6 +1178,18 @@ export default function AssessmentApproverPage({}: AssessmentApproverPageProps) 
               >
                 <XCircle className="w-5 h-5 mr-2" />
                 Overall Deny
+              </MaterialButton>
+
+              <MaterialButton
+                onClick={() => handleDecisionClick('need_info')}
+                color="warning"
+                variant="outlined"
+                size="large"
+                disabled={submitDecisionMutation.isPending}
+                loading={submitDecisionMutation.isPending && pendingDecision === 'need_info'}
+              >
+                <HelpCircle className="w-5 h-5 mr-2" />
+                Need Info
               </MaterialButton>
             </div>
           </div>

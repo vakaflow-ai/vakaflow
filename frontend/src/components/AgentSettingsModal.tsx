@@ -171,11 +171,11 @@ export default function AgentSettingsModal({ agent, onClose, onSave }: AgentSett
   const canEditCore = !isVakaAgent  // VAKA agents have read-only core properties
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 overflow-y-auto">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col my-auto">
         {/* Header */}
-        <div className="px-6 py-2 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
-          <div>
+        <div className="px-6 py-4 border-b border-gray-200 flex items-start justify-between flex-shrink-0">
+          <div className="flex-1 min-w-0 pr-4">
             <h2 className="text-xl font-medium text-gray-900">Agent Settings</h2>
             <p className="text-sm text-gray-500 mt-1">
               {agent.name} ({agent.agent_type})
@@ -188,7 +188,8 @@ export default function AgentSettingsModal({ agent, onClose, onSave }: AgentSett
           </div>
           <button
             onClick={onClose}
-            className="text-gray-600 hover:text-gray-600"
+            className="text-gray-600 hover:text-gray-800 flex-shrink-0"
+            aria-label="Close"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -197,7 +198,7 @@ export default function AgentSettingsModal({ agent, onClose, onSave }: AgentSett
         </div>
 
         {/* Content - Scrollable */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden p-6 space-y-6 min-h-0">
           {/* Basic Information */}
           <div>
             <h3 className="text-sm font-medium text-gray-900 mb-3">Basic Information</h3>
@@ -211,7 +212,7 @@ export default function AgentSettingsModal({ agent, onClose, onSave }: AgentSett
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   disabled={!canEditCore}
-                  className={`w-full px-3 py-2 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  className={`w-full min-w-0 px-3 py-2 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                     errors.name ? 'border-red-500' : 'border-gray-300'
                   } ${!canEditCore ? 'bg-gray-100 cursor-not-allowed' : ''}`}
                 />
@@ -226,7 +227,7 @@ export default function AgentSettingsModal({ agent, onClose, onSave }: AgentSett
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   rows={3}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full min-w-0 px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
                   placeholder="Agent description..."
                 />
               </div>
@@ -239,7 +240,7 @@ export default function AgentSettingsModal({ agent, onClose, onSave }: AgentSett
                   type="text"
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full min-w-0 px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="e.g., GRC, Assessment, Vendor Management"
                 />
               </div>
@@ -252,7 +253,7 @@ export default function AgentSettingsModal({ agent, onClose, onSave }: AgentSett
                   type="url"
                   value={iconUrl}
                   onChange={(e) => setIconUrl(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full min-w-0 px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="https://example.com/icon.png"
                 />
               </div>
@@ -263,18 +264,18 @@ export default function AgentSettingsModal({ agent, onClose, onSave }: AgentSett
           <div>
             <h3 className="text-sm font-medium text-gray-900 mb-3">Tags</h3>
             <div className="space-y-2">
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center gap-2">
                 <input
                   type="text"
                   value={tagInput}
                   onChange={(e) => setTagInput(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddTag())}
-                  className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="flex-1 min-w-0 px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="Add a tag..."
                 />
                 <button
                   onClick={handleAddTag}
-                  className="px-4 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                  className="px-4 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 flex-shrink-0 transition-colors"
                 >
                   Add
                 </button>
@@ -337,7 +338,7 @@ export default function AgentSettingsModal({ agent, onClose, onSave }: AgentSett
                 <select
                   value={ownerId}
                   onChange={(e) => setOwnerId(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full min-w-0 px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">No Owner</option>
                   {users?.map((user) => (
@@ -358,11 +359,11 @@ export default function AgentSettingsModal({ agent, onClose, onSave }: AgentSett
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Department
                 </label>
-                <div className="flex space-x-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   <select
                     value={department}
                     onChange={(e) => setDepartment(e.target.value)}
-                    className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="flex-1 min-w-0 px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="">Select or enter custom</option>
                     {departments.map((dept) => (
@@ -376,7 +377,7 @@ export default function AgentSettingsModal({ agent, onClose, onSave }: AgentSett
                     value={departments.includes(department) ? '' : department}
                     onChange={(e) => setDepartment(e.target.value)}
                     placeholder="Or enter custom"
-                    className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="flex-1 min-w-0 px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     onFocus={(e) => {
                       // Clear if it's a selected value from dropdown
                       if (departments.includes(department)) {
@@ -394,11 +395,11 @@ export default function AgentSettingsModal({ agent, onClose, onSave }: AgentSett
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Organization
                 </label>
-                <div className="flex space-x-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   <select
                     value={organization}
                     onChange={(e) => setOrganization(e.target.value)}
-                    className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="flex-1 min-w-0 px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="">Select or enter custom</option>
                     {organizations.map((org) => (
@@ -412,7 +413,7 @@ export default function AgentSettingsModal({ agent, onClose, onSave }: AgentSett
                     value={organizations.includes(organization) ? '' : organization}
                     onChange={(e) => setOrganization(e.target.value)}
                     placeholder="Or enter custom"
-                    className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="flex-1 min-w-0 px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                     onFocus={(e) => {
                       // Clear if it's a selected value from dropdown
                       if (organizations.includes(organization)) {
@@ -443,7 +444,7 @@ export default function AgentSettingsModal({ agent, onClose, onSave }: AgentSett
                     }
                   }}
                   rows={4}
-                  className={`w-full px-3 py-2 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono ${
+                  className={`w-full min-w-0 px-3 py-2 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono resize-y ${
                     errors.masterDataAttributes ? 'border-red-500' : 'border-gray-300'
                   }`}
                   placeholder='{"business_unit": "Engineering", "location": "US-West", "cost_center": "CC-1234"}'
@@ -465,7 +466,7 @@ export default function AgentSettingsModal({ agent, onClose, onSave }: AgentSett
               value={capabilitiesJson}
               onChange={(e) => handleCapabilitiesChange(e.target.value)}
               rows={6}
-              className={`w-full px-3 py-2 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono ${
+              className={`w-full min-w-0 px-3 py-2 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono resize-y ${
                 errors.capabilities ? 'border-red-500' : 'border-gray-300'
               }`}
               placeholder='{"key": "value"}'
@@ -535,10 +536,10 @@ export default function AgentSettingsModal({ agent, onClose, onSave }: AgentSett
         </div>
 
         {/* Footer - Fixed */}
-        <div className="px-6 py-2 border-t border-gray-200 flex items-center justify-end space-x-3 flex-shrink-0 bg-white">
+        <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-end gap-3 flex-shrink-0 bg-white">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+            className="px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
             disabled={isSaving}
           >
             Cancel
@@ -546,7 +547,7 @@ export default function AgentSettingsModal({ agent, onClose, onSave }: AgentSett
           <button
             onClick={handleSave}
             disabled={isSaving}
-            className="px-4 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-4 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {isSaving ? 'Saving...' : 'Save Changes'}
           </button>

@@ -40,16 +40,17 @@ export default function AgentExecutionModal({ agent, onExecute, onCancel }: Agen
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 overflow-y-auto">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col my-auto">
         {/* Header - Fixed */}
-        <div className="px-6 py-2 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
-          <h2 className="text-2xl font-semibold text-gray-900">
+        <div className="px-6 py-4 border-b border-gray-200 flex items-start justify-between flex-shrink-0">
+          <h2 className="text-xl font-semibold text-gray-900 flex-1 min-w-0 pr-4">
             Execute Agent: {agent.name}
           </h2>
           <button
             onClick={onCancel}
-            className="text-gray-600 hover:text-gray-600"
+            className="text-gray-600 hover:text-gray-800 flex-shrink-0"
+            aria-label="Close"
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -58,7 +59,7 @@ export default function AgentExecutionModal({ agent, onExecute, onCancel }: Agen
         </div>
 
         {/* Content - Scrollable */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden p-6 space-y-4 min-h-0">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Select Skill *
@@ -75,7 +76,7 @@ export default function AgentExecutionModal({ agent, onExecute, onCancel }: Agen
                   setInputData({}) // Reset for other skills
                 }
               }}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full min-w-0 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">Select a skill...</option>
               {agent.skills.map((skill) => (
@@ -123,7 +124,7 @@ export default function AgentExecutionModal({ agent, onExecute, onCancel }: Agen
         </div>
 
         {/* Footer - Fixed at bottom */}
-        <div className="px-6 py-2 border-t border-gray-200 flex items-center justify-end space-x-3 flex-shrink-0 bg-white">
+        <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-end gap-3 flex-shrink-0 bg-white">
           <button
             onClick={onCancel}
             className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors"

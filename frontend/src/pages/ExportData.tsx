@@ -46,36 +46,36 @@ export default function ExportData() {
   return (
     <Layout user={user}>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground mb-2">Export Data</h1>
-          <p className="text-muted-foreground">
+        <div className="mb-6">
+          <h1 className="text-2xl font-semibold text-gray-900 mb-2">Export Data</h1>
+          <p className="text-sm text-gray-600">
             Export platform data in CSV or JSON format
           </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* Agents Export */}
-          <div className="compact-card-elevated">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-9 bg-blue-100 rounded-md flex items-center justify-center">
+          <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-6">
+            <div className="flex items-center gap-4 mb-5">
+              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
                 <span className="text-2xl">🤖</span>
               </div>
-              <div>
-                <h3 className="font-medium">Agents</h3>
-                <p className="text-xs text-muted-foreground">Export all agents</p>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-base font-semibold text-gray-900 mb-1">Agents</h3>
+                <p className="text-xs text-gray-600">Export all agents</p>
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2.5">
               <button
                 onClick={() => handleExport('agents', 'csv')}
-                className="compact-button-primary flex-1 text-sm"
+                className="flex-1 px-4 py-2.5 text-sm font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 disabled={exporting === 'agents-csv'}
               >
                 {exporting === 'agents-csv' ? 'Exporting...' : 'CSV'}
               </button>
               <button
                 onClick={() => handleExport('agents', 'json')}
-                className="compact-button-secondary flex-1 text-sm"
+                className="flex-1 px-4 py-2.5 text-sm font-semibold text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 disabled={exporting === 'agents-json'}
               >
                 {exporting === 'agents-json' ? 'Exporting...' : 'JSON'}
@@ -84,47 +84,47 @@ export default function ExportData() {
           </div>
 
           {/* Audit Logs Export */}
-          <div className="compact-card-elevated">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-9 bg-amber-100 rounded-md flex items-center justify-center">
+          <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-6">
+            <div className="flex items-center gap-4 mb-5">
+              <div className="w-12 h-12 bg-amber-100 rounded-lg flex items-center justify-center flex-shrink-0">
                 <span className="text-2xl">📋</span>
               </div>
-              <div>
-                <h3 className="font-medium">Audit Logs</h3>
-                <p className="text-xs text-muted-foreground">Export audit trail</p>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-base font-semibold text-gray-900 mb-1">Audit Logs</h3>
+                <p className="text-xs text-gray-600">Export audit trail</p>
               </div>
             </div>
-            <div className="space-y-2 mb-3">
+            <div className="space-y-3 mb-5">
               <div>
-                <label className="text-xs text-muted-foreground">Start Date</label>
+                <label className="block text-xs font-semibold text-gray-900 mb-1.5">Start Date</label>
                 <input
                   type="date"
-                  className="compact-input text-sm"
+                  className="w-full px-4 py-2.5 text-sm rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                   value={dateRange.start}
                   onChange={(e) => setDateRange(prev => ({ ...prev, start: e.target.value }))}
                 />
               </div>
               <div>
-                <label className="text-xs text-muted-foreground">End Date</label>
+                <label className="block text-xs font-semibold text-gray-900 mb-1.5">End Date</label>
                 <input
                   type="date"
-                  className="compact-input text-sm"
+                  className="w-full px-4 py-2.5 text-sm rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                   value={dateRange.end}
                   onChange={(e) => setDateRange(prev => ({ ...prev, end: e.target.value }))}
                 />
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2.5">
               <button
                 onClick={() => handleExport('audit', 'csv')}
-                className="compact-button-primary flex-1 text-sm"
+                className="flex-1 px-4 py-2.5 text-sm font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 disabled={exporting === 'audit-csv'}
               >
                 {exporting === 'audit-csv' ? 'Exporting...' : 'CSV'}
               </button>
               <button
                 onClick={() => handleExport('audit', 'json')}
-                className="compact-button-secondary flex-1 text-sm"
+                className="flex-1 px-4 py-2.5 text-sm font-semibold text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 disabled={exporting === 'audit-json'}
               >
                 {exporting === 'audit-json' ? 'Exporting...' : 'JSON'}
@@ -133,27 +133,27 @@ export default function ExportData() {
           </div>
 
           {/* Compliance Report Export */}
-          <div className="compact-card-elevated">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-9 bg-green-100 rounded-md flex items-center justify-center">
+          <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-6">
+            <div className="flex items-center gap-4 mb-5">
+              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
                 <span className="text-2xl">✅</span>
               </div>
-              <div>
-                <h3 className="font-medium">Compliance</h3>
-                <p className="text-xs text-muted-foreground">Export compliance reports</p>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-base font-semibold text-gray-900 mb-1">Compliance</h3>
+                <p className="text-xs text-gray-600">Export compliance reports</p>
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2.5">
               <button
                 onClick={() => handleExport('compliance', 'csv')}
-                className="compact-button-primary flex-1 text-sm"
+                className="flex-1 px-4 py-2.5 text-sm font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 disabled={exporting === 'compliance-csv'}
               >
                 {exporting === 'compliance-csv' ? 'Exporting...' : 'CSV'}
               </button>
               <button
                 onClick={() => handleExport('compliance', 'json')}
-                className="compact-button-secondary flex-1 text-sm"
+                className="flex-1 px-4 py-2.5 text-sm font-semibold text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 disabled={exporting === 'compliance-json'}
               >
                 {exporting === 'compliance-json' ? 'Exporting...' : 'JSON'}

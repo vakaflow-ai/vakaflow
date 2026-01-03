@@ -23,26 +23,26 @@ export default function MaterialButton({
   disabled,
   ...props
 }: MaterialButtonProps) {
-  const baseClasses = "inline-flex items-center justify-center font-medium rounded-md transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+  const baseClasses = "inline-flex items-center justify-center font-normal rounded-lg transition-colors duration-150 focus:outline-none focus:ring-2 focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed"
 
   const variantClasses = {
     contained: {
-      primary: "bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500 shadow-sm hover:shadow-md",
-      neutral: "bg-slate-600 text-white hover:bg-slate-700 focus:ring-slate-500 shadow-sm hover:shadow-md",
-      error: "bg-red-600 text-white hover:bg-red-700 focus:ring-red-500 shadow-sm hover:shadow-md",
-      secondary: "bg-slate-200 text-slate-800 hover:bg-slate-300 focus:ring-slate-400 shadow-sm hover:shadow-md",
+      primary: "bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500",
+      neutral: "bg-gray-600 text-white hover:bg-gray-700 focus:ring-gray-500",
+      error: "bg-red-600 text-white hover:bg-red-700 focus:ring-red-500",
+      secondary: "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 focus:ring-blue-500",
     },
     outlined: {
-      primary: "border-2 border-blue-600 text-blue-600 hover:bg-blue-50 focus:ring-blue-500",
-      neutral: "border-2 border-slate-600 text-slate-600 hover:bg-slate-50 focus:ring-slate-500",
-      error: "border-2 border-red-600 text-red-600 hover:bg-red-50 focus:ring-red-500",
-      secondary: "border-2 border-slate-300 text-slate-700 hover:bg-slate-50 focus:ring-slate-400",
+      primary: "border border-blue-600 text-blue-600 hover:bg-blue-50 focus:ring-blue-500",
+      neutral: "border border-gray-600 text-gray-600 hover:bg-gray-50 focus:ring-gray-500",
+      error: "border border-red-600 text-red-600 hover:bg-red-50 focus:ring-red-500",
+      secondary: "border border-gray-300 text-gray-700 hover:bg-gray-50 focus:ring-blue-500",
     },
     text: {
       primary: "text-blue-600 hover:bg-blue-50 focus:ring-blue-500",
-      neutral: "text-slate-600 hover:bg-slate-50 focus:ring-slate-500",
+      neutral: "text-gray-600 hover:bg-gray-50 focus:ring-gray-500",
       error: "text-red-600 hover:bg-red-50 focus:ring-red-500",
-      secondary: "text-slate-600 hover:bg-slate-50 focus:ring-slate-400",
+      secondary: "text-gray-600 hover:bg-gray-50 focus:ring-blue-500",
     },
   }
 

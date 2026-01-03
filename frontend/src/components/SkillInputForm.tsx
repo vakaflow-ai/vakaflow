@@ -239,7 +239,7 @@ export default function SkillInputForm({ skill, agentType, value, onChange }: Sk
               // Invalid JSON, ignore
             }
           }}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-xs"
+          className="w-full min-w-0 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-xs resize-y"
           rows={6}
           placeholder='{"field": "value"}'
         />
@@ -273,7 +273,7 @@ export default function SkillInputForm({ skill, agentType, value, onChange }: Sk
   const skillDescription = getSkillDescription(skill)
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 w-full min-w-0">
       {skillDescription && (
         <div className="p-3 bg-blue-50 border border-blue-400 rounded-md">
           <p className="text-sm text-blue-900">{skillDescription}</p>
@@ -315,7 +315,7 @@ export default function SkillInputForm({ skill, agentType, value, onChange }: Sk
                   type="text"
                   value={fieldValue}
                   onChange={(e) => handleFieldChange(field.name, e.target.value, true)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
+                  className="w-full min-w-0 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
                   placeholder={`\${trigger_data.${field.name}}`}
                 />
                 <p className="text-xs text-gray-500">
@@ -342,7 +342,7 @@ export default function SkillInputForm({ skill, agentType, value, onChange }: Sk
               <select
                 value={fieldValue}
                 onChange={(e) => handleFieldChange(field.name, e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full min-w-0 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required={field.required}
               >
                 <option value="">Select {field.label.toLowerCase()}...</option>
@@ -357,7 +357,7 @@ export default function SkillInputForm({ skill, agentType, value, onChange }: Sk
                 type="text"
                 value={fieldValue}
                 onChange={(e) => handleFieldChange(field.name, e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full min-w-0 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder={field.placeholder}
                 required={field.required}
               />
@@ -366,7 +366,7 @@ export default function SkillInputForm({ skill, agentType, value, onChange }: Sk
                 type="number"
                 value={fieldValue}
                 onChange={(e) => handleFieldChange(field.name, parseInt(e.target.value) || 0)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full min-w-0 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required={field.required}
               />
             ) : field.type === 'boolean' ? (

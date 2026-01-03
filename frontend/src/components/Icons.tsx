@@ -236,6 +236,12 @@ export const ChevronDownIcon = ({ className = "w-5 h-5", size, strokeWidth = 1.5
   </svg>
 )
 
+export const ChevronUpIcon = ({ className = "w-5 h-5", size, strokeWidth = 1.5 }: IconProps) => (
+  <svg className={className} width={size} height={size} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={strokeWidth} d="M5 15l7-7 7 7" />
+  </svg>
+)
+
 export const ChevronLeftIcon = ({ className = "w-5 h-5", size, strokeWidth = 1.5 }: IconProps) => (
   <svg className={className} width={size} height={size} fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={strokeWidth} d="M15 19l-7-7 7-7" />
@@ -287,6 +293,16 @@ export const FilterIcon = ({ className = "w-5 h-5", size, strokeWidth = 1.5 }: I
 export const ActivityIcon = ({ className = "w-5 h-5", size, strokeWidth = 1.5 }: IconProps) => (
   <svg className={className} width={size} height={size} fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={strokeWidth} d="M13 10V3L4 14h7v7l9-11h-7z" />
+  </svg>
+)
+
+// Alias for ActivityIcon (used for play/execute actions)
+export const PlayIcon = ActivityIcon
+
+// Monitor icon (for monitoring/observing actions)
+export const MonitorIcon = ({ className = "w-5 h-5", size, strokeWidth = 1.5 }: IconProps) => (
+  <svg className={className} width={size} height={size} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={strokeWidth} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
   </svg>
 )
 
@@ -379,6 +395,9 @@ export const iconMap: Record<string, React.ComponentType<IconProps>> = {
   'globe': GlobeIcon,
   'inbox': InboxIcon,
   'chevron-left': ChevronLeftIcon,
+  'chevron-up': ChevronUpIcon,
+  'chevron-down': ChevronDownIcon,
+  'chevron-right': ChevronRightIcon,
   'x-circle': XCircleIcon,
   'clock': ClockIcon,
   'message-square': MessageSquareIcon,
@@ -387,6 +406,8 @@ export const iconMap: Record<string, React.ComponentType<IconProps>> = {
   'file-text': FileTextIcon,
   'filter': FilterIcon,
   'activity': ActivityIcon,
+  'play': PlayIcon,
+  'monitor': MonitorIcon,
   'calendar': CalendarIcon,
   'trending-up': TrendingUpIcon,
   'send': SendIcon,
