@@ -17,8 +17,8 @@ export default function DashboardHeader({
   className
 }: DashboardHeaderProps) {
   return (
-    <div className={cn("mb-8", className)}>
-      <div className="flex items-start justify-between mb-4">
+    <div className={cn("mb-4", className)}>
+      <div className="flex items-start justify-between mb-2">
         <div className="flex-1">
           <h1 className="text-2xl font-semibold text-foreground mb-2">
             {title}

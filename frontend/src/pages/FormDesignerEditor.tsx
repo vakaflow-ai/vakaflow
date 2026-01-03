@@ -2546,9 +2546,11 @@ export default function FormDesignerEditor() {
 
                   {/* Fields Panel Content */}
                   {(() => {
-                    // Get unique sources and categories
+                    // Get unique sources and categories (sorted for stable order)
                     const uniqueSources = Array.from(new Set((availableFieldsList || []).map(f => f.source).filter(Boolean)))
+                      .sort((a, b) => (a || '').localeCompare(b || ''))
                     const uniqueCategories = Array.from(new Set((availableFieldsList || []).map(f => f.category).filter(Boolean)))
+                      .sort((a, b) => (a || '').localeCompare(b || ''))
                     
                     // Filter fields
                     const filteredFields = (availableFieldsList || []).filter(field => {
@@ -2741,7 +2743,9 @@ export default function FormDesignerEditor() {
                             className="w-full text-xs border border-gray-300 rounded-md px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary-500"
                           >
                             <option value="">Select a section...</option>
-                            {formsDesignerSections.map(section => (
+                            {[...formsDesignerSections]
+                              .sort((a, b) => (a.order || 0) - (b.order || 0))
+                              .map(section => (
                               <option key={section.id} value={section.id}>{section.title}</option>
                             ))}
                           </select>
@@ -2750,7 +2754,13 @@ export default function FormDesignerEditor() {
                         {/* Fields List */}
                         <div className="max-h-[400px] overflow-y-auto space-y-2">
                           {/* Entity Groups */}
-                          {Object.entries(entityGroups).map(([entityName, fields]) => {
+                          {Object.entries(entityGroups)
+                            .sort(([nameA, fieldsA], [nameB, fieldsB]) => {
+                              const labelA = fieldsA?.[0]?.entity_label || nameA
+                              const labelB = fieldsB?.[0]?.entity_label || nameB
+                              return labelA.localeCompare(labelB)
+                            })
+                            .map(([entityName, fields]) => {
                             const entityLabel = fields[0]?.entity_label || entityName
                             const isExpanded = expandedEntityGroups.has(entityName)
                             const section = formsDesignerSections.find(s => s.id === activeSectionId)
@@ -2792,7 +2802,9 @@ export default function FormDesignerEditor() {
                                 </div>
                                 {isExpanded && (
                                   <div className="p-2 space-y-1 bg-white">
-                                    {fields.map((field, fieldIndex) => {
+                                    {[...fields]
+                                      .sort((a, b) => (a.label || a.field_name || '').localeCompare(b.label || b.field_name || ''))
+                                      .map((field, fieldIndex) => {
                                       // Check if field is already in ANY section (not just current section)
                                       const isInForm = fieldsInForm.has(field.field_name)
                                       return (
@@ -2835,7 +2847,9 @@ export default function FormDesignerEditor() {
                             <div className="mb-4">
                               <h4 className="text-xs font-semibold text-gray-600 mb-2 px-2">Other Fields</h4>
                               <div className="space-y-1">
-                                {nonEntityFields.map((field, fieldIndex) => {
+                                {[...nonEntityFields]
+                                  .sort((a, b) => (a.label || a.field_name || '').localeCompare(b.label || b.field_name || ''))
+                                  .map((field, fieldIndex) => {
                                   // Check across ALL sections to prevent duplicates
                                   const allFieldsInForm = formsDesignerSections.flatMap(s => s.fields.map((f: any) => f.field_name)) || []
                                   const fieldsInForm = new Set(allFieldsInForm)
@@ -3908,7 +3922,9 @@ function FieldsTab({
         
         {/* Grouped Fields by Request Type */}
         <div className="space-y-6">
-          {Object.entries(fieldsByScreen).map(([requestType, fields]) => {
+          {Object.entries(fieldsByScreen)
+            .sort(([typeA], [typeB]) => (requestTypeLabels[typeA] || typeA).localeCompare(requestTypeLabels[typeB] || typeB))
+            .map(([requestType, fields]) => {
             if (fields.length === 0) return null
             
             return (
@@ -3918,7 +3934,9 @@ function FieldsTab({
                   <span className="ml-2 text-sm font-normal text-gray-500">({fields.length} fields)</span>
                 </h3>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-                  {fields.map((field, idx) => {
+                  {fields
+                    .sort((a, b) => (a.label || a.field_name || '').localeCompare(b.label || b.field_name || ''))
+                    .map((field, idx) => {
                     // Check both editingLayout.sections and guidedSteps for accurate status
                     const isInLayout = 
                       editingLayout.sections?.some((section) => section.fields.includes(field.field_name)) ||
@@ -3963,7 +3981,9 @@ function FieldsTab({
         </div>
 
         <div className="space-y-4">
-          {editingLayout.sections?.map((section, idx) => (
+          {[...(editingLayout.sections || [])]
+            .sort((a, b) => (a.order || 0) - (b.order || 0))
+            .map((section, idx) => (
             <div key={section.id} className="border rounded p-4">
               <div className="flex justify-between items-start mb-2">
                 {isEdit ? (
@@ -4025,7 +4045,8 @@ function FieldsTab({
                       const allFieldsInForm = editingLayout.sections?.flatMap(s => s.fields) || []
                       return availableFieldsList
                         .filter((f) => !allFieldsInForm.includes(f.field_name))
-                      .map((field, idx) => (
+                        .sort((a, b) => (a.label || a.field_name || '').localeCompare(b.label || b.field_name || ''))
+                        .map((field, idx) => (
                         <option key={`${field.field_name}-${field.source}-${idx}`} value={field.field_name}>
                           {field.label} ({field.field_name})
                         </option>

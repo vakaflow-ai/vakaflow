@@ -111,7 +111,7 @@ export default function DashboardWidget({
       )}
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50/50">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-gray-50/50">
         <div className="flex items-center gap-3 flex-1 min-w-0">
           {icon && (
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white shadow-sm flex-shrink-0">
@@ -189,7 +189,7 @@ export default function DashboardWidget({
 
       {/* Content */}
       {!isMinimized && (
-        <div className="p-6">
+        <div className="p-4">
           {children}
         </div>
       )}

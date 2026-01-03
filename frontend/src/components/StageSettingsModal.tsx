@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { WorkflowStep, StageSettings } from '../lib/workflowConfig'
 import { formLayoutsApi, FormLayout } from '../lib/formLayouts'
+import MaterialSelect from './material/MaterialSelect'
 
 interface StageSettingsModalProps {
   step: WorkflowStep | null
@@ -505,13 +506,17 @@ export default function StageSettingsModal({
             <p className="text-xs text-gray-600 mb-3">
               Select a form layout to use for approver screen tabs at this stage
             </p>
-            <select
-              value={settings.layout_id || ''}
+            <MaterialSelect
+              value={settings.layout_id || null}
               onChange={(e) => setSettings({
                 ...settings,
                 layout_id: e.target.value || undefined
               })}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              options={Array.isArray(layouts) ? layouts.map((layout: FormLayout) => ({
+                value: layout.id,
+                label: layout.name
+              })) : []}
+              placeholder="Default Layout (No custom layout)"
             >
               <option value="">Default Layout (No custom layout)</option>
               {Array.isArray(layouts) && layouts.map((layout: FormLayout) => (
@@ -519,7 +524,7 @@ export default function StageSettingsModal({
                   {layout.name}
                 </option>
               ))}
-            </select>
+            </MaterialSelect>
             {(!Array.isArray(layouts) || layouts.length === 0) && (
               <p className="text-xs text-gray-500 mt-2">
                 No approver layouts mapped in Workflow Layout Manager. Go to Process Designer → Workflow Layout Manager → Map a form to the "Approval" action for this workflow.

@@ -15,6 +15,7 @@ import RequirementTreeComponent from '../components/RequirementTree'
 import Layout from '../components/Layout'
 import MermaidDiagram from '../components/MermaidDiagram'
 import { showToast } from '../utils/toast'
+import SearchableSelect, { SearchableSelectOption } from '../components/material/SearchableSelect'
 import { 
   DEFAULT_VENDOR_STEPS, 
   getBasicInformationStepNumber,
@@ -387,24 +388,8 @@ export default function AgentSubmission() {
     'Other': []
   }
   
-  const [categorySearch, setCategorySearch] = useState('')
-  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false)
-  const [subcategorySearch, setSubcategorySearch] = useState('')
-  const [showSubcategoryDropdown, setShowSubcategoryDropdown] = useState(false)
-  
-  // Sync categorySearch when formData.category is set externally (e.g., from draft)
-  useEffect(() => {
-    if (formData.category && !categorySearch) {
-      setCategorySearch(formData.category)
-    }
-  }, [formData.category])
-  
-  // Sync subcategorySearch when formData.subcategory is set externally
-  useEffect(() => {
-    if (formData.subcategory && !subcategorySearch) {
-      setSubcategorySearch(formData.subcategory)
-    }
-  }, [formData.subcategory])
+  // Note: categorySearch, subcategorySearch, and dropdown states removed
+  // SearchableSelect component now manages its own internal state
   
   // Get subcategories for selected category from field_config
   const getSubcategories = () => {
@@ -3613,81 +3598,28 @@ Please try:
       const fieldConfig = (availableField as any)?.field_config || {}
       const options = fieldConfig.options || []
       
-      // Convert options to array of strings for search
-      const categoryOptionsList = options.map((opt: any) => typeof opt === 'string' ? opt : (opt.value || opt.label))
+      // Convert options to SearchableSelectOption format
+      const categoryOptions: SearchableSelectOption[] = options.map((opt: any) => {
+        if (typeof opt === 'string') {
+          return { value: opt, label: opt }
+        }
+        return { value: opt.value || opt.label, label: opt.label || opt.value }
+      })
       
       return (
-        <div className="relative" key={elementKey}>
-          <label className="text-sm font-medium text-gray-900 mb-1 block">{label}</label>
-          <div className="relative">
-            <input
-              type="text"
-              className="compact-input"
-              value={categorySearch}
-              onChange={(e) => {
-                const value = e.target.value
-                setCategorySearch(value)
-                setShowCategoryDropdown(true)
-              }}
-              onFocus={() => {
-                setShowCategoryDropdown(true)
-                if (formData.category && !categorySearch) {
-                  setCategorySearch(formData.category)
-                }
-              }}
-              onBlur={() => {
-                setTimeout(() => {
-                  setShowCategoryDropdown(false)
-                  if (categorySearch) {
-                    const exactMatch = categoryOptionsList.find((opt: string) => opt.toLowerCase() === categorySearch.toLowerCase())
-                    if (exactMatch) {
-                      setFormData({ ...formData, category: exactMatch, subcategory: '' })
-                      setCategorySearch(exactMatch)
-                      setSubcategorySearch('')
-                    } else if (formData.category) {
-                      setCategorySearch(formData.category)
-                    } else {
-                      setCategorySearch('')
-                    }
-                  } else if (formData.category) {
-                    setCategorySearch(formData.category)
-                  }
-                }, 200)
-              }}
-              placeholder="Search or select category..."
-            />
-            {showCategoryDropdown && (
-              <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
-                {categoryOptionsList
-                  .filter((option: string) => option.toLowerCase().includes(categorySearch.toLowerCase()))
-                  .map((option: string) => (
-                    <div
-                      key={option}
-                      className={`px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm ${
-                        option === formData.category ? 'bg-blue-50 font-medium' : ''
-                      }`}
-                      onMouseDown={(e) => {
-                        e.preventDefault()
-                        setFormData({ ...formData, category: option, subcategory: '' })
-                        setCategorySearch(option)
-                        setSubcategorySearch('')
-                        setShowCategoryDropdown(false)
-                      }}
-                    >
-                      {option}
-                    </div>
-                  ))}
-                {categoryOptionsList.filter((option: string) => 
-                  option.toLowerCase().includes(categorySearch.toLowerCase())
-                ).length === 0 && (
-                  <div className="px-4 py-2 text-sm text-gray-500">
-                    No categories found
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
+        <SearchableSelect
+          key={elementKey}
+          label={label}
+          value={formData.category || null}
+          onChange={(value) => {
+            setFormData({ ...formData, category: value as string, subcategory: '' })
+          }}
+          options={categoryOptions}
+          placeholder="Search or select category..."
+          searchPlaceholder="Search or select category..."
+          emptyMessage="No categories found"
+          required={availableField?.is_required || false}
+        />
       )
     }
 
@@ -3702,79 +3634,28 @@ Please try:
         return null
       }
       
-      // Convert to array of strings for search
-      const subcategoryOptionsList = subcategories.map((opt: any) => typeof opt === 'string' ? opt : (opt.value || opt.label))
+      // Convert to SearchableSelectOption format
+      const subcategoryOptions: SearchableSelectOption[] = subcategories.map((opt: any) => {
+        if (typeof opt === 'string') {
+          return { value: opt, label: opt }
+        }
+        return { value: opt.value || opt.label, label: opt.label || opt.value }
+      })
       
       return (
-        <div className="relative" key={elementKey}>
-          <label className="text-sm font-medium text-gray-900 mb-1 block">{label}</label>
-          <div className="relative">
-            <input
-              type="text"
-              className="compact-input"
-              value={subcategorySearch}
-              onChange={(e) => {
-                const value = e.target.value
-                setSubcategorySearch(value)
-                setShowSubcategoryDropdown(true)
-              }}
-              onFocus={() => {
-                setShowSubcategoryDropdown(true)
-                if (formData.subcategory && !subcategorySearch) {
-                  setSubcategorySearch(formData.subcategory)
-                }
-              }}
-              onBlur={() => {
-                setTimeout(() => {
-                  setShowSubcategoryDropdown(false)
-                  if (subcategorySearch) {
-                    const exactMatch = subcategoryOptionsList.find((opt: string) => opt.toLowerCase() === subcategorySearch.toLowerCase())
-                    if (exactMatch) {
-                      setFormData({ ...formData, subcategory: exactMatch })
-                      setSubcategorySearch(exactMatch)
-                    } else if (formData.subcategory) {
-                      setSubcategorySearch(formData.subcategory)
-                    } else {
-                      setSubcategorySearch('')
-                    }
-                  } else if (formData.subcategory) {
-                    setSubcategorySearch(formData.subcategory)
-                  }
-                }, 200)
-              }}
-              placeholder="Search or select subcategory..."
-            />
-            {showSubcategoryDropdown && (
-              <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-auto">
-                {subcategoryOptionsList
-                  .filter((option: string) => option.toLowerCase().includes(subcategorySearch.toLowerCase()))
-                  .map((option: string) => (
-                    <div
-                      key={option}
-                      className={`px-4 py-2 hover:bg-gray-100 cursor-pointer text-sm ${
-                        option === formData.subcategory ? 'bg-blue-50 font-medium' : ''
-                      }`}
-                      onMouseDown={(e) => {
-                        e.preventDefault()
-                        setFormData({ ...formData, subcategory: option })
-                        setSubcategorySearch(option)
-                        setShowSubcategoryDropdown(false)
-                      }}
-                    >
-                      {option}
-                    </div>
-                  ))}
-                {subcategoryOptionsList.filter((option: string) => 
-                  option.toLowerCase().includes(subcategorySearch.toLowerCase())
-                ).length === 0 && (
-                  <div className="px-4 py-2 text-sm text-gray-500">
-                    No subcategories found
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
+        <SearchableSelect
+          key={elementKey}
+          label={label}
+          value={formData.subcategory || null}
+          onChange={(value) => {
+            setFormData({ ...formData, subcategory: value as string })
+          }}
+          options={subcategoryOptions}
+          placeholder="Search or select subcategory..."
+          searchPlaceholder="Search or select subcategory..."
+          emptyMessage="No subcategories found"
+          required={availableField?.is_required || false}
+        />
       )
     }
 

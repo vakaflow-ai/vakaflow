@@ -998,7 +998,9 @@ export default function FormDesigner() {
                                       
                                       return (
                                         <optgroup key={source} label={sourceLabel}>
-                                          {sourceFields.map((field) => (
+                                          {sourceFields
+                                            .sort((a, b) => (a.label || a.field_name || '').localeCompare(b.label || b.field_name || ''))
+                                            .map((field) => (
                                             <option key={`${field.source}-${field.field_name}`} value={field.field_name} title={field.description}>
                                               {field.label} ({field.field_name})
                                             </option>
@@ -1173,7 +1175,9 @@ function FieldAccessModal({
                 
                 return (
                   <optgroup key={source} label={sourceLabel}>
-                    {sourceFields.map((field) => (
+                    {sourceFields
+                      .sort((a, b) => (a.label || a.field_name || '').localeCompare(b.label || b.field_name || ''))
+                      .map((field) => (
                       <option key={`${field.source}-${field.field_name}`} value={field.field_name} title={field.description}>
                         {field.label} ({field.field_name})
                       </option>

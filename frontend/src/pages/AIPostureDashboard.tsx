@@ -8,7 +8,8 @@ import {
 import { analyticsApi } from '../lib/analytics'
 import { authApi } from '../lib/auth'
 import Layout from '../components/Layout'
-import { MaterialCard } from '../components/material'
+import DashboardWidget from '../components/DashboardWidget'
+import { TrendingUp, BarChart3, PieChart as PieChartIcon, Activity, Shield, AlertTriangle } from 'lucide-react'
 
 const COLORS = {
   risk: {
@@ -158,58 +159,101 @@ export default function AIPostureDashboard() {
     <Layout user={user}>
       <div className="space-y-6">
         {/* Header */}
-        <div>
-          <h1 className="text-2xl font-medium text-gray-900">AI Posture Dashboard</h1>
-          <p className="text-sm text-gray-500 mt-2">
-            Comprehensive runtime posture visualization for CIO/CISO
-          </p>
+        <div className="mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-semibold text-gray-900 mb-1">AI Posture Dashboard</h1>
+              <p className="text-sm text-gray-600">
+                Comprehensive runtime posture visualization for CIO/CISO
+              </p>
+            </div>
+          </div>
         </div>
 
-        {/* Key Metrics Row */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-          {/* Overall Posture Card - moved from header */}
-          <MaterialCard elevation={2} className="bg-gradient-to-br from-gray-50/50 to-gray-100/50 border-none">
-            <div className="text-sm font-medium text-gray-600 mb-1">Overall Posture</div>
-            <div className="text-3xl font-medium" style={{ color: postureLevelColor }}>
+        {/* Key Metrics */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 mb-6">
+          <div 
+            className="bg-white rounded-lg border border-gray-200 shadow-sm p-6 cursor-pointer group hover:shadow-md hover:border-gray-300 transition-all"
+            title="Overall Posture Score"
+          >
+            <div className="flex items-start justify-between mb-5">
+              <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-gray-500 to-gray-600 flex items-center justify-center text-white shadow-sm">
+                <Shield className="w-6 h-6" />
+              </div>
+            </div>
+            <div className="text-3xl font-semibold mb-2 group-hover:transition-colors" style={{ color: postureLevelColor }}>
               {posture.overall_posture.posture_score?.toFixed(1) || 'N/A'}
             </div>
-            <div className="text-xs text-gray-600 font-medium mt-1 capitalize">
+            <div className="text-sm font-medium text-gray-600 capitalize">
               {posture.overall_posture.posture_level?.replace('_', ' ') || 'N/A'}
             </div>
-          </MaterialCard>
-          <MaterialCard elevation={2} className="bg-gradient-to-br from-blue-50/50 to-blue-100/50 border-none">
-            <div className="text-sm font-medium text-blue-600 mb-1">Total Models in Use</div>
-            <div className="text-3xl font-medium text-blue-900">{posture.total_models_in_use}</div>
-            <div className="text-xs text-blue-600 font-medium mt-1">{posture.unique_vendors} unique vendors</div>
-          </MaterialCard>
-          <MaterialCard elevation={2} className="bg-gradient-to-br from-green-50/50 to-green-100/50 border-none">
-            <div className="text-sm font-medium text-green-600 mb-1">Approved Agents</div>
-            <div className="text-3xl font-medium text-green-900">{posture.overall_posture?.approved_agents || 0}</div>
-            <div className="text-xs text-green-700 font-medium mt-1">
+          </div>
+          <div 
+            className="bg-white rounded-lg border border-gray-200 shadow-sm p-6 cursor-pointer group hover:shadow-md hover:border-blue-300 transition-all"
+            title="Total Models in Use"
+          >
+            <div className="flex items-start justify-between mb-5">
+              <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white shadow-sm">
+                <BarChart3 className="w-6 h-6" />
+              </div>
+            </div>
+            <div className="text-3xl font-semibold text-blue-600 mb-2 group-hover:text-blue-700 transition-colors">{posture.total_models_in_use}</div>
+            <div className="text-sm font-medium text-gray-600">{posture.unique_vendors} unique vendors</div>
+          </div>
+          <div 
+            className="bg-white rounded-lg border border-gray-200 shadow-sm p-6 cursor-pointer group hover:shadow-md hover:border-green-300 transition-all"
+            title="Approved Agents"
+          >
+            <div className="flex items-start justify-between mb-5">
+              <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center text-white shadow-sm">
+                <Activity className="w-6 h-6" />
+              </div>
+            </div>
+            <div className="text-3xl font-semibold text-green-600 mb-2 group-hover:text-green-700 transition-colors">{posture.overall_posture?.approved_agents || 0}</div>
+            <div className="text-sm font-medium text-gray-600">
               {posture.overall_posture?.total_agents || 0} total agents
             </div>
-          </MaterialCard>
-          <MaterialCard elevation={2} className="bg-gradient-to-br from-orange-50/50 to-orange-100/50 border-none">
-            <div className="text-sm font-medium text-orange-600 mb-1">Avg Risk Score</div>
-            <div className="text-3xl font-medium text-orange-900">
+          </div>
+          <div 
+            className="bg-white rounded-lg border border-gray-200 shadow-sm p-6 cursor-pointer group hover:shadow-md hover:border-orange-300 transition-all"
+            title="Average Risk Score"
+          >
+            <div className="flex items-start justify-between mb-5">
+              <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center text-white shadow-sm">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+            </div>
+            <div className="text-3xl font-semibold text-orange-600 mb-2 group-hover:text-orange-700 transition-colors">
               {posture.overall_posture.avg_risk_score?.toFixed(1) || 'N/A'}
             </div>
-            <div className="text-xs text-orange-700 font-medium mt-1">Scale: 1-10</div>
-          </MaterialCard>
-          <MaterialCard elevation={2} className="bg-gradient-to-br from-purple-50/50 to-purple-100/50 border-none">
-            <div className="text-sm font-medium text-purple-600 mb-1">Avg Compliance</div>
-            <div className="text-3xl font-medium text-purple-900">
+            <div className="text-sm font-medium text-gray-600">Scale: 1-10</div>
+          </div>
+          <div 
+            className="bg-white rounded-lg border border-gray-200 shadow-sm p-6 cursor-pointer group hover:shadow-md hover:border-purple-300 transition-all"
+            title="Average Compliance Score"
+          >
+            <div className="flex items-start justify-between mb-5">
+              <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center text-white shadow-sm">
+                <Shield className="w-6 h-6" />
+              </div>
+            </div>
+            <div className="text-3xl font-semibold text-purple-600 mb-2 group-hover:text-purple-700 transition-colors">
               {posture.overall_posture.avg_compliance_score?.toFixed(1) || 'N/A'}
             </div>
-            <div className="text-xs text-purple-700 font-medium mt-1">Scale: 0-100</div>
-          </MaterialCard>
+            <div className="text-sm font-medium text-gray-600">Scale: 0-100</div>
+          </div>
         </div>
 
-        {/* Model Usage and Risk Analysis */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Charts Row 1 */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           {/* Model Usage */}
-          <MaterialCard elevation={1}>
-            <h2 className="text-lg font-medium mb-6 text-gray-900">AI Model Usage (Top 15)</h2>
+          <DashboardWidget
+            id="model-usage"
+            title="AI Model Usage (Top 15)"
+            icon={<BarChart3 className="w-4 h-4" />}
+            collapsible={true}
+            filterable={true}
+          >
             <ResponsiveContainer width="100%" height={350}>
               <BarChart data={modelUsageData} margin={{ top: 5, right: 30, left: 20, bottom: 120 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
@@ -225,14 +269,19 @@ export default function AIPostureDashboard() {
                 />
                 <YAxis tick={{ fontSize: 10, fill: '#666' }} stroke="#e0e0e0" />
                 <Tooltip />
-                <Bar dataKey="count" fill="var(--primary)" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="count" fill="#3b82f6" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
-          </MaterialCard>
+          </DashboardWidget>
 
           {/* Risk Distribution */}
-          <MaterialCard elevation={1}>
-            <h2 className="text-lg font-medium mb-6 text-gray-900">Risk Distribution</h2>
+          <DashboardWidget
+            id="risk-distribution"
+            title="Risk Distribution"
+            icon={<PieChartIcon className="w-4 h-4" />}
+            collapsible={true}
+            filterable={true}
+          >
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie
@@ -258,14 +307,19 @@ export default function AIPostureDashboard() {
                 />
               </PieChart>
             </ResponsiveContainer>
-          </MaterialCard>
+          </DashboardWidget>
         </div>
 
-        {/* Compliance and Deployment */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Charts Row 2 */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           {/* Compliance Distribution */}
-          <MaterialCard elevation={1}>
-            <h2 className="text-lg font-medium mb-6 text-gray-900">Compliance Distribution</h2>
+          <DashboardWidget
+            id="compliance-distribution"
+            title="Compliance Distribution"
+            icon={<PieChartIcon className="w-4 h-4" />}
+            collapsible={true}
+            filterable={true}
+          >
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie
@@ -291,11 +345,16 @@ export default function AIPostureDashboard() {
                 />
               </PieChart>
             </ResponsiveContainer>
-          </MaterialCard>
+          </DashboardWidget>
 
           {/* Deployment Distribution */}
-          <MaterialCard elevation={1}>
-            <h2 className="text-lg font-medium mb-6 text-gray-900">Deployment Distribution</h2>
+          <DashboardWidget
+            id="deployment-distribution"
+            title="Deployment Distribution"
+            icon={<BarChart3 className="w-4 h-4" />}
+            collapsible={true}
+            filterable={true}
+          >
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={deploymentData} margin={{ top: 5, right: 30, left: 20, bottom: 60 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
@@ -312,14 +371,19 @@ export default function AIPostureDashboard() {
                 <Bar dataKey="value" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
-          </MaterialCard>
+          </DashboardWidget>
         </div>
 
-        {/* Risk and Compliance by Model Heatmaps */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Charts Row 3 */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           {/* Risk by Model */}
-          <MaterialCard elevation={1}>
-            <h2 className="text-lg font-medium mb-6 text-gray-900">Risk by Model (Top 10)</h2>
+          <DashboardWidget
+            id="risk-by-model"
+            title="Risk by Model (Top 10)"
+            icon={<BarChart3 className="w-4 h-4" />}
+            collapsible={true}
+            filterable={true}
+          >
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={riskByModelData} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f0f0f0" />
@@ -341,11 +405,16 @@ export default function AIPostureDashboard() {
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
-          </MaterialCard>
+          </DashboardWidget>
 
           {/* Compliance by Model */}
-          <MaterialCard elevation={1}>
-            <h2 className="text-lg font-medium mb-6 text-gray-900">Compliance by Model (Bottom 10)</h2>
+          <DashboardWidget
+            id="compliance-by-model"
+            title="Compliance by Model (Bottom 10)"
+            icon={<BarChart3 className="w-4 h-4" />}
+            collapsible={true}
+            filterable={true}
+          >
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={complianceByModelData} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f0f0f0" />
@@ -367,12 +436,18 @@ export default function AIPostureDashboard() {
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
-          </MaterialCard>
+          </DashboardWidget>
         </div>
 
         {/* Data Classification Heatmap */}
-        <MaterialCard elevation={1}>
-          <h2 className="text-lg font-medium mb-2 text-gray-900">Data Classification Heatmap</h2>
+        <DashboardWidget
+          id="data-classification-heatmap"
+          title="Data Classification Heatmap"
+          icon={<Activity className="w-4 h-4" />}
+          collapsible={true}
+          filterable={true}
+          className="mb-6"
+        >
           <p className="text-sm text-gray-500 mb-6 font-medium">
             Risk vs Compliance scatter plot for agents with data sharing
           </p>
@@ -434,11 +509,17 @@ export default function AIPostureDashboard() {
               </Scatter>
             </ScatterChart>
           </ResponsiveContainer>
-        </MaterialCard>
+        </DashboardWidget>
 
         {/* Posture Trends */}
-        <MaterialCard elevation={1}>
-          <h2 className="text-lg font-medium mb-6 text-gray-900">Posture Trends (Last 30 Days)</h2>
+        <DashboardWidget
+          id="posture-trends"
+          title="Posture Trends (Last 30 Days)"
+          icon={<TrendingUp className="w-4 h-4" />}
+          collapsible={true}
+          filterable={true}
+          className="mb-6"
+        >
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={posture.posture_trends || []} margin={{ top: 5, right: 30, left: 20, bottom: 60 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
@@ -476,13 +557,18 @@ export default function AIPostureDashboard() {
               />
             </LineChart>
           </ResponsiveContainer>
-        </MaterialCard>
+        </DashboardWidget>
 
         {/* High Risk Agents and Data Sharing */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           {/* High Risk Agents */}
-          <MaterialCard elevation={1}>
-            <h2 className="text-lg font-medium mb-6 text-gray-900">High Risk Agents (Top 10)</h2>
+          <DashboardWidget
+            id="high-risk-agents"
+            title="High Risk Agents (Top 10)"
+            icon={<AlertTriangle className="w-4 h-4" />}
+            collapsible={true}
+            filterable={true}
+          >
             <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
               {(posture.high_risk_agents || []).slice(0, 10).map((agent) => (
                 <div
@@ -505,11 +591,16 @@ export default function AIPostureDashboard() {
                 </div>
               ))}
             </div>
-          </MaterialCard>
+          </DashboardWidget>
 
           {/* Data Sharing Analysis */}
-          <MaterialCard elevation={1}>
-            <h2 className="text-lg font-medium mb-6 text-gray-900">Data Sharing Analysis</h2>
+          <DashboardWidget
+            id="data-sharing-analysis"
+            title="Data Sharing Analysis"
+            icon={<Activity className="w-4 h-4" />}
+            collapsible={true}
+            filterable={true}
+          >
             <div className="space-y-4">
               <div className="flex items-center justify-between p-4 bg-error-50/50 rounded-md border border-error-100">
                 <span className="font-medium text-error-900">PII Sharing</span>
@@ -532,12 +623,18 @@ export default function AIPostureDashboard() {
                 <div className="text-2xl font-medium text-gray-900">{posture.data_sharing_analysis?.total_agents_with_data_sharing || 0}</div>
               </div>
             </div>
-          </MaterialCard>
+          </DashboardWidget>
         </div>
 
         {/* Integration Connections */}
-        <MaterialCard elevation={1}>
-          <h2 className="text-lg font-medium mb-6 text-gray-900">Integration Connections</h2>
+        <DashboardWidget
+          id="integration-connections"
+          title="Integration Connections"
+          icon={<Activity className="w-4 h-4" />}
+          collapsible={true}
+          filterable={true}
+          className="mb-6"
+        >
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="text-center p-6 bg-blue-100/80 rounded-md border border-blue-300">
               <div className="text-3xl font-medium text-blue-900 mb-1">{posture.integration_connections?.total_connections || 0}</div>
@@ -556,12 +653,18 @@ export default function AIPostureDashboard() {
               <div className="text-xs font-medium text-gray-500 tracking-tight">Connection Types</div>
             </div>
           </div>
-        </MaterialCard>
+        </DashboardWidget>
 
         {/* Active Compliance Frameworks */}
         {posture.active_compliance_frameworks && posture.active_compliance_frameworks.length > 0 && (
-          <MaterialCard elevation={1}>
-            <h2 className="text-lg font-medium mb-6 text-gray-900">Active Compliance Frameworks</h2>
+          <DashboardWidget
+            id="compliance-frameworks"
+            title="Active Compliance Frameworks"
+            icon={<Shield className="w-4 h-4" />}
+            collapsible={true}
+            filterable={true}
+            className="mb-6"
+          >
             <div className="flex flex-wrap gap-3">
               {posture.active_compliance_frameworks.map((framework) => (
                 <span
@@ -572,14 +675,19 @@ export default function AIPostureDashboard() {
                 </span>
               ))}
             </div>
-          </MaterialCard>
+          </DashboardWidget>
         )}
 
         {/* Cost Analytics Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           {/* Cost Overview */}
-          <MaterialCard elevation={1}>
-            <h2 className="text-lg font-medium mb-6 text-gray-900">Cost Analytics</h2>
+          <DashboardWidget
+            id="cost-analytics"
+            title="Cost Analytics"
+            icon={<TrendingUp className="w-4 h-4" />}
+            collapsible={true}
+            filterable={true}
+          >
             <div className="space-y-6">
               <div className="grid grid-cols-3 gap-4">
                 <div className="text-center p-5 bg-error-50/50 rounded-md border border-error-100">
@@ -637,11 +745,16 @@ export default function AIPostureDashboard() {
                 </div>
               )}
             </div>
-          </MaterialCard>
+          </DashboardWidget>
 
           {/* Cost by Model */}
-          <MaterialCard elevation={1}>
-            <h2 className="text-lg font-medium mb-6 text-gray-900">Cost by Model</h2>
+          <DashboardWidget
+            id="cost-by-model"
+            title="Cost by Model"
+            icon={<BarChart3 className="w-4 h-4" />}
+            collapsible={true}
+            filterable={true}
+          >
             <div className="space-y-2 max-h-96 overflow-y-auto pr-2">
               {Object.entries(posture.cost_analytics?.cost_by_model || {})
                 .sort(([, a], [, b]) => (b as number) - (a as number))
@@ -660,14 +773,19 @@ export default function AIPostureDashboard() {
                 </div>
               )}
             </div>
-          </MaterialCard>
+          </DashboardWidget>
         </div>
 
         {/* Prompt Usage Analytics */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
           {/* Prompt Usage Overview */}
-          <MaterialCard elevation={1}>
-            <h2 className="text-lg font-medium mb-6 text-gray-900">Prompt Usage</h2>
+          <DashboardWidget
+            id="prompt-usage"
+            title="Prompt Usage"
+            icon={<Activity className="w-4 h-4" />}
+            collapsible={true}
+            filterable={true}
+          >
             <div className="space-y-6">
               <div className="grid grid-cols-2 gap-4">
                 <div className="text-center p-6 bg-blue-100/80 rounded-md border border-blue-300">
@@ -729,11 +847,16 @@ export default function AIPostureDashboard() {
                 </div>
               )}
             </div>
-          </MaterialCard>
+          </DashboardWidget>
 
           {/* Usage by Role */}
-          <MaterialCard elevation={1}>
-            <h2 className="text-lg font-medium mb-6 text-gray-900">Usage by Role</h2>
+          <DashboardWidget
+            id="usage-by-role"
+            title="Usage by Role"
+            icon={<BarChart3 className="w-4 h-4" />}
+            collapsible={true}
+            filterable={true}
+          >
             <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
               {Object.entries(posture.usage_by_role || {})
                 .sort(([, a], [, b]) => (b as any).cost - (a as any).cost)
@@ -756,13 +879,19 @@ export default function AIPostureDashboard() {
                 </div>
               )}
             </div>
-          </MaterialCard>
+          </DashboardWidget>
         </div>
 
         {/* Usage by Department */}
         {Object.keys(posture.usage_by_department || {}).length > 0 && (
-          <MaterialCard elevation={1}>
-            <h2 className="text-lg font-medium mb-6 text-gray-900">Usage by Department</h2>
+          <DashboardWidget
+            id="usage-by-department"
+            title="Usage by Department"
+            icon={<BarChart3 className="w-4 h-4" />}
+            collapsible={true}
+            filterable={true}
+            className="mb-6"
+          >
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {Object.entries(posture.usage_by_department || {})
                 .sort(([, a], [, b]) => (b as any).cost - (a as any).cost)
@@ -789,13 +918,19 @@ export default function AIPostureDashboard() {
                   </div>
                 ))}
             </div>
-          </MaterialCard>
+          </DashboardWidget>
         )}
 
         {/* Cost by Agent */}
         {Object.keys(posture.cost_analytics?.cost_by_agent || {}).length > 0 && (
-          <MaterialCard elevation={1}>
-            <h2 className="text-lg font-medium mb-6 text-gray-900">Cost by Agent (Top 15)</h2>
+          <DashboardWidget
+            id="cost-by-agent"
+            title="Cost by Agent (Top 15)"
+            icon={<BarChart3 className="w-4 h-4" />}
+            collapsible={true}
+            filterable={true}
+            className="mb-6"
+          >
             <ResponsiveContainer width="100%" height={300}>
               <BarChart
                 data={Object.entries(posture.cost_analytics?.cost_by_agent || {})
@@ -824,14 +959,8 @@ export default function AIPostureDashboard() {
                 <Bar dataKey="cost" fill="#ef4444" name="Cost ($)" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
-          </MaterialCard>
+          </DashboardWidget>
         )}
-
-        {/* Real-time Status Indicator */}
-        <div className="fixed bottom-4 right-4 bg-green-500 text-white px-4 py-2 rounded-full shadow-lg flex items-center gap-2 z-50">
-          <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
-          <span className="text-sm font-medium">Live Data</span>
-        </div>
       </div>
     </Layout>
   )

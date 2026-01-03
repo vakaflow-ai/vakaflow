@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ActionItem } from '../lib/actions'
 import { useInboxColumnVisibility, InboxColumnVisibilityConfig } from '../hooks/useInboxColumnVisibility'
@@ -105,8 +105,9 @@ function getStatusColor(status: string): string {
   }
 }
 
-// Column definitions
+// Column definitions - Ticket ID is first as requested
 const COLUMN_DEFINITIONS: Record<keyof InboxColumnVisibilityConfig, { label: string; width?: string }> = {
+  workflowTicketId: { label: 'Ticket ID', width: 'w-32' },
   title: { label: 'Title', width: 'w-64' },
   type: { label: 'Type', width: 'w-32' },
   status: { label: 'Status', width: 'w-28' },
@@ -115,7 +116,6 @@ const COLUMN_DEFINITIONS: Record<keyof InboxColumnVisibilityConfig, { label: str
   dueDate: { label: 'Due Date', width: 'w-40' },
   poc: { label: 'POC', width: 'w-40' },
   customer: { label: 'Customer', width: 'w-40' },
-  workflowTicketId: { label: 'Ticket ID', width: 'w-32' },
   vendor: { label: 'Vendor', width: 'w-40' },
   agent: { label: 'Agent', width: 'w-40' },
   description: { label: 'Description', width: 'w-64' },
@@ -134,9 +134,23 @@ export default function InboxGrid({ items, isLoading, onItemClick }: InboxGridPr
   const { columnVisibility, toggleColumn, resetColumns } = useInboxColumnVisibility()
   const [showColumnMenu, setShowColumnMenu] = useState(false)
 
+  // Get visible columns, ensuring workflowTicketId is first
   const visibleColumns = Object.entries(columnVisibility)
     .filter(([_, visible]) => visible)
     .map(([key]) => key as keyof InboxColumnVisibilityConfig)
+    .sort((a, b) => {
+      // Always put workflowTicketId first
+      if (a === 'workflowTicketId') return -1
+      if (b === 'workflowTicketId') return 1
+      // Keep other columns in their original order
+      const order = ['workflowTicketId', 'title', 'type', 'status', 'priority', 'generatedDate', 'dueDate', 'poc', 'customer', 'vendor', 'agent', 'description', 'actions']
+      const indexA = order.indexOf(a)
+      const indexB = order.indexOf(b)
+      if (indexA === -1 && indexB === -1) return 0
+      if (indexA === -1) return 1
+      if (indexB === -1) return -1
+      return indexA - indexB
+    })
 
   const handleItemClick = (item: ActionItem) => {
     if (onItemClick) {
@@ -386,9 +400,14 @@ function renderCell(item: ActionItem, columnKey: keyof InboxColumnVisibilityConf
       )
     
     case 'workflowTicketId':
-      return item.metadata?.workflow_ticket_id ? (
+      // Check multiple possible sources for ticket ID
+      const ticketId = item.metadata?.workflow_ticket_id || 
+                       item.metadata?.ticket_number || 
+                       item.metadata?.request_ticket_id ||
+                       item.metadata?.request_number
+      return ticketId ? (
         <Badge variant="outline" className="text-xs font-mono bg-blue-50 text-blue-700 border-blue-200">
-          {item.metadata.workflow_ticket_id}
+          {ticketId}
         </Badge>
       ) : (
         <span className="text-muted-foreground text-xs">N/A</span>

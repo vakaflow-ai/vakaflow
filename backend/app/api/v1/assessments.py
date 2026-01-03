@@ -5032,6 +5032,109 @@ async def get_assessment_analytics(
     for assessment in assessments:
         type_distribution[assessment.assessment_type] += 1
     
+    # Vendor risk by Assessment Grading (accepted, denied, need_info)
+    from app.models.assessment_review import AssessmentReview
+    vendor_grading_heatmap = defaultdict(lambda: {
+        "vendor_name": "",
+        "grading": {
+            "accepted": 0,
+            "denied": 0,
+            "need_info": 0,
+            "pending": 0
+        }
+    })
+    
+    assignment_ids = [a.id for a in assignments]
+    reviews = db.query(AssessmentReview).filter(
+        AssessmentReview.assignment_id.in_(assignment_ids),
+        AssessmentReview.tenant_id == effective_tenant_id
+    ).all()
+    
+    for review in reviews:
+        assignment = next((a for a in assignments if a.id == review.assignment_id), None)
+        if not assignment or not assignment.vendor_id:
+            continue
+        
+        vendor = vendors.get(assignment.vendor_id)
+        if not vendor:
+            continue
+        
+        vendor_key = str(assignment.vendor_id)
+        vendor_grading_heatmap[vendor_key]["vendor_name"] = vendor.name
+        
+        # Map human_decision to grading categories
+        if review.human_decision:
+            if review.human_decision == "approved":
+                vendor_grading_heatmap[vendor_key]["grading"]["accepted"] += 1
+            elif review.human_decision == "rejected":
+                vendor_grading_heatmap[vendor_key]["grading"]["denied"] += 1
+            elif review.human_decision == "needs_revision":
+                vendor_grading_heatmap[vendor_key]["grading"]["need_info"] += 1
+        else:
+            vendor_grading_heatmap[vendor_key]["grading"]["pending"] += 1
+    
+    # Vendor risk by CVEs
+    vendor_cve_risk = defaultdict(lambda: {
+        "vendor_name": "",
+        "total_cves": 0,
+        "critical_cves": 0,
+        "high_cves": 0,
+        "medium_cves": 0,
+        "low_cves": 0,
+        "risk_score": 0.0
+    })
+    
+    try:
+        from app.models.security_incident import VendorSecurityTracking, SecurityIncident, IncidentSeverity
+        from app.core.feature_gating import FeatureGate
+        
+        # Check if CVE feature is enabled for tenant
+        feature_gate = FeatureGate(db)
+        if feature_gate.is_feature_enabled(str(effective_tenant_id), "cve_tracking") and vendor_ids:
+            # Get all CVE trackings for vendors in this tenant
+            trackings = db.query(VendorSecurityTracking).join(
+                SecurityIncident, VendorSecurityTracking.incident_id == SecurityIncident.id
+            ).filter(
+                VendorSecurityTracking.tenant_id == effective_tenant_id,
+                SecurityIncident.incident_type == "cve",
+                VendorSecurityTracking.vendor_id.in_(vendor_ids)
+            ).all()
+            
+            for tracking in trackings:
+                if not tracking.vendor_id:
+                    continue
+                
+                vendor = vendors.get(tracking.vendor_id)
+                if not vendor:
+                    continue
+                
+                vendor_key = str(tracking.vendor_id)
+                vendor_cve_risk[vendor_key]["vendor_name"] = vendor.name
+                vendor_cve_risk[vendor_key]["total_cves"] += 1
+                
+                # Get incident severity
+                incident = db.query(SecurityIncident).filter(
+                    SecurityIncident.id == tracking.incident_id
+                ).first()
+                
+                if incident and incident.severity:
+                    severity = incident.severity.value if hasattr(incident.severity, 'value') else str(incident.severity)
+                    if severity == "critical":
+                        vendor_cve_risk[vendor_key]["critical_cves"] += 1
+                        vendor_cve_risk[vendor_key]["risk_score"] += 10.0
+                    elif severity == "high":
+                        vendor_cve_risk[vendor_key]["high_cves"] += 1
+                        vendor_cve_risk[vendor_key]["risk_score"] += 7.0
+                    elif severity == "medium":
+                        vendor_cve_risk[vendor_key]["medium_cves"] += 1
+                        vendor_cve_risk[vendor_key]["risk_score"] += 4.0
+                    elif severity == "low":
+                        vendor_cve_risk[vendor_key]["low_cves"] += 1
+                        vendor_cve_risk[vendor_key]["risk_score"] += 1.0
+    except Exception as e:
+        logger.warning(f"Error fetching CVE data for analytics: {e}")
+        # Continue without CVE data if feature is not enabled or error occurs
+    
     return {
         "overview": {
             "total_assessments": total_assessments,
@@ -5062,6 +5165,25 @@ async def get_assessment_analytics(
                 ) else "green")
             }
             for vendor_id, data in vendor_distribution.items()
+        },
+        "vendor_grading_heatmap": {
+            str(vendor_id): {
+                "vendor_name": data["vendor_name"],
+                "grading": dict(data["grading"])
+            }
+            for vendor_id, data in vendor_grading_heatmap.items()
+        },
+        "vendor_cve_risk": {
+            str(vendor_id): {
+                "vendor_name": data["vendor_name"],
+                "total_cves": data["total_cves"],
+                "critical_cves": data["critical_cves"],
+                "high_cves": data["high_cves"],
+                "medium_cves": data["medium_cves"],
+                "low_cves": data["low_cves"],
+                "risk_score": round(data["risk_score"], 2)
+            }
+            for vendor_id, data in vendor_cve_risk.items()
         },
         "next_due_assessments": next_due,
         "assessment_type_distribution": dict(type_distribution),

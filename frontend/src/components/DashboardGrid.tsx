@@ -37,19 +37,36 @@ export default function DashboardGrid({
       if (saved) {
         try {
           const parsed = JSON.parse(saved)
-          if (Array.isArray(parsed)) {
-            return parsed
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            // Validate that saved layout has matching widget IDs
+            const widgetIds = children.map((child, idx) => {
+              // Try to get key from React element
+              if (child && typeof child === 'object' && 'key' in child) {
+                return child.key as string
+              }
+              return `widget-${idx}`
+            })
+            const savedIds = parsed.map((l: Layout) => l.i)
+            // If all widget IDs match, use saved layout
+            if (widgetIds.every(id => savedIds.includes(id)) && savedIds.every(id => widgetIds.includes(id))) {
+              return parsed
+            }
           }
         } catch (e) {
           console.error('Failed to parse saved layout:', e)
         }
       }
     }
-    // Generate default layout
-    return children.map((_, index) => {
+    // Generate default layout using widget keys
+    return children.map((child, index) => {
+      // Try to get key from React element
+      let widgetId = `widget-${index}`
+      if (child && typeof child === 'object' && 'key' in child && child.key) {
+        widgetId = child.key as string
+      }
       const colSpan = index % 3 === 0 ? 6 : 3 // Alternate between 6 and 3 columns
       return {
-        i: `widget-${index}`,
+        i: widgetId,
         x: (index % 2) * 6,
         y: Math.floor(index / 2) * 2,
         w: colSpan,
@@ -101,15 +118,20 @@ export default function DashboardGrid({
         isDraggable={isDraggable}
         isResizable={isResizable}
         draggableHandle=".widget-drag-handle"
-        margin={[16, 16]}
+        margin={[8, 8]}
         containerPadding={[0, 0]}
         width={containerWidth}
+        compactType="vertical"
       >
-        {children.map((child, index) => (
-          <div key={`widget-${index}`} className="widget-container">
-            {child}
-          </div>
-        ))}
+        {children.map((child, index) => {
+          // Extract widget ID from child's key if available, otherwise use index
+          const widgetId = child?.key || `widget-${index}`
+          return (
+            <div key={widgetId} className="widget-container">
+              {child}
+            </div>
+          )
+        })}
       </GridLayout>
     </div>
   )

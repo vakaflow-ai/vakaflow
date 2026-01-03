@@ -78,11 +78,32 @@ async def get_stage_settings_for_agent(
             step_type="review"
         )
     
+    # Parse workflow_steps if it's a JSON string
+    steps = workflow_config.workflow_steps
+    if isinstance(steps, str):
+        import json
+        try:
+            steps = json.loads(steps)
+        except json.JSONDecodeError:
+            logger.error(f"Failed to parse workflow_steps JSON for agent {agent_id}: {steps}")
+            steps = []
+    
+    if not isinstance(steps, list) or len(steps) == 0:
+        # Return default
+        return StageSettingsResponse(
+            visible_fields=None,
+            email_notifications=None,
+            layout_id=None,
+            step_number=onboarding_request.current_step or 0,
+            step_name="Unknown Step",
+            step_type="review"
+        )
+    
     # Find current step
     current_step_number = onboarding_request.current_step or 0
     current_step = None
     
-    for step in workflow_config.workflow_steps:
+    for step in steps:
         if step.get("step_number") == current_step_number:
             current_step = step
             break

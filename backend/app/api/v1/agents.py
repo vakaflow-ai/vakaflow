@@ -1,7 +1,7 @@
 """
 Agent management API endpoints
 """
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Query
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Query, BackgroundTasks
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from pydantic import BaseModel, EmailStr, Field, validator
@@ -957,6 +957,7 @@ async def upload_artifact(
 async def submit_agent(
     agent_id: UUID,
     request: Request,
+    background_tasks: BackgroundTasks,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
@@ -1313,6 +1314,70 @@ async def submit_agent(
             logger.info(f"✅ Successfully created onboarding request {onboarding_request.id} for agent {agent.id}")
             logger.info(f"   Status: {onboarding_request.status}, Step: {onboarding_request.current_step}, Workflow Config: {onboarding_request.workflow_config_id}")
             logger.info(f"   Assigned To: {onboarding_request.assigned_to}")
+            
+            # Trigger workflow orchestration in background (non-blocking)
+            if workflow_config and onboarding_request.status == "in_review":
+                # Schedule workflow orchestration as background task to avoid blocking response
+                async def execute_workflow_orchestration():
+                    """Background task to execute workflow orchestration"""
+                    try:
+                        # Create a new database session for background task
+                        from app.core.database import SessionLocal
+                        background_db = SessionLocal()
+                        try:
+                            from app.services.workflow_orchestration import WorkflowOrchestrationService
+                            orchestration = WorkflowOrchestrationService(background_db, vendor.tenant_id)
+                            
+                            # Determine workflow stage from status
+                            workflow_stage = "pending_approval"  # Default for in_review status
+                            
+                            # Get agent data for workflow orchestration
+                            agent_data = {
+                                "id": str(agent.id),
+                                "name": agent.name,
+                                "type": agent.type,
+                                "category": agent.category,
+                                "status": agent.status
+                            }
+                            
+                            # Evaluate business rules for the first step
+                            rule_results = orchestration.evaluate_business_rules_for_stage(
+                                entity_type="agent",
+                                entity_id=agent.id,
+                                entity_data=agent_data,
+                                request_type="agent_onboarding_workflow",
+                                workflow_stage=workflow_stage,
+                                user=current_user,
+                                auto_execute=True
+                            )
+                            logger.info(f"✅ Workflow orchestration executed for agent {agent.id}: {rule_results.get('matched_rules', 0)} rules matched")
+                            
+                            # Send stage notifications if configured
+                            if onboarding_request.assigned_to:
+                                assigned_user = background_db.query(User).filter(User.id == onboarding_request.assigned_to).first()
+                                if assigned_user:
+                                    try:
+                                        await orchestration.send_stage_notifications(
+                                            workflow_config=workflow_config,
+                                            workflow_stage=workflow_stage,
+                                            entity_type="agent",
+                                            entity_id=agent.id,
+                                            entity_data=agent_data,
+                                            user=assigned_user
+                                        )
+                                        logger.info(f"✅ Stage notifications sent for agent {agent.id}")
+                                    except Exception as notif_error:
+                                        logger.warning(f"⚠️ Failed to send stage notifications for agent {agent.id}: {str(notif_error)}")
+                                        # Don't fail if notifications fail
+                        finally:
+                            background_db.close()
+                    except Exception as orchestration_error:
+                        logger.warning(f"⚠️ Workflow orchestration failed for agent {agent.id}: {str(orchestration_error)}", exc_info=True)
+                        # Don't fail the submission if orchestration fails
+                
+                # Add background task (executes after response is sent)
+                background_tasks.add_task(execute_workflow_orchestration)
+                logger.info(f"📋 Scheduled workflow orchestration as background task for agent {agent.id}")
         except Exception as e:
             db.rollback()
             logger.error(f"❌ Failed to create onboarding request for agent {agent.id}: {str(e)}", exc_info=True)

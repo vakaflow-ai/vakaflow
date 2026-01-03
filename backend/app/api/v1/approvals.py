@@ -521,7 +521,115 @@ async def get_agent_approval(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Get approval status for an agent"""
+    """Get approval status for an agent - checks both OnboardingRequest (workflow-based) and ApprovalInstance (legacy)"""
+    # First check for workflow-based onboarding request
+    from app.models.workflow_config import OnboardingRequest, WorkflowConfiguration
+    onboarding_request = db.query(OnboardingRequest).filter(
+        OnboardingRequest.agent_id == agent_id,
+        OnboardingRequest.status.in_(["pending", "in_review", "approved", "rejected"])
+    ).order_by(OnboardingRequest.created_at.desc()).first()
+    
+    if onboarding_request:
+        # Convert OnboardingRequest to ApprovalResponse format
+        # Get workflow config to extract step information
+        workflow_config = None
+        steps_data = []
+        if onboarding_request.workflow_config_id:
+            workflow_config = db.query(WorkflowConfiguration).filter(
+                WorkflowConfiguration.id == onboarding_request.workflow_config_id
+            ).first()
+            
+            if workflow_config and workflow_config.workflow_steps:
+                import json
+                workflow_steps = workflow_config.workflow_steps
+                if isinstance(workflow_steps, str):
+                    try:
+                        workflow_steps = json.loads(workflow_steps)
+                    except json.JSONDecodeError:
+                        workflow_steps = []
+                
+                if isinstance(workflow_steps, list):
+                    # Create step responses from workflow steps
+                    for step in workflow_steps:
+                        step_number = step.get("step_number", 0)
+                        step_type = step.get("step_type", "review")
+                        step_name = step.get("step_name", "Unknown Step")
+                        assigned_role = step.get("assigned_role")
+                        
+                        # Determine step status based on current_step
+                        if step_number < onboarding_request.current_step:
+                            step_status = "completed"
+                        elif step_number == onboarding_request.current_step:
+                            step_status = "in_progress" if onboarding_request.status == "in_review" else "pending"
+                        else:
+                            step_status = "pending"
+                        
+                        # Get assigned user if available
+                        assigned_to_user = None
+                        if onboarding_request.assigned_to and step_number == onboarding_request.current_step:
+                            assigned_user = db.query(User).filter(User.id == onboarding_request.assigned_to).first()
+                            if assigned_user:
+                                assigned_to_user = UserInfo(
+                                    id=str(assigned_user.id),
+                                    name=assigned_user.name,
+                                    email=assigned_user.email,
+                                    role=assigned_user.role.value if hasattr(assigned_user.role, 'value') else str(assigned_user.role)
+                                )
+                        
+                        steps_data.append(ApprovalStepResponse(
+                            id=f"step-{step_number}",
+                            step_number=step_number,
+                            step_type=step_type,
+                            step_name=step_name,
+                            assigned_to=str(onboarding_request.assigned_to) if (step_number == onboarding_request.current_step and onboarding_request.assigned_to) else None,
+                            assigned_to_user=assigned_to_user,
+                            assigned_role=assigned_role,
+                            status=step_status,
+                            completed_by=str(onboarding_request.approved_by) if (step_status == "completed" and onboarding_request.approved_by) else None,
+                            completed_by_user=None,  # Could be populated if needed
+                            completed_at=onboarding_request.approved_at.isoformat() if (step_status == "completed" and onboarding_request.approved_at) else None,
+                            notes=onboarding_request.approval_notes if step_status == "completed" else None
+                        ))
+        
+        # Get current assignee
+        current_assignee = None
+        if onboarding_request.assigned_to:
+            assigned_user = db.query(User).filter(User.id == onboarding_request.assigned_to).first()
+            if assigned_user:
+                current_assignee = UserInfo(
+                    id=str(assigned_user.id),
+                    name=assigned_user.name,
+                    email=assigned_user.email,
+                    role=assigned_user.role.value if hasattr(assigned_user.role, 'value') else str(assigned_user.role)
+                )
+        
+        # Get approved_by user info
+        approved_by_user = None
+        if onboarding_request.approved_by:
+            approved_user = db.query(User).filter(User.id == onboarding_request.approved_by).first()
+            if approved_user:
+                approved_by_user = UserInfo(
+                    id=str(approved_user.id),
+                    name=approved_user.name,
+                    email=approved_user.email,
+                    role=approved_user.role.value if hasattr(approved_user.role, 'value') else str(approved_user.role)
+                )
+        
+        return ApprovalResponse(
+            id=str(onboarding_request.id),
+            agent_id=str(onboarding_request.agent_id),
+            status=onboarding_request.status,
+            current_step=onboarding_request.current_step or 0,
+            approved_by=str(onboarding_request.approved_by) if onboarding_request.approved_by else None,
+            approved_by_user=approved_by_user,
+            approval_notes=onboarding_request.approval_notes,
+            started_at=onboarding_request.created_at.isoformat(),
+            completed_at=onboarding_request.approved_at.isoformat() if onboarding_request.approved_at else None,
+            current_assignee=current_assignee,
+            steps=steps_data
+        )
+    
+    # Fall back to legacy ApprovalInstance
     approval = db.query(ApprovalInstance).filter(
         ApprovalInstance.agent_id == agent_id
     ).first()

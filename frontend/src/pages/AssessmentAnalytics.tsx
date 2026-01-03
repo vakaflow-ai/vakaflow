@@ -3,9 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { assessmentsApi } from '../lib/assessments'
 import { authApi } from '../lib/auth'
 import Layout from '../components/Layout'
-import DashboardHeader from '../components/DashboardHeader'
 import DashboardWidget from '../components/DashboardWidget'
-import DashboardGrid from '../components/DashboardGrid'
 import { useDashboardFilters } from '../hooks/useDashboardFilters'
 import {
   BarChart3,
@@ -17,7 +15,13 @@ import {
   AlertCircle,
   FileText,
   Filter,
+  Shield,
+  AlertTriangle,
 } from 'lucide-react'
+import {
+  BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
+  ResponsiveContainer
+} from 'recharts'
 import { Button } from '@/components/ui/button'
 
 export default function AssessmentAnalytics() {
@@ -87,39 +91,59 @@ export default function AssessmentAnalytics() {
     )
   }
 
-  const widgets = [
-    // Overview Metrics
-    <DashboardWidget
-      key="overview"
-      id="overview"
-      title="Overview Metrics"
-      icon={<TrendingUp className="w-5 h-5 text-primary" />}
-      actions={
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-muted text-sm font-medium">
-          <Filter className="w-4 h-4" />
-          <span>Filters</span>
-        </div>
-      }
+  // Overview Metrics - Individual cards (like Analytics Dashboard)
+  const overviewCards = [
+    <div 
+      key="overview-total-assessments"
+      className="bg-white rounded-lg border border-gray-200 shadow-sm p-6 cursor-pointer group hover:shadow-md hover:border-blue-300 transition-all"
     >
-      <div className="grid grid-cols-2 gap-4">
-        <div className="p-4 rounded-lg bg-blue-50 border border-blue-200">
-          <div className="text-sm text-blue-700 font-medium mb-1">Total Assessments</div>
-          <div className="text-2xl font-semibold text-blue-900">{analytics.overview.total_assessments}</div>
-        </div>
-        <div className="p-4 rounded-lg bg-green-50 border border-green-200">
-          <div className="text-sm text-green-700 font-medium mb-1">Total Assignments</div>
-          <div className="text-2xl font-semibold text-green-900">{analytics.overview.total_assignments}</div>
-        </div>
-        <div className="p-4 rounded-lg bg-purple-50 border border-purple-200">
-          <div className="text-sm text-purple-700 font-medium mb-1">Completion Rate</div>
-          <div className="text-2xl font-semibold text-purple-900">{analytics.overview.completion_rate.toFixed(1)}%</div>
-        </div>
-        <div className="p-4 rounded-lg bg-red-50 border border-red-200">
-          <div className="text-sm text-red-700 font-medium mb-1">Overdue</div>
-          <div className="text-2xl font-semibold text-red-900">{analytics.overview.overdue_assignments}</div>
+      <div className="flex items-start justify-between mb-5">
+        <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white shadow-sm">
+          <FileText className="w-6 h-6" />
         </div>
       </div>
-    </DashboardWidget>,
+      <div className="text-3xl font-semibold text-blue-600 mb-2 group-hover:text-blue-700 transition-colors">{analytics.overview.total_assessments}</div>
+      <div className="text-sm font-medium text-gray-600">Total Assessments</div>
+    </div>,
+    <div 
+      key="overview-total-assignments"
+      className="bg-white rounded-lg border border-gray-200 shadow-sm p-6 cursor-pointer group hover:shadow-md hover:border-green-300 transition-all"
+    >
+      <div className="flex items-start justify-between mb-5">
+        <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center text-white shadow-sm">
+          <CheckCircle2 className="w-6 h-6" />
+        </div>
+      </div>
+      <div className="text-3xl font-semibold text-green-600 mb-2 group-hover:text-green-700 transition-colors">{analytics.overview.total_assignments}</div>
+      <div className="text-sm font-medium text-gray-600">Total Assignments</div>
+    </div>,
+    <div 
+      key="overview-completion-rate"
+      className="bg-white rounded-lg border border-gray-200 shadow-sm p-6 cursor-pointer group hover:shadow-md hover:border-purple-300 transition-all"
+    >
+      <div className="flex items-start justify-between mb-5">
+        <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center text-white shadow-sm">
+          <TrendingUp className="w-6 h-6" />
+        </div>
+      </div>
+      <div className="text-3xl font-semibold text-purple-600 mb-2 group-hover:text-purple-700 transition-colors">{analytics.overview.completion_rate.toFixed(1)}%</div>
+      <div className="text-sm font-medium text-gray-600">Completion Rate</div>
+    </div>,
+    <div 
+      key="overview-overdue"
+      className="bg-white rounded-lg border border-gray-200 shadow-sm p-6 cursor-pointer group hover:shadow-md hover:border-red-300 transition-all"
+    >
+      <div className="flex items-start justify-between mb-5">
+        <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-red-500 to-red-600 flex items-center justify-center text-white shadow-sm">
+          <AlertCircle className="w-6 h-6" />
+        </div>
+      </div>
+      <div className="text-3xl font-semibold text-red-600 mb-2 group-hover:text-red-700 transition-colors">{analytics.overview.overdue_assignments}</div>
+      <div className="text-sm font-medium text-gray-600">Overdue</div>
+    </div>,
+  ]
+
+  const widgets = [
 
     // Filters Widget
     <DashboardWidget
@@ -182,7 +206,9 @@ export default function AssessmentAnalytics() {
     >
       {Object.keys(analytics.quarterly_progress || {}).length > 0 ? (
         <div className="space-y-6">
-          {Object.entries(analytics.quarterly_progress).map(([quarter, data]: [string, any]) => (
+          {Object.entries(analytics.quarterly_progress)
+            .sort(([quarterA], [quarterB]) => quarterB.localeCompare(quarterA)) // Sort descending (newest first)
+            .map(([quarter, data]: [string, any]) => (
             <div key={quarter} className="border-b border-border pb-6 last:border-0 last:pb-0">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-base font-semibold text-foreground">{quarter}</h3>
@@ -249,7 +275,9 @@ export default function AssessmentAnalytics() {
     >
       {Object.keys(analytics.assessment_type_distribution || {}).length > 0 ? (
         <div className="space-y-3">
-          {Object.entries(analytics.assessment_type_distribution).map(([type, count]: [string, any]) => (
+          {Object.entries(analytics.assessment_type_distribution)
+            .sort(([typeA], [typeB]) => typeA.localeCompare(typeB))
+            .map(([type, count]: [string, any]) => (
             <div
               key={type}
               className="flex items-center justify-between p-4 rounded-lg border border-border hover:bg-muted/50 transition-colors"
@@ -288,8 +316,12 @@ export default function AssessmentAnalytics() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {Object.entries(analytics.vendor_distribution).map(([vendorId, vendorData]: [string, any]) => (
-                Object.entries(vendorData.assessments || {}).map(([assessmentType, data]: [string, any], idx) => (
+              {Object.entries(analytics.vendor_distribution)
+                .sort(([, a], [, b]) => (a.vendor_name || '').localeCompare(b.vendor_name || ''))
+                .map(([vendorId, vendorData]: [string, any]) => (
+                Object.entries(vendorData.assessments || {})
+                  .sort(([typeA], [typeB]) => typeA.localeCompare(typeB))
+                  .map(([assessmentType, data]: [string, any], idx) => (
                   <tr key={`${vendorId}-${assessmentType}`} className="hover:bg-muted/30 transition-colors">
                     {idx === 0 && (
                       <td rowSpan={Object.keys(vendorData.assessments || {}).length} className="px-4 py-3 align-top">
@@ -375,21 +407,213 @@ export default function AssessmentAnalytics() {
         <div className="text-center py-8 text-muted-foreground">No upcoming assessments</div>
       )}
     </DashboardWidget>,
+
+    // Vendor Risk Heatmap by Assessment Grading
+    <DashboardWidget
+      key="vendor-grading-heatmap"
+      id="vendor-grading-heatmap"
+      title="Vendor Risk by Assessment Grading"
+      icon={<BarChart3 className="w-5 h-5 text-primary" />}
+      collapsible={true}
+      filterable={true}
+    >
+      {analytics.vendor_grading_heatmap && Object.keys(analytics.vendor_grading_heatmap).length > 0 ? (
+        <div className="space-y-4">
+          <ResponsiveContainer width="100%" height={400}>
+            <BarChart
+              data={Object.entries(analytics.vendor_grading_heatmap)
+                .map(([vendorId, data]: [string, any]) => ({
+                  vendor: data.vendor_name,
+                  vendorId: vendorId, // Keep vendorId for stable sorting
+                  accepted: data.grading.accepted,
+                  denied: data.grading.denied,
+                  need_info: data.grading.need_info,
+                  pending: data.grading.pending,
+                  total: data.grading.accepted + data.grading.denied + data.grading.need_info + data.grading.pending
+                }))
+                .filter(item => item.total > 0)
+                .sort((a, b) => {
+                  // First sort by total (descending), then by vendor name (ascending) for stable order
+                  if (b.total !== a.total) return b.total - a.total
+                  return a.vendor.localeCompare(b.vendor)
+                })
+                .slice(0, 15)}
+              margin={{ top: 20, right: 30, left: 20, bottom: 100 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+              <XAxis
+                dataKey="vendor"
+                angle={-45}
+                textAnchor="end"
+                height={120}
+                tick={{ fontSize: 11 }}
+                stroke="#6b7280"
+              />
+              <YAxis tick={{ fontSize: 12 }} stroke="#6b7280" />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: 'white',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '8px',
+                  padding: '12px'
+                }}
+              />
+              <Legend />
+              <Bar dataKey="accepted" stackId="a" fill="#10b981" name="Accepted" />
+              <Bar dataKey="denied" stackId="a" fill="#ef4444" name="Denied" />
+              <Bar dataKey="need_info" stackId="a" fill="#f59e0b" name="Need Info" />
+              <Bar dataKey="pending" stackId="a" fill="#6b7280" name="Pending" />
+            </BarChart>
+          </ResponsiveContainer>
+          <div className="mt-4 pt-4 border-t border-gray-100">
+            <p className="text-xs text-gray-500 text-center">Stacked bar chart showing assessment grading distribution by vendor</p>
+          </div>
+        </div>
+      ) : (
+        <div className="text-center py-8 text-muted-foreground">No grading data available</div>
+      )}
+    </DashboardWidget>,
+
+    // Vendor Risk by CVEs
+    <DashboardWidget
+      key="vendor-cve-risk"
+      id="vendor-cve-risk"
+      title="Vendor Risk by CVEs"
+      icon={<Shield className="w-5 h-5 text-primary" />}
+      collapsible={true}
+      filterable={true}
+    >
+      {analytics.vendor_cve_risk && Object.keys(analytics.vendor_cve_risk).length > 0 ? (
+        <div className="space-y-4">
+          <ResponsiveContainer width="100%" height={400}>
+            <BarChart
+              data={Object.entries(analytics.vendor_cve_risk)
+                .map(([vendorId, data]: [string, any]) => ({
+                  vendor: data.vendor_name,
+                  vendorId: vendorId, // Keep vendorId for stable sorting
+                  critical: data.critical_cves,
+                  high: data.high_cves,
+                  medium: data.medium_cves,
+                  low: data.low_cves,
+                  total: data.total_cves,
+                  risk_score: data.risk_score
+                }))
+                .filter(item => item.total > 0)
+                .sort((a, b) => {
+                  // First sort by risk_score (descending), then by vendor name (ascending) for stable order
+                  if (b.risk_score !== a.risk_score) return b.risk_score - a.risk_score
+                  return a.vendor.localeCompare(b.vendor)
+                })
+                .slice(0, 15)}
+              margin={{ top: 20, right: 30, left: 20, bottom: 100 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+              <XAxis
+                dataKey="vendor"
+                angle={-45}
+                textAnchor="end"
+                height={120}
+                tick={{ fontSize: 11 }}
+                stroke="#6b7280"
+              />
+              <YAxis tick={{ fontSize: 12 }} stroke="#6b7280" />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: 'white',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: '8px',
+                  padding: '12px'
+                }}
+                formatter={(value: number, name: string) => {
+                  if (name === 'risk_score') {
+                    return [`${value.toFixed(1)}`, 'Risk Score']
+                  }
+                  return [value, name]
+                }}
+              />
+              <Legend />
+              <Bar dataKey="critical" stackId="a" fill="#dc2626" name="Critical" />
+              <Bar dataKey="high" stackId="a" fill="#f97316" name="High" />
+              <Bar dataKey="medium" stackId="a" fill="#f59e0b" name="Medium" />
+              <Bar dataKey="low" stackId="a" fill="#10b981" name="Low" />
+            </BarChart>
+          </ResponsiveContainer>
+          <div className="mt-4 pt-4 border-t border-gray-100">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {Object.entries(analytics.vendor_cve_risk)
+                .map(([vendorId, data]: [string, any]) => ({
+                  vendor: data.vendor_name,
+                  vendorId: vendorId, // Keep vendorId for stable sorting
+                  total: data.total_cves,
+                  risk_score: data.risk_score
+                }))
+                .filter(item => item.total > 0)
+                .sort((a, b) => {
+                  // First sort by risk_score (descending), then by vendor name (ascending) for stable order
+                  if (b.risk_score !== a.risk_score) return b.risk_score - a.risk_score
+                  return a.vendor.localeCompare(b.vendor)
+                })
+                .slice(0, 8)
+                .map((item, idx) => (
+                  <div key={idx} className="p-3 rounded-lg border border-gray-200 bg-gray-50">
+                    <div className="text-xs font-medium text-gray-600 mb-1 truncate">{item.vendor}</div>
+                    <div className="text-lg font-semibold text-gray-900">{item.total} CVEs</div>
+                    <div className="text-xs text-gray-500">Risk: {item.risk_score.toFixed(1)}</div>
+                  </div>
+                ))}
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="text-center py-8 text-muted-foreground">No CVE data available</div>
+      )}
+    </DashboardWidget>,
   ]
 
   return (
     <Layout user={user}>
-      <div className="max-w-7xl mx-auto px-6 py-6">
-        <DashboardHeader
-          title="Assessment Analytics"
-          subtitle="Comprehensive analytics for vendor assessment management and risk monitoring. Drag widgets to rearrange, resize, and customize your dashboard."
-        />
-        <DashboardGrid
-          storageKey="assessment-analytics-layout"
-          rowHeight={80}
-        >
-          {widgets}
-        </DashboardGrid>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-semibold text-gray-900 mb-1">Assessment Analytics</h1>
+              <p className="text-sm text-gray-600">
+                Comprehensive analytics for vendor assessment management and risk monitoring
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Overview Metrics */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+          {overviewCards}
+        </div>
+
+        {/* Filters and Quarterly Progress */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+          {widgets.filter((w: any) => w.key === 'filters').map((widget: any) => widget)}
+          <div className="lg:col-span-2">
+            {widgets.filter((w: any) => w.key === 'quarterly').map((widget: any) => widget)}
+          </div>
+        </div>
+
+        {/* Assessment Types and Upcoming */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          {widgets.filter((w: any) => w.key === 'types').map((widget: any) => widget)}
+          {widgets.filter((w: any) => w.key === 'upcoming').map((widget: any) => widget)}
+        </div>
+
+        {/* Vendor Risk Distribution */}
+        <div className="mb-6">
+          {widgets.filter((w: any) => w.key === 'vendors').map((widget: any) => widget)}
+        </div>
+
+        {/* Vendor Grading Heatmap and CVE Risk */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          {widgets.filter((w: any) => w.key === 'vendor-grading-heatmap').map((widget: any) => widget)}
+          {widgets.filter((w: any) => w.key === 'vendor-cve-risk').map((widget: any) => widget)}
+        </div>
       </div>
     </Layout>
   )

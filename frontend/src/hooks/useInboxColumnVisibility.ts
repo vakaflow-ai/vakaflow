@@ -24,6 +24,7 @@ export interface InboxColumnVisibilityConfig {
 }
 
 const DEFAULT_COLUMNS: InboxColumnVisibilityConfig = {
+  workflowTicketId: true, // Ticket ID is first and always visible by default
   title: true,
   type: true,
   status: true,
@@ -32,7 +33,6 @@ const DEFAULT_COLUMNS: InboxColumnVisibilityConfig = {
   dueDate: true,
   poc: true,
   customer: false, // Hidden by default for non-vendor users
-  workflowTicketId: true,
   vendor: false,
   agent: false,
   description: false,

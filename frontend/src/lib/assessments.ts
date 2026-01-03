@@ -538,6 +538,24 @@ export const assessmentsApi = {
       }>
       overall_risk: 'green' | 'yellow' | 'red'
     }>
+    vendor_grading_heatmap: Record<string, {
+      vendor_name: string
+      grading: {
+        accepted: number
+        denied: number
+        need_info: number
+        pending: number
+      }
+    }>
+    vendor_cve_risk: Record<string, {
+      vendor_name: string
+      total_cves: number
+      critical_cves: number
+      high_cves: number
+      medium_cves: number
+      low_cves: number
+      risk_score: number
+    }>
     next_due_assessments: Array<{
       assignment_id: string
       assessment_name: string

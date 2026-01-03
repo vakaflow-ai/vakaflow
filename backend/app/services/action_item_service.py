@@ -490,7 +490,7 @@ class ActionItemService:
             logger.error(f"Assessment action items query failed (table may not exist): {e}", exc_info=True)
             pass
         
-        # 4. Get pending onboarding requests assigned to user (or all for admins)
+        # 4. Get pending onboarding requests assigned to user (or all for admins only)
         try:
             user = self.db.query(UserModel).filter(UserModel.id == user_id).first()
             is_admin = user and user.role.value in ["tenant_admin", "platform_admin"]
@@ -500,7 +500,7 @@ class ActionItemService:
                 OnboardingRequest.status.in_(["pending", "in_review"])
             )
             
-            # Admins can see all requests, regular users only see assigned requests
+            # Admins can see all requests, approvers and regular users only see assigned requests (or unassigned)
             if not is_admin:
                 onboarding_query = onboarding_query.filter(
                     (OnboardingRequest.assigned_to == user_id) | (OnboardingRequest.assigned_to.is_(None))
@@ -550,6 +550,26 @@ class ActionItemService:
                 # Link to approval interface for approvals, agent detail for reviews
                 action_url = f"/approvals/{request.agent_id}" if is_approval_step else f"/agents/{request.agent_id}"
                 
+                # Get ticket number if ticket exists for this agent
+                ticket_number = None
+                workflow_ticket_id = None
+                try:
+                    from app.services.ticket_service import TicketService
+                    ticket = TicketService.get_ticket_by_agent(self.db, request.agent_id)
+                    if ticket and hasattr(ticket, 'ticket_number'):
+                        ticket_number = ticket.ticket_number
+                        workflow_ticket_id = ticket.ticket_number
+                except Exception as e:
+                    logger.debug(f"Could not get ticket for agent {request.agent_id}: {e}")
+                
+                # Use external_workflow_id if ticket_number not available
+                if not workflow_ticket_id:
+                    workflow_ticket_id = request.external_workflow_id
+                
+                # Use request_number as fallback
+                if not workflow_ticket_id:
+                    workflow_ticket_id = request.request_number
+                
                 action_items.append({
                     "id": str(request.id),
                     "type": action_type,
@@ -567,6 +587,8 @@ class ActionItemService:
                         "agent_name": agent.name if agent else None,
                         "request_number": request.request_number,
                         "request_ticket_id": request.external_workflow_id,
+                        "ticket_number": ticket_number,
+                        "workflow_ticket_id": workflow_ticket_id,  # Primary ticket ID for display
                         "current_step": request.current_step,
                         "step_type": "approval" if is_approval_step else "review"
                     }
@@ -591,6 +613,7 @@ class ActionItemService:
                 ).all()
             
             for ticket in tickets:
+                ticket_number = ticket.ticket_number if hasattr(ticket, 'ticket_number') else None
                 action_items.append({
                     "id": str(ticket.id),
                     "type": ActionItemType.TICKET.value,
@@ -604,9 +627,10 @@ class ActionItemService:
                     "source_id": str(ticket.id),
                     "action_url": f"/tickets/{ticket.id}",
                     "metadata": {
-                        "ticket_type": ticket.ticket_type,
-                        "priority": ticket.priority,
-                        "ticket_number": ticket.ticket_number if hasattr(ticket, 'ticket_number') else None
+                        "ticket_type": ticket.ticket_type if hasattr(ticket, 'ticket_type') else None,
+                        "priority": ticket.priority if hasattr(ticket, 'priority') else None,
+                        "ticket_number": ticket_number,
+                        "workflow_ticket_id": ticket_number  # Use ticket_number as workflow_ticket_id
                     }
                 })
         except Exception as e:
