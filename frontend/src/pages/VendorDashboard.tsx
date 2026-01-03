@@ -76,9 +76,9 @@ export default function VendorDashboard() {
 
   return (
     <Layout user={user}>
-      <div className="space-y-8 max-w-7xl mx-auto pb-12 px-4 sm:px-6">
+      <div className="max-w-7xl mx-auto px-6 py-6 space-y-6">
         {/* Header - Enterprise Design */}
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 bg-white p-6 rounded-lg shadow-sm border border-gray-100">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 bg-white p-6 rounded-lg border border-slate-200">
           <div>
             <h1 className="text-2xl font-semibold text-gray-900 tracking-tight flex items-center gap-2">
               <div className="w-1.5 h-8 bg-blue-600 rounded-full" />
@@ -114,8 +114,8 @@ export default function VendorDashboard() {
         </div>
 
         {/* Dimension Toolbar - Improved UX */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
-          <div className="px-6 py-2 border-b border-gray-50 flex items-center justify-between bg-blue-100/80">
+        <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
+          <div className="px-6 py-3 border-b border-slate-200 flex items-center justify-between bg-slate-50">
             <div className="flex items-center gap-2">
               <FilterIcon className="w-4 h-4 text-gray-600" />
               <h3 className="text-xs font-medium text-gray-600 tracking-tight">Dimension filters</h3>
@@ -169,7 +169,7 @@ export default function VendorDashboard() {
         {/* Core Metric Grid - Enterprise Polish */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           <div 
-            className="group relative bg-white p-6 rounded-lg shadow-sm border border-gray-100 hover:shadow-md hover:border-primary-100 transition-all cursor-pointer overflow-hidden"
+            className="group relative bg-white p-6 rounded-lg border border-slate-200 hover:border-primary transition-all cursor-pointer overflow-hidden"
             onClick={() => navigate('/submissions')}
           >
             <div className="absolute top-0 left-0 w-1.5 h-full bg-primary-500 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -187,7 +187,7 @@ export default function VendorDashboard() {
           </div>
 
           <div 
-            className="group relative bg-white p-6 rounded-lg shadow-sm border border-gray-100 hover:shadow-md hover:border-success-100 transition-all cursor-pointer overflow-hidden"
+            className="group relative bg-white p-6 rounded-lg border border-slate-200 hover:border-green-500 transition-all cursor-pointer overflow-hidden"
             onClick={() => navigate('/submissions?status=approved')}
           >
             <div className="absolute top-0 left-0 w-1.5 h-full bg-success-500 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -205,7 +205,7 @@ export default function VendorDashboard() {
           </div>
 
           <div 
-            className="group relative bg-white p-6 rounded-lg shadow-sm border border-gray-100 hover:shadow-md hover:border-warning-100 transition-all cursor-pointer overflow-hidden"
+            className="group relative bg-white p-6 rounded-lg border border-slate-200 hover:border-orange-500 transition-all cursor-pointer overflow-hidden"
             onClick={() => navigate('/submissions?status=submitted,in_review')}
           >
             <div className="absolute top-0 left-0 w-1.5 h-full bg-warning-500 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -225,7 +225,7 @@ export default function VendorDashboard() {
             </div>
           </div>
 
-          <div className="relative bg-white p-6 rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+          <div className="relative bg-white p-6 rounded-lg border border-slate-200 overflow-hidden">
             <div className="absolute top-0 right-0 w-32 h-32 bg-gray-50 rounded-full -mr-16 -mt-16" />
             <div className="flex items-center justify-between mb-4 relative">
               <div className="w-12 h-9 rounded-md bg-gray-100 flex items-center justify-center text-gray-600">
@@ -239,9 +239,9 @@ export default function VendorDashboard() {
         </div>
 
         {/* Quality Scoring - High Impact */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <div className="group bg-white p-8 rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-all relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-2 h-full bg-success-500/20 group-hover:bg-success-500 transition-all" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="group bg-white p-8 rounded-lg border border-slate-200 hover:border-green-500 transition-all relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-2 h-full bg-green-500/20 group-hover:bg-green-500 transition-all" />
             <div className="flex items-start justify-between relative">
               <div className="flex-1">
                 <div className="text-sm font-medium text-gray-700 tracking-tight mb-4">Portfolio compliance alignment</div>
@@ -269,8 +269,8 @@ export default function VendorDashboard() {
             </div>
           </div>
 
-          <div className="group bg-white p-8 rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-all relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-2 h-full bg-error-500/20 group-hover:bg-error-500 transition-all" />
+          <div className="group bg-white p-8 rounded-lg border border-slate-200 hover:border-red-500 transition-all relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-2 h-full bg-red-500/20 group-hover:bg-red-500 transition-all" />
             <div className="flex items-start justify-between relative">
               <div className="flex-1">
                 <div className="text-sm font-medium text-gray-700 tracking-tight mb-4">Average risk profiling</div>

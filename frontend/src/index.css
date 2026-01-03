@@ -237,15 +237,7 @@
     font-size: 15px;
   }
   
-  .btn-primary {
-    @apply btn bg-primary text-primary-foreground hover:bg-primary/90;
-    @apply shadow-sm hover:shadow-md h-11 px-5;
-  }
-  
-  .btn-secondary {
-    @apply btn bg-secondary text-secondary-foreground hover:bg-secondary/80;
-    @apply shadow-sm hover:shadow-md h-11 px-5;
-  }
+  /* Note: .btn-primary and .btn-secondary are defined below in the components layer */
   
   .btn-outline {
     @apply btn border-2 border-input bg-background hover:bg-accent hover:text-accent-foreground;
@@ -371,6 +363,189 @@
     @apply text-sm text-destructive;
     font-size: 14px;
     line-height: 1.5;
+  }
+
+  /* Enterprise Form Field Styles - Standardized Alignment */
+  .enterprise-form-field {
+    @apply flex flex-col;
+    margin-bottom: 0; /* Let parent spacing handle it */
+  }
+
+  /* Ensure proper spacing in form containers */
+  .space-y-6 > .enterprise-form-field:not(:last-child),
+  .space-y-4 > .enterprise-form-field:not(:last-child),
+  .space-y-6 > .enterprise-form-field-wrapper:not(:last-child),
+  .space-y-4 > .enterprise-form-field-wrapper:not(:last-child) {
+    margin-bottom: 0; /* Parent handles spacing */
+  }
+
+  /* Ensure wrapper doesn't add extra spacing */
+  .enterprise-form-field-wrapper {
+    margin-bottom: 0;
+  }
+
+  .enterprise-form-field-wrapper > .enterprise-form-field {
+    margin-bottom: 0;
+  }
+
+  /* Compact Button Styles - Primary and Secondary */
+  .btn-primary {
+    @apply inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-lg;
+    @apply bg-blue-600 text-white;
+    @apply hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2;
+    @apply disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply transition-all duration-200;
+    @apply shadow-sm hover:shadow-md;
+    min-height: 38px;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-lg;
+    @apply bg-white text-gray-700 border border-gray-300;
+    @apply hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2;
+    @apply disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply transition-all duration-200;
+    @apply shadow-sm hover:shadow;
+    min-height: 38px;
+  }
+
+  .btn-danger {
+    @apply inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-lg;
+    @apply bg-red-600 text-white;
+    @apply hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2;
+    @apply disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply transition-all duration-200;
+    @apply shadow-sm hover:shadow-md;
+    min-height: 38px;
+  }
+
+  /* Compact Card Styles */
+  .card-compact {
+    @apply bg-white rounded-lg border border-gray-200 shadow-sm;
+    @apply p-6;
+    @apply transition-shadow duration-200;
+  }
+
+  .card-compact:hover {
+    @apply shadow-md;
+  }
+
+  .enterprise-label {
+    @apply text-sm font-medium text-gray-700;
+    margin-bottom: 0.5rem; /* Consistent 8px spacing between label and input */
+    display: block;
+    line-height: 1.5;
+  }
+
+  .enterprise-input {
+    @apply w-full px-3 py-2.5 border border-gray-300 rounded-lg;
+    @apply text-sm text-gray-900 bg-white;
+    @apply focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500;
+    @apply disabled:bg-gray-50 disabled:cursor-not-allowed disabled:text-gray-500;
+    @apply transition-all duration-200;
+    min-height: 42px; /* Consistent input height */
+    line-height: 1.5;
+  }
+
+  .enterprise-input-error {
+    @apply border-red-500 focus:ring-red-500 focus:border-red-500;
+  }
+
+  .enterprise-error-message {
+    @apply text-sm text-red-600 mt-1.5;
+    display: block;
+    line-height: 1.5;
+  }
+
+  /* Textarea specific styling */
+  .enterprise-input[as="textarea"],
+  textarea.enterprise-input {
+    min-height: 100px;
+    resize: vertical;
+    padding-top: 0.625rem;
+    padding-bottom: 0.625rem;
+  }
+
+  /* Select specific styling */
+  select.enterprise-input {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+    background-position: right 0.5rem center;
+    background-repeat: no-repeat;
+    background-size: 1.5em 1.5em;
+    padding-right: 2.5rem;
+    appearance: none;
+  }
+
+  /* Grid alignment utilities - ensure grid items align to top for consistent alignment */
+  .grid > * {
+    align-self: start;
+  }
+
+  /* Form field alignment in grids */
+  .grid .enterprise-form-field {
+    margin-bottom: 0; /* Remove bottom margin in grids to prevent double spacing */
+  }
+
+  /* Prevent overlapping fields */
+  .enterprise-form-field + .enterprise-form-field {
+    margin-top: 0; /* Already has margin-bottom from parent */
+  }
+
+  /* Ensure no overlapping in nested containers */
+  .space-y-6 > * + * {
+    margin-top: 1.5rem;
+  }
+
+  .space-y-4 > * + * {
+    margin-top: 1rem;
+  }
+
+  .space-y-2 > * + * {
+    margin-top: 0.5rem;
+  }
+
+  /* Prevent scrollbar overlap */
+  .overflow-y-auto {
+    scrollbar-gutter: stable;
+  }
+
+  /* Custom scrollbar styling */
+  .overflow-y-auto::-webkit-scrollbar,
+  .overflow-x-auto::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .overflow-y-auto::-webkit-scrollbar-track,
+  .overflow-x-auto::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .overflow-y-auto::-webkit-scrollbar-thumb,
+  .overflow-x-auto::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+  }
+
+  .overflow-y-auto::-webkit-scrollbar-thumb:hover,
+  .overflow-x-auto::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+  }
+
+  /* Prevent nested scrollbars */
+  .overflow-y-auto .overflow-y-auto,
+  .overflow-x-auto .overflow-x-auto {
+    overflow: visible;
+  }
+
+  /* Card hover effects */
+  .group:hover .group-hover\:scale-110 {
+    transform: scale(1.1);
+  }
+
+  /* Ensure cards have proper spacing */
+  .grid > * {
+    min-width: 0; /* Prevent overflow */
   }
 }
 

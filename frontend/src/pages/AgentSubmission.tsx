@@ -2189,7 +2189,7 @@ Please try:
                     }))
                   }
                 }}
-                className="compact-input"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
                 accept={customField.accepted_file_types || '*'}
                 required={isRequired}
               />
@@ -2332,7 +2332,7 @@ Please try:
                 <select
                   value={(formData as any)[fieldName] || ''}
                   onChange={(e) => setFormData((prev: any) => ({ ...prev, [fieldName]: e.target.value }))}
-                  className="compact-input"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
                   required={isRequired}
                   disabled={isReadOnly}
                 >
@@ -2360,7 +2360,7 @@ Please try:
                 type="number"
                 value={(formData as any)[fieldName] || ''}
                 onChange={(e) => setFormData((prev: any) => ({ ...prev, [fieldName]: e.target.value ? Number(e.target.value) : '' }))}
-                className="compact-input"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
                 placeholder={customField.placeholder}
                 required={isRequired}
                 disabled={isReadOnly}
@@ -2381,7 +2381,7 @@ Please try:
                 type="date"
                 value={(formData as any)[fieldName] || ''}
                 onChange={(e) => setFormData((prev: any) => ({ ...prev, [fieldName]: e.target.value }))}
-                className="compact-input"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
                 required={isRequired}
                 disabled={isReadOnly}
               />
@@ -2401,7 +2401,7 @@ Please try:
                 type="email"
                 value={(formData as any)[fieldName] || ''}
                 onChange={(e) => setFormData((prev: any) => ({ ...prev, [fieldName]: e.target.value }))}
-                className="compact-input"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
                 placeholder={customField.placeholder}
                 required={isRequired}
                 disabled={isReadOnly}
@@ -2422,7 +2422,7 @@ Please try:
                 type="url"
                 value={(formData as any)[fieldName] || ''}
                 onChange={(e) => setFormData((prev: any) => ({ ...prev, [fieldName]: e.target.value }))}
-                className="compact-input"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
                 placeholder={customField.placeholder || 'https://...'}
                 required={isRequired}
                 disabled={isReadOnly}
@@ -2539,7 +2539,7 @@ Please try:
                 type="text"
                 value={(formData as any)[fieldName] || ''}
                 onChange={(e) => setFormData((prev: any) => ({ ...prev, [fieldName]: e.target.value }))}
-                className="compact-input"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
                 placeholder={customField.placeholder}
                 required={customField.is_required}
               />
@@ -2957,13 +2957,13 @@ Please try:
         
         if (needsCustomInput) {
           return (
-            <div key={`${fieldName}-${fieldIndex}`} className={`space-y-2 ${isReadOnly ? 'opacity-75' : ''}`}>
-              <label className="text-sm font-medium text-gray-900 mb-1 block">
+            <div key={`${fieldName}-${fieldIndex}`} className={`enterprise-form-field ${isReadOnly ? 'opacity-75' : ''}`}>
+              <label className="enterprise-label">
                 {availableFieldLabel}
                 {isRequired && <span className="text-red-600 ml-1">*</span>}
               </label>
               {availableField.description && (
-                <p className="text-xs text-gray-500 mb-1">{availableField.description}</p>
+                <p className="text-xs text-gray-500 mb-2">{availableField.description}</p>
               )}
               <input
                 type="text"
@@ -2973,7 +2973,7 @@ Please try:
                     setFormData((prev: any) => ({ ...prev, [fieldName]: e.target.value }))
                   }
                 }}
-                className="compact-input"
+                className="enterprise-input"
                 placeholder={fieldConfig.placeholder || `Enter ${availableFieldLabel.toLowerCase()}...`}
                 disabled={isReadOnly}
                 required={isRequired}
@@ -2999,7 +2999,7 @@ Please try:
                     setFormData((prev: any) => ({ ...prev, [fieldName]: e.target.value }))
                   }
                 }}
-                className="compact-input"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
                 disabled={isReadOnly}
                 required={isRequired}
               >
@@ -3036,13 +3036,13 @@ Please try:
         } else {
           // No predefined options and custom not allowed, show text input
           return (
-            <div key={`${fieldName}-${fieldIndex}`} className={`space-y-2 ${isReadOnly ? 'opacity-75' : ''}`}>
-              <label className="text-sm font-medium text-gray-900 mb-1 block">
+            <div key={`${fieldName}-${fieldIndex}`} className={`enterprise-form-field ${isReadOnly ? 'opacity-75' : ''}`}>
+              <label className="enterprise-label">
                 {availableFieldLabel}
                 {isRequired && <span className="text-red-600 ml-1">*</span>}
               </label>
               {availableField.description && (
-                <p className="text-xs text-gray-500 mb-1">{availableField.description}</p>
+                <p className="text-xs text-gray-500 mb-2">{availableField.description}</p>
               )}
               <input
                 type="text"
@@ -3052,7 +3052,7 @@ Please try:
                     setFormData((prev: any) => ({ ...prev, [fieldName]: e.target.value }))
                   }
                 }}
-                className="compact-input"
+                className="enterprise-input"
                 placeholder={fieldConfig.placeholder || `Enter ${availableFieldLabel.toLowerCase()}...`}
                 disabled={isReadOnly}
                 required={isRequired}
@@ -3103,7 +3103,7 @@ Please try:
                     setFormData((prev: any) => ({ ...prev, [fieldName]: e.target.value }))
                   }
                 }}
-                className="compact-input"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
                 disabled={isReadOnly}
                 required={isRequired}
               >
@@ -3122,13 +3122,13 @@ Please try:
           )
         } else {
           return (
-            <div key={`${fieldName}-${fieldIndex}`} className={`space-y-2 ${isReadOnly ? 'opacity-75' : ''}`}>
-              <label className="text-sm font-medium text-gray-900 mb-1 block">
+            <div key={`${fieldName}-${fieldIndex}`} className={`enterprise-form-field ${isReadOnly ? 'opacity-75' : ''}`}>
+              <label className="enterprise-label">
                 {availableFieldLabel}
                 {isRequired && <span className="text-red-600 ml-1">*</span>}
               </label>
               {availableField.description && (
-                <p className="text-xs text-gray-500 mb-1">{availableField.description}</p>
+                <p className="text-xs text-gray-500 mb-2">{availableField.description}</p>
               )}
               <input
                 type="text"
@@ -3138,7 +3138,7 @@ Please try:
                     setFormData((prev: any) => ({ ...prev, [fieldName]: e.target.value }))
                   }
                 }}
-                className="compact-input"
+                className="enterprise-input"
                 placeholder={fieldConfig.placeholder || `Enter ${availableFieldLabel.toLowerCase()}...`}
                 disabled={isReadOnly}
                 required={isRequired}
@@ -3235,8 +3235,8 @@ Please try:
                 type="text"
                 value={fieldValue || ''}
                 onChange={(e) => !isReadOnly && setFormData((prev: any) => ({ ...prev, [fieldName]: e.target.value }))}
-                className="compact-input"
-                placeholder={fieldConfig.placeholder || availableField.description}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
+                placeholder={fieldConfig.placeholder || `Enter ${availableFieldLabel.toLowerCase()}...`}
                 disabled={isReadOnly}
               />
             </div>
@@ -3254,8 +3254,8 @@ Please try:
                 type="text"
                 value={fieldValue || ''}
                 onChange={(e) => !isReadOnly && setFormData((prev: any) => ({ ...prev, [fieldName]: e.target.value }))}
-                className="compact-input"
-                placeholder={availableField.placeholder || availableField.description}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
+                placeholder={availableField.placeholder || `Enter ${availableFieldLabel.toLowerCase()}...`}
                 disabled={isReadOnly}
               />
             </div>
@@ -3464,7 +3464,7 @@ Please try:
 
           // Wrap in a div with a unique key to avoid duplicate key warnings
           return (
-            <div key={`${fieldName}-${idx}`} className="w-full">
+            <div key={`${fieldName}-${idx}`} className="w-full enterprise-form-field-wrapper">
               {fieldElement}
             </div>
           )
@@ -3507,7 +3507,7 @@ Please try:
     }
     
     return (
-      <div className="space-y-4">
+      <div className="space-y-6">
         {renderedFields}
       </div>
     )
@@ -3992,7 +3992,7 @@ Please try:
               <label className="text-sm font-medium mb-1 block">Data Retention Period</label>
               <input
                 type="text"
-                className="compact-input"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
                 value={scope.data_retention_period || ''}
                 onChange={(e) => setFormData({
                   ...formData,
@@ -4213,7 +4213,7 @@ Please try:
               <label className="text-sm font-medium mb-1 block">Compatibility</label>
               <input
                 type="text"
-                className="compact-input"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
                 value={versionInfo.compatibility || ''}
                 onChange={(e) => setFormData({
                   ...formData,
@@ -4347,7 +4347,7 @@ Please try:
             <div>
               <label className="text-sm font-medium mb-1 block">LLM Vendor *</label>
               <select
-                className="compact-input"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
                 value={formData.llm_vendor}
                 onChange={(e) => {
                   const newVendor = e.target.value
@@ -4409,7 +4409,7 @@ Please try:
                   </p>
                   <input
                     type="text"
-                    className="compact-input"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
                     value={formData.llm_model_custom}
                     onChange={(e) => setFormData({ ...formData, llm_model_custom: e.target.value })}
                     placeholder="e.g., custom-llm-v2, internal-model-1.0, vendor-specific-model"
@@ -4418,7 +4418,7 @@ Please try:
               ) : (
                 <>
                   <select
-                    className="compact-input"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
                     value={formData.llm_model || ''}
                     onChange={(e) => {
                       setFormData({ ...formData, llm_model: e.target.value })
@@ -4452,7 +4452,7 @@ Please try:
             <div>
               <label className="text-sm font-medium mb-1 block">Deployment Type *</label>
               <select
-                className="compact-input"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
                 value={formData.deployment_type}
                 onChange={(e) => setFormData({ ...formData, deployment_type: e.target.value })}
               >
@@ -4535,7 +4535,7 @@ Please try:
                   <label className="text-sm font-medium mb-1 block">Data Retention Period</label>
                   <input
                     type="text"
-                    className="compact-input"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
                     value={formData.data_sharing_scope.data_retention_period}
                     onChange={(e) => setFormData({
                       ...formData,
@@ -4962,7 +4962,7 @@ Please try:
                     <label className="text-sm font-medium mb-1 block">Entity/Connection Name *</label>
                     <input
                       type="text"
-                      className="compact-input"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
                       value={connectionInput.name}
                       onChange={(e) => {
                         setConnectionInput({ ...connectionInput, name: e.target.value })
@@ -4986,7 +4986,7 @@ Please try:
                       <label className="text-sm font-medium mb-1 block">From *</label>
                       <input
                         type="text"
-                        className="compact-input"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
                         value={connectionInput.source_system || 'Agent'}
                         onChange={(e) => {
                           setConnectionInput({ ...connectionInput, source_system: e.target.value || 'Agent' })
@@ -5005,7 +5005,7 @@ Please try:
                       <label className="text-sm font-medium mb-1 block">To (Entity) *</label>
                       <input
                         type="text"
-                        className="compact-input"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
                         value={connectionInput.destination_system || connectionInput.app_name || connectionInput.name || ''}
                         onChange={(e) => {
                           const dest = e.target.value
@@ -5042,7 +5042,7 @@ Please try:
                     <div className="flex-1">
                       <label className="text-sm font-medium mb-1 block">Connection Type *</label>
                       <select
-                        className="compact-input"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
                         value={connectionInput.protocol || ''}
                         onChange={(e) => {
                           setConnectionInput({ ...connectionInput, protocol: e.target.value })
@@ -5081,7 +5081,7 @@ Please try:
                     <div className="flex-1">
                       <label className="text-sm font-medium mb-1 block">Data Flow *</label>
                       <select
-                        className="compact-input"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
                         value={connectionInput.data_flow_direction}
                         onChange={(e) => {
                           setConnectionInput({ ...connectionInput, data_flow_direction: e.target.value as any })
@@ -5432,7 +5432,7 @@ Please try:
               <label className="text-sm font-medium mb-1 block">Compatibility</label>
               <input
                 type="text"
-                className="compact-input"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
                 value={formData.version_info.compatibility}
                 onChange={(e) => setFormData({
                   ...formData,

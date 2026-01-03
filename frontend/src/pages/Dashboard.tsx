@@ -224,7 +224,7 @@ export default function Dashboard() {
 
   return (
     <Layout user={user}>
-      <div className="max-w-[99%] mx-auto p-6">
+      <div className="max-w-7xl mx-auto px-6 py-6">
         <DashboardHeader
           title="Dashboard"
           subtitle={`Welcome back${user ? `, ${user.name}` : ''}! Here's your overview. Drag widgets to rearrange, resize, and customize your dashboard.`}

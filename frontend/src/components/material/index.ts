@@ -12,6 +12,7 @@ export { default as DashboardMetricCard } from '../DashboardMetricCard'
 export { default as DashboardSection } from '../DashboardSection'
 export { default as DashboardWidget } from '../DashboardWidget'
 export { default as DashboardGrid } from '../DashboardGrid'
+export { default as MaterialForm } from './MaterialForm'
 
 // Export shadcn/ui components
 export { Button } from '@/components/ui/button'

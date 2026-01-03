@@ -1,68 +1,59 @@
 import { ButtonHTMLAttributes, ReactNode } from 'react'
 import { cn } from '@/lib/utils'
-import { Loader2 } from 'lucide-react'
 
-interface MaterialButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+type MaterialButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: 'contained' | 'outlined' | 'text'
-  color?: 'primary' | 'secondary' | 'error' | 'neutral'
+  color?: 'primary' | 'neutral' | 'error' | 'secondary'
   size?: 'small' | 'medium' | 'large'
+  fullWidth?: boolean
   startIcon?: ReactNode
   endIcon?: ReactNode
-  fullWidth?: boolean
-  loading?: boolean
+  children: ReactNode
 }
 
 export default function MaterialButton({
   variant = 'contained',
   color = 'primary',
   size = 'medium',
+  fullWidth = false,
   startIcon,
   endIcon,
-  fullWidth = false,
-  loading = false,
   className,
   children,
   disabled,
   ...props
 }: MaterialButtonProps) {
-  const baseClasses = cn(
-    "inline-flex items-center justify-center font-medium",
-    "transition-all duration-200 ease-in-out",
-    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-    "disabled:pointer-events-none disabled:opacity-50 disabled:cursor-not-allowed",
-    "active:scale-[0.98]"
-  )
-  
+  const baseClasses = "inline-flex items-center justify-center font-medium rounded-md transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+
   const variantClasses = {
     contained: {
-      primary: "bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm hover:shadow-md",
-      secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80 shadow-sm hover:shadow-md",
-      error: "bg-destructive text-destructive-foreground hover:bg-destructive/90 shadow-sm hover:shadow-md",
-      neutral: "bg-muted text-muted-foreground hover:bg-muted/80 shadow-sm hover:shadow-md"
+      primary: "bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500 shadow-sm hover:shadow-md",
+      neutral: "bg-slate-600 text-white hover:bg-slate-700 focus:ring-slate-500 shadow-sm hover:shadow-md",
+      error: "bg-red-600 text-white hover:bg-red-700 focus:ring-red-500 shadow-sm hover:shadow-md",
+      secondary: "bg-slate-200 text-slate-800 hover:bg-slate-300 focus:ring-slate-400 shadow-sm hover:shadow-md",
     },
     outlined: {
-      primary: "border-2 border-primary text-primary bg-transparent hover:bg-primary/5 active:bg-primary/10",
-      secondary: "border-2 border-secondary text-secondary bg-transparent hover:bg-secondary/5 active:bg-secondary/10",
-      error: "border-2 border-destructive text-destructive bg-transparent hover:bg-destructive/5 active:bg-destructive/10",
-      neutral: "border-2 border-border text-foreground bg-transparent hover:bg-muted/50 active:bg-muted"
+      primary: "border-2 border-blue-600 text-blue-600 hover:bg-blue-50 focus:ring-blue-500",
+      neutral: "border-2 border-slate-600 text-slate-600 hover:bg-slate-50 focus:ring-slate-500",
+      error: "border-2 border-red-600 text-red-600 hover:bg-red-50 focus:ring-red-500",
+      secondary: "border-2 border-slate-300 text-slate-700 hover:bg-slate-50 focus:ring-slate-400",
     },
     text: {
-      primary: "text-primary hover:bg-primary/10 active:bg-primary/15",
-      secondary: "text-secondary hover:bg-secondary/10 active:bg-secondary/15",
-      error: "text-destructive hover:bg-destructive/10 active:bg-destructive/15",
-      neutral: "text-foreground hover:bg-muted/50 active:bg-muted"
-    }
+      primary: "text-blue-600 hover:bg-blue-50 focus:ring-blue-500",
+      neutral: "text-slate-600 hover:bg-slate-50 focus:ring-slate-500",
+      error: "text-red-600 hover:bg-red-50 focus:ring-red-500",
+      secondary: "text-slate-600 hover:bg-slate-50 focus:ring-slate-400",
+    },
   }
-  
+
   const sizeClasses = {
-    small: "h-9 px-4 text-sm rounded-md gap-1.5",
-    medium: "h-11 px-5 text-base rounded-lg gap-2",
-    large: "h-12 px-6 text-lg rounded-lg gap-2.5"
+    small: "h-8 px-3 text-sm",
+    medium: "h-10 px-4 text-sm",
+    large: "h-12 px-6 text-base",
   }
-  
+
   return (
     <button
-      disabled={disabled || loading}
       className={cn(
         baseClasses,
         variantClasses[variant][color],
@@ -70,16 +61,19 @@ export default function MaterialButton({
         fullWidth && "w-full",
         className
       )}
+      disabled={disabled}
       {...props}
     >
-      {loading ? (
-        <Loader2 className="h-4 w-4 animate-spin" />
-      ) : (
-        <>
-          {startIcon && <span className="flex-shrink-0">{startIcon}</span>}
-          {children}
-          {endIcon && <span className="flex-shrink-0">{endIcon}</span>}
-        </>
+      {startIcon && (
+        <span className={cn("flex-shrink-0", size === 'small' ? "mr-2" : "mr-2.5")}>
+          {startIcon}
+        </span>
+      )}
+      <span>{children}</span>
+      {endIcon && (
+        <span className={cn("flex-shrink-0", size === 'small' ? "ml-2" : "ml-2.5")}>
+          {endIcon}
+        </span>
       )}
     </button>
   )

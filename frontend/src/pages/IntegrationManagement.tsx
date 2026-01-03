@@ -402,7 +402,7 @@ export default function IntegrationManagement() {
                 type="url"
                 value={servicenowConfig.instance_url}
                 onChange={(e) => setServicenowConfig({ ...servicenowConfig, instance_url: e.target.value })}
-                className="compact-input w-full"
+                className="enterprise-input"
                 placeholder="https://instance.service-now.com"
               />
             </div>
@@ -412,7 +412,7 @@ export default function IntegrationManagement() {
                 type="text"
                 value={servicenowConfig.username}
                 onChange={(e) => setServicenowConfig({ ...servicenowConfig, username: e.target.value })}
-                className="compact-input w-full"
+                className="enterprise-input"
                 placeholder="Integration user username"
               />
             </div>
@@ -422,7 +422,7 @@ export default function IntegrationManagement() {
                 type="password"
                 value={servicenowConfig.password}
                 onChange={(e) => setServicenowConfig({ ...servicenowConfig, password: e.target.value })}
-                className="compact-input w-full"
+                className="enterprise-input"
                 placeholder="Integration user password"
               />
             </div>
@@ -432,7 +432,7 @@ export default function IntegrationManagement() {
                 type="text"
                 value={servicenowConfig.table}
                 onChange={(e) => setServicenowConfig({ ...servicenowConfig, table: e.target.value })}
-                className="compact-input w-full"
+                className="enterprise-input"
                 placeholder="incident"
               />
             </div>
@@ -442,7 +442,7 @@ export default function IntegrationManagement() {
                 type="text"
                 value={servicenowConfig.client_id}
                 onChange={(e) => setServicenowConfig({ ...servicenowConfig, client_id: e.target.value })}
-                className="compact-input w-full"
+                className="enterprise-input"
                 placeholder="OAuth client ID if using OAuth"
               />
             </div>
@@ -452,7 +452,7 @@ export default function IntegrationManagement() {
                 type="password"
                 value={servicenowConfig.client_secret}
                 onChange={(e) => setServicenowConfig({ ...servicenowConfig, client_secret: e.target.value })}
-                className="compact-input w-full"
+                className="enterprise-input"
                 placeholder="OAuth client secret if using OAuth"
               />
             </div>
@@ -468,7 +468,7 @@ export default function IntegrationManagement() {
                 type="url"
                 value={jiraConfig.base_url}
                 onChange={(e) => setJiraConfig({ ...jiraConfig, base_url: e.target.value })}
-                className="compact-input w-full"
+                className="enterprise-input"
                 placeholder="https://domain.atlassian.net or https://your-server.com"
               />
             </div>
@@ -478,7 +478,7 @@ export default function IntegrationManagement() {
                 type="email"
                 value={jiraConfig.email}
                 onChange={(e) => setJiraConfig({ ...jiraConfig, email: e.target.value })}
-                className="compact-input w-full"
+                className="enterprise-input"
                 placeholder="your-jira-email@example.com"
               />
             </div>
@@ -488,7 +488,7 @@ export default function IntegrationManagement() {
                 type="password"
                 value={jiraConfig.api_token}
                 onChange={(e) => setJiraConfig({ ...jiraConfig, api_token: e.target.value })}
-                className="compact-input w-full"
+                className="enterprise-input"
                 placeholder="API token from Jira account settings"
               />
             </div>
@@ -498,7 +498,7 @@ export default function IntegrationManagement() {
                 type="text"
                 value={jiraConfig.project_key}
                 onChange={(e) => setJiraConfig({ ...jiraConfig, project_key: e.target.value })}
-                className="compact-input w-full"
+                className="enterprise-input"
                 placeholder="PROJ"
               />
             </div>
@@ -508,7 +508,7 @@ export default function IntegrationManagement() {
                 type="text"
                 value={jiraConfig.issue_type}
                 onChange={(e) => setJiraConfig({ ...jiraConfig, issue_type: e.target.value })}
-                className="compact-input w-full"
+                className="enterprise-input"
                 placeholder="Task"
               />
             </div>
@@ -518,7 +518,7 @@ export default function IntegrationManagement() {
                 type="text"
                 value={jiraConfig.oauth_client_id}
                 onChange={(e) => setJiraConfig({ ...jiraConfig, oauth_client_id: e.target.value })}
-                className="compact-input w-full"
+                className="enterprise-input"
                 placeholder="OAuth client ID if using OAuth"
               />
             </div>
@@ -528,7 +528,7 @@ export default function IntegrationManagement() {
                 type="password"
                 value={jiraConfig.oauth_client_secret}
                 onChange={(e) => setJiraConfig({ ...jiraConfig, oauth_client_secret: e.target.value })}
-                className="compact-input w-full"
+                className="enterprise-input"
                 placeholder="OAuth client secret if using OAuth"
               />
             </div>
@@ -538,7 +538,7 @@ export default function IntegrationManagement() {
                 type="url"
                 value={jiraConfig.webhook_url}
                 onChange={(e) => setJiraConfig({ ...jiraConfig, webhook_url: e.target.value })}
-                className="compact-input w-full"
+                className="enterprise-input"
                 placeholder="Webhook URL for receiving Jira events"
               />
             </div>
@@ -554,7 +554,7 @@ export default function IntegrationManagement() {
                 type="password"
                 value={slackConfig.bot_token}
                 onChange={(e) => setSlackConfig({ ...slackConfig, bot_token: e.target.value })}
-                className="compact-input w-full"
+                className="enterprise-input"
                 placeholder="xoxb-..."
               />
               <p className="text-xs text-muted-foreground mt-1">
@@ -567,7 +567,7 @@ export default function IntegrationManagement() {
                 type="text"
                 value={slackConfig.default_channel}
                 onChange={(e) => setSlackConfig({ ...slackConfig, default_channel: e.target.value })}
-                className="compact-input w-full"
+                className="enterprise-input"
                 placeholder="#general"
               />
             </div>
@@ -583,7 +583,7 @@ export default function IntegrationManagement() {
                 type="url"
                 value={teamsConfig.webhook_url}
                 onChange={(e) => setTeamsConfig({ ...teamsConfig, webhook_url: e.target.value })}
-                className="compact-input w-full"
+                className="enterprise-input"
                 placeholder="https://outlook.office.com/webhook/..."
               />
               <p className="text-xs text-muted-foreground mt-1">
@@ -602,7 +602,7 @@ export default function IntegrationManagement() {
                 type="url"
                 value={webhookConfig.webhook_url}
                 onChange={(e) => setWebhookConfig({ ...webhookConfig, webhook_url: e.target.value })}
-                className="compact-input w-full"
+                className="enterprise-input"
                 placeholder="https://example.com/webhook"
               />
             </div>
@@ -612,7 +612,7 @@ export default function IntegrationManagement() {
                 type="password"
                 value={webhookConfig.secret}
                 onChange={(e) => setWebhookConfig({ ...webhookConfig, secret: e.target.value })}
-                className="compact-input w-full"
+                className="enterprise-input"
                 placeholder="Webhook secret for verification"
               />
             </div>
@@ -657,7 +657,7 @@ export default function IntegrationManagement() {
                     setSecurityToolConfig({ ...securityToolConfig, api_url: e.target.value })
                   }
                 }}
-                className="compact-input w-full"
+                className="enterprise-input"
                 placeholder="https://api.example.com"
               />
             </div>
@@ -673,7 +673,7 @@ export default function IntegrationManagement() {
                     setSecurityToolConfig({ ...securityToolConfig, api_key: e.target.value })
                   }
                 }}
-                className="compact-input w-full"
+                className="enterprise-input"
                 placeholder="API key"
               />
             </div>
@@ -689,7 +689,7 @@ export default function IntegrationManagement() {
                     setSecurityToolConfig({ ...securityToolConfig, api_secret: e.target.value })
                   }
                 }}
-                className="compact-input w-full"
+                className="enterprise-input"
                 placeholder="API secret"
               />
             </div>
@@ -838,34 +838,34 @@ export default function IntegrationManagement() {
             </p>
           </div>
           {isAdmin && (
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <button
                 onClick={() => showSMTPForm ? closeAllForms() : openForm('smtp')}
-                className={`compact-button-primary ${showSMTPForm ? 'bg-red-600 hover:bg-red-700' : ''}`}
+                className={showSMTPForm ? 'btn-danger' : 'btn-primary'}
               >
                 {showSMTPForm ? 'Cancel' : 'Configure Email (SMTP)'}
               </button>
               <button
                 onClick={() => showSSOForm ? closeAllForms() : openForm('sso')}
-                className={`compact-button-primary ${showSSOForm ? 'bg-red-600 hover:bg-red-700' : ''}`}
+                className={showSSOForm ? 'btn-danger' : 'btn-primary'}
               >
                 {showSSOForm ? 'Cancel' : 'Configure SSO'}
               </button>
               <button
                 onClick={() => showCreateForm ? closeAllForms() : openForm('create')}
-                className={`compact-button-secondary ${showCreateForm ? 'bg-red-600 hover:bg-red-700' : ''}`}
+                className={showCreateForm ? 'btn-danger' : 'btn-secondary'}
               >
                 {showCreateForm ? 'Cancel' : 'Add Integration'}
               </button>
               <button
                 onClick={() => showAPITokenForm ? closeAllForms() : openForm('api-token')}
-                className={`compact-button-secondary ${showAPITokenForm ? 'bg-red-600 hover:bg-red-700' : ''}`}
+                className={showAPITokenForm ? 'btn-danger' : 'btn-secondary'}
               >
                 {showAPITokenForm ? 'Cancel' : 'API Tokens'}
               </button>
               <button
                 onClick={() => showSCIMForm ? closeAllForms() : openForm('scim')}
-                className={`compact-button-secondary ${showSCIMForm ? 'bg-red-600 hover:bg-red-700' : ''}`}
+                className={showSCIMForm ? 'btn-danger' : 'btn-secondary'}
               >
                 {showSCIMForm ? 'Cancel' : 'SCIM Config'}
               </button>
@@ -875,91 +875,93 @@ export default function IntegrationManagement() {
 
         {/* SMTP Settings Form */}
         {showSMTPForm && isAdmin && (
-          <div className="compact-card">
-            <h2 className="text-lg font-medium mb-4">
+          <div className="card-compact">
+            <h2 className="text-xl font-semibold text-gray-900 mb-6">
               {editingIntegration ? `Edit ${editingIntegration.name}` : 'Email (SMTP) Configuration'}
             </h2>
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">SMTP Host *</label>
+            <div className="space-y-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="enterprise-form-field">
+                  <label className="enterprise-label">SMTP Host *</label>
                   <input
                     type="text"
                     value={smtpConfig.smtp_host}
                     onChange={(e) => setSmtpConfig({ ...smtpConfig, smtp_host: e.target.value })}
-                    className="compact-input w-full"
+                    className="enterprise-input"
                     placeholder="smtp.gmail.com"
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">SMTP Port *</label>
+                <div className="enterprise-form-field">
+                  <label className="enterprise-label">SMTP Port *</label>
                   <input
                     type="number"
                     value={smtpConfig.smtp_port}
                     onChange={(e) => setSmtpConfig({ ...smtpConfig, smtp_port: parseInt(e.target.value) || 587 })}
-                    className="compact-input w-full"
+                    className="enterprise-input"
                     placeholder="587"
                   />
                 </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium mb-2">SMTP Username (Email) *</label>
+              <div className="enterprise-form-field">
+                <label className="enterprise-label">SMTP Username (Email) *</label>
                 <input
                   type="email"
                   value={smtpConfig.smtp_user}
                   onChange={(e) => setSmtpConfig({ ...smtpConfig, smtp_user: e.target.value })}
-                  className="compact-input w-full"
+                  className="enterprise-input"
                   placeholder="user@example.com"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium mb-2">SMTP Password *</label>
+              <div className="enterprise-form-field">
+                <label className="enterprise-label">SMTP Password *</label>
                 <input
                   type="password"
                   value={smtpConfig.smtp_password}
                   onChange={(e) => setSmtpConfig({ ...smtpConfig, smtp_password: e.target.value })}
-                  className="compact-input w-full"
+                  className="enterprise-input"
                   placeholder="Enter SMTP password or app password"
                 />
-                <p className="text-xs text-muted-foreground mt-1">
+                <p className="text-xs text-gray-500 mt-2">
                   For Gmail, use an App Password instead of your regular password
                 </p>
               </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="smtp_use_tls"
-                  checked={smtpConfig.smtp_use_tls}
-                  onChange={(e) => setSmtpConfig({ ...smtpConfig, smtp_use_tls: e.target.checked })}
-                  className="w-4 h-4"
-                />
-                <label htmlFor="smtp_use_tls" className="text-sm font-medium">
-                  Use TLS/SSL
-                </label>
+              <div className="enterprise-form-field">
+                <div className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    id="smtp_use_tls"
+                    checked={smtpConfig.smtp_use_tls}
+                    onChange={(e) => setSmtpConfig({ ...smtpConfig, smtp_use_tls: e.target.checked })}
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  <label htmlFor="smtp_use_tls" className="text-sm font-medium text-gray-700 cursor-pointer">
+                    Use TLS/SSL
+                  </label>
+                </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-2">From Email *</label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="enterprise-form-field">
+                  <label className="enterprise-label">From Email *</label>
                   <input
                     type="email"
                     value={smtpConfig.from_email}
                     onChange={(e) => setSmtpConfig({ ...smtpConfig, from_email: e.target.value })}
-                    className="compact-input w-full"
+                    className="enterprise-input"
                     placeholder="noreply@example.com"
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium mb-2">From Name *</label>
+                <div className="enterprise-form-field">
+                  <label className="enterprise-label">From Name *</label>
                   <input
                     type="text"
                     value={smtpConfig.from_name}
                     onChange={(e) => setSmtpConfig({ ...smtpConfig, from_name: e.target.value })}
-                    className="compact-input w-full"
+                    className="enterprise-input"
                     placeholder="VAKA Platform"
                   />
                 </div>
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-3 pt-2">
                 <button
                   onClick={() => {
                     smtpUpdateMutation.mutate(smtpConfig)
@@ -968,14 +970,14 @@ export default function IntegrationManagement() {
                     }
                   }}
                   disabled={smtpUpdateMutation.isPending || !smtpConfig.smtp_host || !smtpConfig.smtp_user || !smtpConfig.smtp_password}
-                  className="compact-button-primary"
+                  className="btn-primary"
                 >
                   {smtpUpdateMutation.isPending ? 'Saving...' : editingIntegration ? 'Update SMTP Settings' : 'Save SMTP Settings'}
                 </button>
                 <button
                   onClick={() => smtpTestMutation.mutate(smtpConfig)}
                   disabled={smtpTestMutation.isPending || !smtpConfig.smtp_host || !smtpConfig.smtp_user || !smtpConfig.smtp_password}
-                  className="compact-button-secondary"
+                  className="btn-secondary"
                 >
                   {smtpTestMutation.isPending ? 'Testing...' : 'Test Connection'}
                 </button>
@@ -1001,12 +1003,12 @@ export default function IntegrationManagement() {
 
         {/* SSO Settings Form */}
         {showSSOForm && isAdmin && (
-          <div className="compact-card">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-medium">SSO Configuration</h2>
+          <div className="card-compact">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-semibold text-gray-900">SSO Configuration</h2>
               <button
                 onClick={() => openHelp(ssoConfig.provider || 'custom')}
-                className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300"
+                className="text-blue-600 hover:text-blue-800 transition-colors p-2 rounded-lg hover:bg-blue-50"
                 title="View configuration help"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1014,9 +1016,9 @@ export default function IntegrationManagement() {
                 </svg>
               </button>
             </div>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-2">SSO Provider *</label>
+            <div className="space-y-5">
+              <div className="enterprise-form-field">
+                <label className="enterprise-label">SSO Provider *</label>
                 <select
                   value={ssoConfig.provider}
                   onChange={(e) => {
@@ -1028,7 +1030,7 @@ export default function IntegrationManagement() {
                       type: (provider === 'google' || provider === 'azure_entra_id') ? 'oidc' : 'saml'
                     })
                   }}
-                  className="compact-input w-full"
+                  className="enterprise-input"
                 >
                   <option value="custom">Custom</option>
                   <option value="azure_entra_id">Azure Entra ID (Azure AD)</option>
@@ -1037,24 +1039,24 @@ export default function IntegrationManagement() {
                   <option value="ping">Ping Identity</option>
                 </select>
               </div>
-              <div>
-                <label className="block text-sm font-medium mb-2">SSO Type *</label>
+              <div className="enterprise-form-field">
+                <label className="enterprise-label">SSO Type *</label>
                 <select
                   value={ssoConfig.type}
                   onChange={(e) => setSsoConfig({ ...ssoConfig, type: e.target.value as 'saml' | 'oidc' })}
-                  className="compact-input w-full"
+                  className="enterprise-input"
                 >
                   <option value="saml">SAML 2.0</option>
                   <option value="oidc">OIDC</option>
                 </select>
               </div>
-              <div>
-                <label className="block text-sm font-medium mb-2">Integration Name *</label>
+              <div className="enterprise-form-field">
+                <label className="enterprise-label">Integration Name *</label>
                 <input
                   type="text"
                   value={ssoConfig.name}
                   onChange={(e) => setSsoConfig({ ...ssoConfig, name: e.target.value })}
-                  className="compact-input w-full"
+                  className="enterprise-input"
                   placeholder="e.g., Azure AD SSO"
                 />
               </div>
@@ -1067,7 +1069,7 @@ export default function IntegrationManagement() {
                     type="text"
                     value={ssoConfig.azure_tenant_id || ''}
                     onChange={(e) => setSsoConfig({ ...ssoConfig, azure_tenant_id: e.target.value })}
-                    className="compact-input w-full"
+                    className="enterprise-input"
                     placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
                   />
                 </div>
@@ -1081,7 +1083,7 @@ export default function IntegrationManagement() {
                     type="text"
                     value={ssoConfig.google_domain || ''}
                     onChange={(e) => setSsoConfig({ ...ssoConfig, google_domain: e.target.value })}
-                    className="compact-input w-full"
+                    className="enterprise-input"
                     placeholder="example.com"
                   />
                 </div>
@@ -1089,32 +1091,32 @@ export default function IntegrationManagement() {
               
               {ssoConfig.type === 'saml' && (
                 <>
-                  <div>
-                    <label className="block text-sm font-medium mb-2">SAML Entity ID</label>
+                  <div className="enterprise-form-field">
+                    <label className="enterprise-label">SAML Entity ID</label>
                     <input
                       type="text"
                       value={ssoConfig.saml_entity_id || ''}
                       onChange={(e) => setSsoConfig({ ...ssoConfig, saml_entity_id: e.target.value })}
-                      className="compact-input w-full"
+                      className="enterprise-input"
                       placeholder="urn:example:sp"
                     />
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-2">SAML SSO URL</label>
+                  <div className="enterprise-form-field">
+                    <label className="enterprise-label">SAML SSO URL</label>
                     <input
                       type="url"
                       value={ssoConfig.saml_sso_url || ''}
                       onChange={(e) => setSsoConfig({ ...ssoConfig, saml_sso_url: e.target.value })}
-                      className="compact-input w-full"
+                      className="enterprise-input"
                       placeholder="https://idp.example.com/sso"
                     />
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-2">X.509 Certificate</label>
+                  <div className="enterprise-form-field">
+                    <label className="enterprise-label">X.509 Certificate</label>
                     <textarea
                       value={ssoConfig.saml_x509_cert || ''}
                       onChange={(e) => setSsoConfig({ ...ssoConfig, saml_x509_cert: e.target.value })}
-                      className="compact-input w-full min-h-[100px] font-mono text-xs"
+                      className="enterprise-input min-h-[100px] font-mono text-xs"
                       placeholder="-----BEGIN CERTIFICATE-----..."
                     />
                   </div>
@@ -1123,49 +1125,49 @@ export default function IntegrationManagement() {
               
               {ssoConfig.type === 'oidc' && (
                 <>
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Client ID *</label>
+                  <div className="enterprise-form-field">
+                    <label className="enterprise-label">Client ID *</label>
                     <input
                       type="text"
                       value={ssoConfig.oidc_client_id || ''}
                       onChange={(e) => setSsoConfig({ ...ssoConfig, oidc_client_id: e.target.value })}
-                      className="compact-input w-full"
+                      className="enterprise-input"
                     />
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Client Secret *</label>
+                  <div className="enterprise-form-field">
+                    <label className="enterprise-label">Client Secret *</label>
                     <input
                       type="password"
                       value={ssoConfig.oidc_client_secret || ''}
                       onChange={(e) => setSsoConfig({ ...ssoConfig, oidc_client_secret: e.target.value })}
-                      className="compact-input w-full"
+                      className="enterprise-input"
                     />
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Authorization URL *</label>
+                  <div className="enterprise-form-field">
+                    <label className="enterprise-label">Authorization URL *</label>
                     <input
                       type="url"
                       value={ssoConfig.oidc_authorization_url || ''}
                       onChange={(e) => setSsoConfig({ ...ssoConfig, oidc_authorization_url: e.target.value })}
-                      className="compact-input w-full"
+                      className="enterprise-input"
                     />
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Token URL *</label>
+                  <div className="enterprise-form-field">
+                    <label className="enterprise-label">Token URL *</label>
                     <input
                       type="url"
                       value={ssoConfig.oidc_token_url || ''}
                       onChange={(e) => setSsoConfig({ ...ssoConfig, oidc_token_url: e.target.value })}
-                      className="compact-input w-full"
+                      className="enterprise-input"
                     />
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-2">UserInfo URL</label>
+                  <div className="enterprise-form-field">
+                    <label className="enterprise-label">UserInfo URL</label>
                     <input
                       type="url"
                       value={ssoConfig.oidc_userinfo_url || ''}
                       onChange={(e) => setSsoConfig({ ...ssoConfig, oidc_userinfo_url: e.target.value })}
-                      className="compact-input w-full"
+                      className="enterprise-input"
                     />
                   </div>
                   <div>
@@ -1174,7 +1176,7 @@ export default function IntegrationManagement() {
                       type="text"
                       value={ssoConfig.oidc_issuer || ''}
                       onChange={(e) => setSsoConfig({ ...ssoConfig, oidc_issuer: e.target.value })}
-                      className="compact-input w-full"
+                      className="enterprise-input"
                     />
                   </div>
                 </>
@@ -1230,11 +1232,11 @@ export default function IntegrationManagement() {
                 </div>
               </div>
               
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-3 pt-2">
                 <button
                   onClick={() => ssoUpdateMutation.mutate(ssoConfig)}
                   disabled={ssoUpdateMutation.isPending || !ssoConfig.name}
-                  className="compact-button-primary"
+                  className="btn-primary"
                 >
                   {ssoUpdateMutation.isPending ? 'Saving...' : 'Save SSO Settings'}
                 </button>
@@ -1251,7 +1253,7 @@ export default function IntegrationManagement() {
                         alert(`Sync failed: ${err.response?.data?.detail || err.message}`)
                       }
                     }}
-                    className="compact-button-secondary"
+                    className="btn-secondary"
                   >
                     Sync Users Now
                   </button>
@@ -1268,7 +1270,7 @@ export default function IntegrationManagement() {
 
         {/* Create Form */}
         {showCreateForm && isAdmin && (
-          <div className="compact-card">
+          <div className="card-compact">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-medium">Create Integration</h2>
               <button
@@ -1303,7 +1305,7 @@ export default function IntegrationManagement() {
                     setIntegrationName('')
                     setIntegrationConfig('')
                   }}
-                  className="compact-input w-full"
+                  className="enterprise-input"
                 >
                   <option value="servicenow">ServiceNow</option>
                   <option value="jira">Jira</option>
@@ -1328,7 +1330,7 @@ export default function IntegrationManagement() {
                   type="text"
                   value={integrationName}
                   onChange={(e) => setIntegrationName(e.target.value)}
-                  className="compact-input w-full"
+                  className="enterprise-input"
                   placeholder="Integration name"
                 />
               </div>
@@ -1340,13 +1342,13 @@ export default function IntegrationManagement() {
                 <button
                   onClick={handleCreate}
                   disabled={createMutation.isPending || !integrationName || !getRequiredFieldsValid()}
-                  className="compact-button-primary"
+                  className="btn-primary"
                 >
                   {createMutation.isPending ? 'Creating...' : 'Create Integration'}
                 </button>
                 <button
                   onClick={closeAllForms}
-                  className="compact-button-secondary"
+                  className="btn-secondary"
                 >
                   Cancel
                 </button>
@@ -1357,7 +1359,7 @@ export default function IntegrationManagement() {
 
         {/* API Token Management */}
         {showAPITokenForm && isAdmin && (
-          <div className="compact-card">
+          <div className="card-compact">
             <h2 className="text-lg font-medium mb-4">API Token Management</h2>
             
             {/* Create New Token Form */}
@@ -1370,7 +1372,7 @@ export default function IntegrationManagement() {
                     type="text"
                     value={newToken.name}
                     onChange={(e) => setNewToken({ ...newToken, name: e.target.value })}
-                    className="compact-input w-full"
+                    className="enterprise-input"
                     placeholder="e.g., Production API Key"
                   />
                 </div>
@@ -1379,7 +1381,7 @@ export default function IntegrationManagement() {
                   <textarea
                     value={newToken.description || ''}
                     onChange={(e) => setNewToken({ ...newToken, description: e.target.value })}
-                    className="compact-input w-full"
+                    className="enterprise-input"
                     rows={2}
                     placeholder="Optional description"
                   />
@@ -1413,7 +1415,7 @@ export default function IntegrationManagement() {
                       type="number"
                       value={newToken.rate_limit_per_minute}
                       onChange={(e) => setNewToken({ ...newToken, rate_limit_per_minute: parseInt(e.target.value) || 60 })}
-                      className="compact-input w-full"
+                      className="enterprise-input"
                       min="1"
                       max="10000"
                     />
@@ -1424,7 +1426,7 @@ export default function IntegrationManagement() {
                       type="number"
                       value={newToken.rate_limit_per_hour}
                       onChange={(e) => setNewToken({ ...newToken, rate_limit_per_hour: parseInt(e.target.value) || 1000 })}
-                      className="compact-input w-full"
+                      className="enterprise-input"
                       min="1"
                       max="100000"
                     />
@@ -1435,7 +1437,7 @@ export default function IntegrationManagement() {
                       type="number"
                       value={newToken.rate_limit_per_day}
                       onChange={(e) => setNewToken({ ...newToken, rate_limit_per_day: parseInt(e.target.value) || 10000 })}
-                      className="compact-input w-full"
+                      className="enterprise-input"
                       min="1"
                       max="1000000"
                     />
@@ -1447,7 +1449,7 @@ export default function IntegrationManagement() {
                     type="number"
                     value={newToken.expires_in_days || ''}
                     onChange={(e) => setNewToken({ ...newToken, expires_in_days: e.target.value ? parseInt(e.target.value) : undefined })}
-                    className="compact-input w-full"
+                    className="enterprise-input"
                     placeholder="Leave empty for no expiration"
                     min="1"
                     max="365"
@@ -1456,7 +1458,7 @@ export default function IntegrationManagement() {
                 <button
                   onClick={() => createTokenMutation.mutate(newToken)}
                   disabled={createTokenMutation.isPending || !newToken.name || newToken.scopes.length === 0}
-                  className="compact-button-primary"
+                  className="btn-primary"
                 >
                   {createTokenMutation.isPending ? 'Creating...' : 'Create Token'}
                 </button>
@@ -1564,7 +1566,7 @@ export default function IntegrationManagement() {
 
         {/* SCIM Configuration */}
         {showSCIMForm && isAdmin && (
-          <div className="compact-card">
+          <div className="card-compact">
             <h2 className="text-lg font-medium mb-4">SCIM (System for Cross-domain Identity Management) Configuration</h2>
             <div className="space-y-4">
               <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded">
@@ -1600,7 +1602,7 @@ export default function IntegrationManagement() {
                     type="password"
                     value={scimConfig.bearer_token}
                     onChange={(e) => setScimConfig({ ...scimConfig, bearer_token: e.target.value })}
-                    className="compact-input w-full"
+                    className="enterprise-input"
                     placeholder="Enter bearer token for SCIM authentication"
                   />
                   <p className="text-xs text-muted-foreground mt-1">
@@ -1666,7 +1668,7 @@ export default function IntegrationManagement() {
                     type="url"
                     value={scimConfig.webhook_url || ''}
                     onChange={(e) => setScimConfig({ ...scimConfig, webhook_url: e.target.value })}
-                    className="compact-input w-full"
+                    className="enterprise-input"
                     placeholder="https://example.com/webhook"
                   />
                   <p className="text-xs text-muted-foreground mt-1">
@@ -1677,7 +1679,7 @@ export default function IntegrationManagement() {
                 <button
                   onClick={() => scimConfigMutation.mutate(scimConfig)}
                   disabled={scimConfigMutation.isPending || !scimConfig.bearer_token}
-                  className="compact-button-primary"
+                  className="btn-primary"
                 >
                   {scimConfigMutation.isPending ? 'Saving...' : 'Save SCIM Configuration'}
                 </button>
@@ -1935,7 +1937,7 @@ export default function IntegrationManagement() {
                       type="text"
                       value={editName}
                       onChange={(e) => setEditName(e.target.value)}
-                      className="compact-input w-full"
+                      className="enterprise-input"
                       placeholder="Integration name"
                     />
                   </div>
@@ -1945,7 +1947,7 @@ export default function IntegrationManagement() {
                     <textarea
                       value={editDescription}
                       onChange={(e) => setEditDescription(e.target.value)}
-                      className="compact-input w-full"
+                      className="enterprise-input"
                       rows={2}
                       placeholder="Integration description"
                     />
@@ -1987,14 +1989,14 @@ export default function IntegrationManagement() {
                       setEditConfig('')
                       setEditDescription('')
                     }}
-                    className="compact-button-secondary"
+                    className="btn-secondary"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleSaveEdit}
                     disabled={updateMutation.isPending || !editName || !editConfig}
-                    className="compact-button-primary"
+                    className="btn-primary"
                   >
                     {updateMutation.isPending ? 'Saving...' : 'Save Changes'}
                   </button>

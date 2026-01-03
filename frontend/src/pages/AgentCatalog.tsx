@@ -5,7 +5,7 @@ import { agentsApi, Agent } from '../lib/agents'
 import { authApi } from '../lib/auth'
 import Layout from '../components/Layout'
 import { MaterialCard, MaterialButton, MaterialChip, MaterialInput } from '../components/material'
-import { SearchIcon, FilterIcon, ChevronLeftIcon, ChevronRightIcon } from '../components/Icons'
+import { SearchIcon, FilterIcon, ChevronLeftIcon, ChevronRightIcon, SparklesIcon, CogIcon, ChatIcon } from '../components/Icons'
 
 export default function AgentCatalog() {
   const navigate = useNavigate()
@@ -51,7 +51,7 @@ export default function AgentCatalog() {
 
   return (
     <Layout user={user}>
-      <div className="space-y-6 max-w-7xl mx-auto">
+      <div className="space-y-6 max-w-7xl mx-auto pb-6">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-medium mb-2">Agent Catalog</h1>
@@ -63,8 +63,8 @@ export default function AgentCatalog() {
 
         {/* Filters - Material Design */}
         <MaterialCard elevation={1} className="p-4 border-none">
-          <div className="flex flex-col md:flex-row gap-4 items-center">
-            <div className="flex-1 w-full">
+          <div className="flex flex-col md:flex-row gap-4 items-stretch md:items-center">
+            <div className="flex-1 min-w-0">
               <MaterialInput
                 placeholder="Search agents by name or description..."
                 value={searchQuery}
@@ -73,9 +73,9 @@ export default function AgentCatalog() {
                 fullWidth
               />
             </div>
-            <div className="flex items-center gap-3 w-full md:w-auto">
-              <div className="md:w-48 w-full relative">
-                <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-600">
+            <div className="flex items-center gap-3 flex-shrink-0">
+              <div className="w-48 relative flex-shrink-0">
+                <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-600 pointer-events-none z-10">
                   <FilterIcon className="w-4 h-4" />
                 </div>
                 <select
@@ -96,7 +96,7 @@ export default function AgentCatalog() {
                   setSearchQuery('')
                   setCategoryFilter('')
                 }}
-                className="text-gray-500 whitespace-nowrap"
+                className="text-gray-500 whitespace-nowrap flex-shrink-0"
               >
                 Clear Filters
               </MaterialButton>
@@ -119,49 +119,96 @@ export default function AgentCatalog() {
           </MaterialCard>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredAgents.map((agent: Agent) => (
-              <MaterialCard
-                key={agent.id}
-                elevation={1}
-                hover
-                className="cursor-pointer border-none flex flex-col h-full"
-                onClick={() => navigate(`/agents/${agent.id}`)}
-              >
-                <div className="p-6 flex flex-col h-full">
-                  <div className="flex items-start justify-between mb-4">
-                    <div>
-                      <h3 className="unified-card-title line-clamp-1 group-hover:text-blue-600 transition-colors">{agent.name}</h3>
-                      <div className="text-xs text-gray-500 mt-0.5">{agent.type}</div>
-                    </div>
-                    {agent.compliance_score !== null && agent.compliance_score !== undefined && (
-                      <div className={`px-2.5 py-1 rounded-lg text-xs font-bold shadow-sm ${
-                        agent.compliance_score >= 80 ? 'bg-success-50 text-success-700' :
-                        agent.compliance_score >= 60 ? 'bg-warning-50 text-warning-700' :
-                        'bg-error-50 text-error-700'
-                      }`}>
-                        {agent.compliance_score}/100
+            {filteredAgents.map((agent: Agent) => {
+              // Get icon based on agent type
+              const getAgentIcon = () => {
+                const type = agent.type?.toUpperCase() || ''
+                if (type.includes('AI_AGENT') || type.includes('AI')) {
+                  return <SparklesIcon className="w-6 h-6 text-blue-600" />
+                } else if (type.includes('AUTOMATION') || type.includes('AUTO')) {
+                  return <CogIcon className="w-6 h-6 text-purple-600" />
+                } else if (type.includes('BOT')) {
+                  return <ChatIcon className="w-6 h-6 text-green-600" />
+                }
+                return <SparklesIcon className="w-6 h-6 text-gray-600" />
+              }
+
+              const getTypeColor = () => {
+                const type = agent.type?.toUpperCase() || ''
+                if (type.includes('AI_AGENT') || type.includes('AI')) {
+                  return { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200', iconBg: 'bg-blue-100' }
+                } else if (type.includes('AUTOMATION') || type.includes('AUTO')) {
+                  return { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200', iconBg: 'bg-purple-100' }
+                } else if (type.includes('BOT')) {
+                  return { bg: 'bg-green-50', text: 'text-green-700', border: 'border-green-200', iconBg: 'bg-green-100' }
+                }
+                return { bg: 'bg-gray-50', text: 'text-gray-700', border: 'border-gray-200', iconBg: 'bg-gray-100' }
+              }
+
+              const typeColors = getTypeColor()
+
+              return (
+                <MaterialCard
+                  key={agent.id}
+                  elevation={1}
+                  hover
+                  className="cursor-pointer border-none flex flex-col h-full group transition-all duration-300 hover:shadow-xl hover:-translate-y-1"
+                  onClick={() => navigate(`/agents/${agent.id}`)}
+                >
+                  <div className="p-6 flex flex-col h-full">
+                    {/* Header with Icon and Type Badge */}
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-start gap-3 flex-1 min-w-0">
+                        <div className={`flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center ${typeColors.iconBg} transition-transform group-hover:scale-110 shadow-sm`}>
+                          {getAgentIcon()}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-lg font-semibold text-gray-900 line-clamp-1 group-hover:text-blue-600 transition-colors">
+                            {agent.name}
+                          </h3>
+                          <div className={`inline-block px-2 py-0.5 rounded-md text-xs font-medium mt-1.5 border ${typeColors.bg} ${typeColors.text} ${typeColors.border}`}>
+                            {agent.type || 'Unknown'}
+                          </div>
+                        </div>
                       </div>
-                    )}
-                  </div>
-                  
-                  <p className="text-sm text-gray-600 mb-6 line-clamp-3 leading-relaxed flex-1">
-                    {agent.description || 'No description provided for this agent.'}
-                  </p>
-                  
-                  <div className="flex items-center justify-between pt-4 border-t border-gray-50 mt-auto">
-                    {agent.category ? (
-                      <MaterialChip label={agent.category} color="secondary" size="small" variant="outlined" />
-                    ) : (
-                      <div />
-                    )}
-                    <div className="text-sm font-medium text-blue-600 tracking-tight flex items-center gap-1">
-                      View details
-                      <ChevronRightIcon className="w-3.5 h-3.5" />
+                      {agent.compliance_score !== null && agent.compliance_score !== undefined && (
+                        <div className={`flex-shrink-0 px-2.5 py-1 rounded-lg text-xs font-bold shadow-sm ml-2 ${
+                          agent.compliance_score >= 80 ? 'bg-green-50 text-green-700' :
+                          agent.compliance_score >= 60 ? 'bg-yellow-50 text-yellow-700' :
+                          'bg-red-50 text-red-700'
+                        }`}>
+                          {agent.compliance_score}/100
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Description */}
+                    <p className="text-sm text-gray-600 mb-6 line-clamp-3 leading-relaxed flex-1">
+                      {agent.description || 'No description provided for this agent.'}
+                    </p>
+                    
+                    {/* Footer */}
+                    <div className="flex items-center justify-between pt-4 border-t border-gray-100 mt-auto">
+                      {agent.category ? (
+                        <MaterialChip 
+                          label={agent.category} 
+                          color="secondary" 
+                          size="small" 
+                          variant="outlined"
+                          className="text-xs"
+                        />
+                      ) : (
+                        <div />
+                      )}
+                      <div className="text-sm font-medium text-blue-600 tracking-tight flex items-center gap-1.5 group-hover:text-blue-700 group-hover:gap-2 transition-all">
+                        View details
+                        <ChevronRightIcon className="w-4 h-4" />
+                      </div>
                     </div>
                   </div>
-                </div>
-              </MaterialCard>
-            ))}
+                </MaterialCard>
+              )
+            })}
           </div>
         )}
 

@@ -935,8 +935,8 @@ export default function EcosystemMap() {
           // Get node sizes to calculate minimum distance - increased significantly
           const nodeSize = NODE_SIZES[node.type] || 15
           const otherSize = NODE_SIZES[other.type] || 15
-          // Increased minimum distance: node sizes + label space (250px) + padding (200px) - much stronger separation
-          const minDistance = nodeSize + otherSize + 450
+          // Increased minimum distance: node sizes + label space (300px) + padding (250px) - much stronger separation
+          const minDistance = nodeSize + otherSize + 550
           
           if (distance < minDistance) {
             // Very strong repulsion when too close - constant force regardless of alpha
@@ -1028,7 +1028,7 @@ export default function EcosystemMap() {
             const dx = (node.x || 0) - (other.x || 0)
             const dy = (node.y || 0) - (other.y || 0)
             const distance = Math.sqrt(dx * dx + dy * dy) || 0.1
-            const minDistance = nodeSize + otherSize + 450
+            const minDistance = nodeSize + otherSize + 550
             
             if (distance < minDistance) {
               hasOverlaps = true
@@ -1657,10 +1657,10 @@ export default function EcosystemMap() {
         }
 
         // Add risk indicator on top of node (for vendors with active CVE matches)
-        // Position it higher to avoid overlap with node
+        // Position it higher to avoid overlap with node and CVE badge
         if (node.type === 'vendor' && hasActiveCVE) {
           const riskIndicator = document.createElementNS('http://www.w3.org/2000/svg', 'g')
-          riskIndicator.setAttribute('transform', `translate(${node.x || 0}, ${(node.y || 0) - size - 20})`)
+          riskIndicator.setAttribute('transform', `translate(${node.x || 0}, ${(node.y || 0) - size - 30})`)
           riskIndicator.setAttribute('pointer-events', 'none')
           
           // Risk badge background
@@ -2089,16 +2089,30 @@ export default function EcosystemMap() {
         
         // Expand/collapse indicator removed - using simple colored circles only
         
-        // Simple label next to node (right side)
-        const displayLabel = node.label.length > 20 
-          ? node.label.substring(0, 20) + '...' 
+        // Simple label next to node (right side) - improved truncation
+        const maxLabelLength = 25 // Increased from 20 for better readability
+        const displayLabel = node.label.length > maxLabelLength 
+          ? node.label.substring(0, maxLabelLength) + '...' 
           : node.label
         
         // Position label further right and adjust Y to account for badges
-        const labelX = nodeX + size + 15 // More space from node
+        const labelX = nodeX + size + 20 // Increased spacing from node (was 15)
         const labelY = nodeY
         
-        // Add text label
+        // Add text label with background for better readability
+        const textBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect')
+        const estimatedTextWidth = displayLabel.length * 7.5 // More accurate width estimation
+        textBg.setAttribute('x', String(labelX - 4))
+        textBg.setAttribute('y', String(labelY - 8))
+        textBg.setAttribute('width', String(estimatedTextWidth + 8))
+        textBg.setAttribute('height', '18')
+        textBg.setAttribute('rx', '4')
+        textBg.setAttribute('fill', 'rgba(255, 255, 255, 0.9)')
+        textBg.setAttribute('stroke', 'rgba(0, 0, 0, 0.1)')
+        textBg.setAttribute('stroke-width', '0.5')
+        textBg.setAttribute('pointer-events', 'none')
+        g.appendChild(textBg)
+        
         const text = document.createElementNS('http://www.w3.org/2000/svg', 'text')
         text.setAttribute('x', String(labelX))
         text.setAttribute('y', String(labelY + 5))
@@ -2112,11 +2126,11 @@ export default function EcosystemMap() {
         g.appendChild(text)
         
         // Add CVE count below node (for vendors with active CVE matches)
-        // Position it lower to avoid overlap with node and label
+        // Position it lower to avoid overlap with node, label, and RISK badge
         if (node.type === 'vendor' && hasActiveCVE) {
           const cveCount = node.metadata?.active_cve_count || 0
           const cveLabelX = nodeX
-          const cveLabelY = nodeY + size + 20
+          const cveLabelY = nodeY + size + 35 // Increased spacing (was 20) to avoid overlap with RISK badge
           
           // CVE count background
           const cveBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect')

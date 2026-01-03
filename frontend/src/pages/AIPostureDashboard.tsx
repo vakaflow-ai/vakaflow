@@ -158,26 +158,25 @@ export default function AIPostureDashboard() {
     <Layout user={user}>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-medium text-gray-900">AI Posture Dashboard</h1>
-            <p className="text-body text-gray-500 mt-2">
-              Comprehensive runtime posture visualization for CIO/CISO
-            </p>
-          </div>
-          <div className="text-right">
-            <div className="text-caption text-gray-500 mb-1">Overall Posture</div>
-            <div className={`text-heading font-medium`} style={{ color: postureLevelColor }}>
-              {posture.overall_posture.posture_score?.toFixed(1) || 'N/A'}
-            </div>
-            <div className="text-caption text-gray-500 capitalize">
-              {posture.overall_posture.posture_level?.replace('_', ' ') || 'N/A'}
-            </div>
-          </div>
+        <div>
+          <h1 className="text-2xl font-medium text-gray-900">AI Posture Dashboard</h1>
+          <p className="text-sm text-gray-500 mt-2">
+            Comprehensive runtime posture visualization for CIO/CISO
+          </p>
         </div>
 
         {/* Key Metrics Row */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          {/* Overall Posture Card - moved from header */}
+          <MaterialCard elevation={2} className="bg-gradient-to-br from-gray-50/50 to-gray-100/50 border-none">
+            <div className="text-sm font-medium text-gray-600 mb-1">Overall Posture</div>
+            <div className="text-3xl font-medium" style={{ color: postureLevelColor }}>
+              {posture.overall_posture.posture_score?.toFixed(1) || 'N/A'}
+            </div>
+            <div className="text-xs text-gray-600 font-medium mt-1 capitalize">
+              {posture.overall_posture.posture_level?.replace('_', ' ') || 'N/A'}
+            </div>
+          </MaterialCard>
           <MaterialCard elevation={2} className="bg-gradient-to-br from-blue-50/50 to-blue-100/50 border-none">
             <div className="text-sm font-medium text-blue-600 mb-1">Total Models in Use</div>
             <div className="text-3xl font-medium text-blue-900">{posture.total_models_in_use}</div>
@@ -211,17 +210,18 @@ export default function AIPostureDashboard() {
           {/* Model Usage */}
           <MaterialCard elevation={1}>
             <h2 className="text-lg font-medium mb-6 text-gray-900">AI Model Usage (Top 15)</h2>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={modelUsageData} margin={{ top: 5, right: 30, left: 20, bottom: 80 }}>
+            <ResponsiveContainer width="100%" height={350}>
+              <BarChart data={modelUsageData} margin={{ top: 5, right: 30, left: 20, bottom: 120 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
                 <XAxis
                   dataKey="name"
                   angle={-45}
                   textAnchor="end"
-                  height={100}
-                  tick={{ fontSize: 10, fill: '#666' }}
+                  height={140}
+                  tick={{ fontSize: 9, fill: '#666' }}
                   interval={0}
                   stroke="#e0e0e0"
+                  width={200}
                 />
                 <YAxis tick={{ fontSize: 10, fill: '#666' }} stroke="#e0e0e0" />
                 <Tooltip />

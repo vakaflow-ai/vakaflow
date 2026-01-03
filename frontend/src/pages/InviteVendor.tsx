@@ -268,18 +268,18 @@ export default function InviteVendor() {
 
   return (
     <Layout user={user}>
-      <div className="space-y-6">
+      <div className="max-w-5xl mx-auto space-y-6">
         <div>
-          <h1>Invite Vendor</h1>
-          <p className="text-body text-gray-600 mt-2">
+          <h1 className="text-2xl font-semibold text-gray-900 mb-2">Invite Vendor</h1>
+          <p className="text-sm text-gray-600">
             Invite vendors to submit their AI Agent solutions to your organization
           </p>
         </div>
 
         {/* Invitation Form */}
-        <div className="compact-card-elevated">
-          <h2 className="mb-4">Send Invitation</h2>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
+          <h2 className="text-lg font-semibold text-gray-900 mb-6">Send Invitation</h2>
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             <FormField
               label="Vendor Email"
               name="email"
@@ -291,17 +291,17 @@ export default function InviteVendor() {
               required
               placeholder="vendor@example.com"
             />
-            <p className="text-caption text-gray-600 -mt-2 mb-4">
+            <p className="text-sm text-gray-600 -mt-2 mb-6">
               The vendor will receive an invitation email with a registration link to access the Vendor Portal
             </p>
 
             {/* Invitation Type Selection */}
-            <div className="space-y-3">
-              <label className="enterprise-label">
+            <div className="space-y-4">
+              <label className="block text-sm font-medium text-gray-700 mb-3">
                 Invitation Type
               </label>
               <div className="space-y-2">
-                <label className="flex items-start gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                <label className="flex items-start gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
                   <input
                     type="radio"
                     name="invitationType"
@@ -311,13 +311,13 @@ export default function InviteVendor() {
                     className="mt-1"
                   />
                   <div className="flex-1">
-                    <div className="text-body font-medium">AI Agentic App Onboarding</div>
-                    <div className="text-caption text-gray-600 mt-0.5">
+                    <div className="text-sm font-medium text-gray-900">AI Agentic App Onboarding</div>
+                    <div className="text-xs text-gray-600 mt-1">
                       Invite vendor to submit their AI Agent application for onboarding
                     </div>
                   </div>
                 </label>
-                <label className="flex items-start gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                <label className="flex items-start gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
                   <input
                     type="radio"
                     name="invitationType"
@@ -327,13 +327,13 @@ export default function InviteVendor() {
                     className="mt-1"
                   />
                   <div className="flex-1">
-                    <div className="text-body font-medium">Vendor Onboarding</div>
-                    <div className="text-caption text-gray-600 mt-0.5">
+                    <div className="text-sm font-medium text-gray-900">Vendor Onboarding</div>
+                    <div className="text-xs text-gray-600 mt-1">
                       Invite vendor to join the platform and create their vendor profile
                     </div>
                   </div>
                 </label>
-                <label className="flex items-start gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                <label className="flex items-start gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
                   <input
                     type="radio"
                     name="invitationType"
@@ -343,13 +343,13 @@ export default function InviteVendor() {
                     className="mt-1"
                   />
                   <div className="flex-1">
-                    <div className="text-body font-medium">Vendor App Onboarding Request</div>
-                    <div className="text-caption text-gray-600 mt-0.5">
+                    <div className="text-sm font-medium text-gray-900">Vendor App Onboarding Request</div>
+                    <div className="text-xs text-gray-600 mt-1">
                       Respond to vendor's request to onboard their application
                     </div>
                   </div>
                 </label>
-                <label className="flex items-start gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+                <label className="flex items-start gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
                   <input
                     type="radio"
                     name="invitationType"
@@ -359,8 +359,8 @@ export default function InviteVendor() {
                     className="mt-1"
                   />
                   <div className="flex-1">
-                    <div className="text-body font-medium">Custom Message</div>
-                    <div className="text-caption text-gray-600 mt-0.5">
+                    <div className="text-sm font-medium text-gray-900">Custom Message</div>
+                    <div className="text-xs text-gray-600 mt-1">
                       Write your own custom invitation message
                     </div>
                   </div>
@@ -393,7 +393,7 @@ export default function InviteVendor() {
             <button
               type="submit"
               disabled={createInvitation.isPending}
-              className="compact-button-primary"
+              className="w-full sm:w-auto px-6 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {createInvitation.isPending ? 'Sending...' : 'Send Invitation'}
             </button>
@@ -401,13 +401,13 @@ export default function InviteVendor() {
         </div>
 
         {/* Invitations List */}
-        <div className="compact-card">
+        <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-medium">Invitations</h2>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="compact-input"
+              className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
               <option value="">All Statuses</option>
               <option value="pending">Pending</option>

@@ -2158,26 +2158,28 @@ export default function SubmissionRequirementsManagement() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label htmlFor="order" className="block text-sm font-medium mb-1">Display Order</label>
+                <div className="grid grid-cols-2 gap-6 items-start">
+                  <div className="enterprise-form-field">
+                    <label htmlFor="order" className="enterprise-label">Display Order</label>
                     <input
                       id="order"
                       type="number"
-                      className="shadow-sm rounded-md border border-gray-200 text-sm w-full h-[42px] px-3 bg-white hover:border-primary-300 focus:border-blue-500 focus:ring-1 focus:ring-primary-500 transition-all outline-none font-medium text-gray-700"
+                      className="enterprise-input"
                       value={formData.order}
                       onChange={(e) => setFormData({ ...formData, order: parseInt(e.target.value) || 0 })}
                     />
                   </div>
-                  <div className="flex items-center gap-2 pt-6">
-                    <input
-                      type="checkbox"
-                      id="is_required"
-                      checked={formData.is_required}
-                      onChange={(e) => setFormData({ ...formData, is_required: e.target.checked })}
-                      className="w-4 h-4"
-                    />
-                    <label htmlFor="is_required" className="text-sm font-medium">Required Field</label>
+                  <div className="enterprise-form-field">
+                    <div className="flex items-center gap-2 pt-6">
+                      <input
+                        type="checkbox"
+                        id="is_required"
+                        checked={formData.is_required}
+                        onChange={(e) => setFormData({ ...formData, is_required: e.target.checked })}
+                        className="w-4 h-4"
+                      />
+                      <label htmlFor="is_required" className="text-sm font-medium">Required Field</label>
+                    </div>
                   </div>
                 </div>
 

@@ -104,8 +104,8 @@ export default function CustomFieldFormModal({
 
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+            <div className="enterprise-form-field">
+              <label className="enterprise-label">
                 Field Label <span className="text-red-500">*</span>
               </label>
               <input
@@ -117,37 +117,37 @@ export default function CustomFieldFormModal({
                     setFieldName(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '_'))
                   }
                 }}
-                className="enterprise-input w-full"
+                className="enterprise-input"
                 placeholder="e.g., Agreement Document"
                 required
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+            <div className="enterprise-form-field">
+              <label className="enterprise-label">
                 Internal Name <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
                 value={fieldName}
                 onChange={(e) => setFieldName(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '_'))}
-                className="enterprise-input w-full font-mono bg-gray-50"
+                className="enterprise-input font-mono bg-gray-50"
                 placeholder="e.g., agreement_doc"
                 required
                 disabled={isEditing}
               />
-              <p className="text-xs text-gray-600 mt-1 font-bold tracking-tighter">Unique identifier, cannot be changed after creation</p>
+              <p className="text-xs text-gray-600 mt-2">Unique identifier, cannot be changed after creation</p>
             </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+          <div className="enterprise-form-field">
+            <label className="enterprise-label">
               Field Type <span className="text-red-500">*</span>
             </label>
             <select
               value={fieldType}
               onChange={(e) => setFieldType(e.target.value as CustomField['field_type'])}
-              className="enterprise-input w-full"
+              className="enterprise-input"
               required
             >
               <optgroup label="Text Input">

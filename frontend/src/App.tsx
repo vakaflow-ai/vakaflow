@@ -110,6 +110,7 @@ function App() {
           <Route path="/agents/new" element={<AgentSubmission />} />
           <Route path="/agents/:id" element={<AgentDetail />} />
           <Route path="/agents/:agentId/connections" element={<AgentConnections />} />
+          <Route path="/agent-connections" element={<Navigate to="/agents" replace />} />
           <Route path="/agents" element={<Navigate to="/my-actions" replace />} />
           <Route path="/reviews" element={<ReviewerDashboard />} />
           <Route path="/reviews/:id" element={<ReviewInterface />} />
@@ -122,20 +123,27 @@ function App() {
           <Route path="/admin/custom-fields" element={<CustomFields />} />
           <Route path="/admin/tenants" element={<TenantManagement />} />
           <Route path="/admin/workflows" element={<WorkflowManagement />} />
-          <Route path="/compliance" element={<ComplianceChecks />} />
+          <Route path="/admin/integrations" element={<IntegrationManagement />} />
+          <Route path="/workflows" element={<WorkflowManagement />} />
+          <Route path="/form-designer" element={<FormDesignerList />} />
           <Route path="/compliance/:agentId" element={<ComplianceChecks />} />
-          <Route path="/cve" element={<CVEDashboard />} />
-          <Route path="/cve/:id" element={<CVEDetail />} />
+          <Route path="/compliance" element={<ComplianceChecks />} />
+          <Route path="/frameworks" element={<Navigate to="/compliance" replace />} />
           <Route path="/cve/settings" element={<CVESettings />} />
+          <Route path="/cve/:id" element={<CVEDetail />} />
+          <Route path="/cve" element={<CVEDashboard />} />
           <Route path="/vendors/:vendorId/security" element={<VendorSecurity />} />
           <Route path="/admin/question-library" element={<QuestionLibrary />} />
+          <Route path="/question-library" element={<Navigate to="/admin/question-library" replace />} />
           <Route path="/admin/submission-requirements" element={<SubmissionRequirementsManagement />} />
+          <Route path="/submission-requirements" element={<Navigate to="/admin/submission-requirements" replace />} />
           <Route path="/admin/assessments" element={<AssessmentsManagement />} />
           <Route path="/assessments/analytics" element={<AssessmentAnalytics />} />
-          <Route path="/my-assessments" element={<MyAssessments />} />
           <Route path="/assessments/review/:id" element={<AssessmentApprover />} />
           <Route path="/assessments/assignments/:id" element={<AssessmentAssignmentPage />} />
           <Route path="/assessments/:id" element={<AssessmentAssignmentPage />} />
+          <Route path="/my-assessments" element={<MyAssessments />} />
+          <Route path="/assessments" element={<Navigate to="/admin/assessments" replace />} />
           <Route path="/admin/form-designer" element={<FormDesignerList />} />
           <Route path="/admin/form-designer/new" element={<FormDesignerEditor />} />
           <Route path="/admin/form-designer/:id" element={<FormDesignerEditor />} />
