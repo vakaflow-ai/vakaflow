@@ -107,6 +107,7 @@ class RolePermissionService:
             "menu.assessments": ("Assessments", "Access to Assessments page"),
             "menu.admin_panel": ("Admin Panel", "Access to Admin Panel"),
             "menu.users": ("Users", "Access to Users management page"),
+            "menu.entities": ("Entities", "Access to Entities page"),
             "menu.role_permissions": ("Role & Permissions", "Access to Role & Permissions page"),
             "menu.entity_fields_catalog": ("Entity and Fields Catalog", "Access to Entity and Fields Catalog"),
             "menu.tenant_settings": ("Tenant Settings", "Access to Tenant Settings page"),

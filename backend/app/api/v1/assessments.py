@@ -32,26 +32,8 @@ router = APIRouter(prefix="/assessments", tags=["assessments"])
 template_router = APIRouter(prefix="/assessment-templates", tags=["assessment-templates"])
 
 
-def _generate_assessment_ticket_id(db: Session, tenant_id: UUID) -> str:
-    """Generate unique assessment workflow ticket ID (e.g., ASMT-2025-001)"""
-    year = datetime.utcnow().year
-    # Get the last ticket number for this year and tenant
-    last_assignment = db.query(AssessmentAssignment).filter(
-        AssessmentAssignment.tenant_id == tenant_id,
-        AssessmentAssignment.workflow_ticket_id.like(f"ASMT-{year}-%")
-    ).order_by(AssessmentAssignment.workflow_ticket_id.desc()).first()
-    
-    if last_assignment and last_assignment.workflow_ticket_id:
-        # Extract number and increment
-        try:
-            last_num = int(last_assignment.workflow_ticket_id.split('-')[-1])
-            next_num = last_num + 1
-        except (ValueError, IndexError):
-            next_num = 1
-    else:
-        next_num = 1
-    
-    return f"ASMT-{year}-{next_num:03d}"
+# Import from shared utility to avoid circular imports
+from app.core.ticket_id_generator import generate_assessment_ticket_id as _generate_assessment_ticket_id
 
 
 # Pydantic Schemas
@@ -1326,6 +1308,17 @@ async def create_assignment(
             schedule_id=schedule_id
         )
         
+        # Generate workflow ticket ID when assignment is created (not just on completion)
+        # This ensures ticket IDs are available for pending assignments in the inbox
+        if not assignment.workflow_ticket_id:
+            try:
+                assignment.workflow_ticket_id = _generate_assessment_ticket_id(db, effective_tenant_id)
+                db.flush()  # Flush to save ticket ID before creating action items
+                logger.info(f"✅ Generated workflow ticket ID {assignment.workflow_ticket_id} for assignment {assignment.id} at creation")
+            except Exception as e:
+                logger.warning(f"Failed to generate workflow ticket ID for assignment {assignment.id} at creation: {e}. Will retry on completion.")
+                # Continue without ticket ID - it will be generated on completion as fallback
+        
         # Create action item for vendor users when assignment is created via API
         # Note: Action items are also created in the service layer, but we keep this here
         # for onboarding flows and as a safety net. Duplicate prevention is handled by checking
@@ -1385,7 +1378,8 @@ async def create_assignment(
                         "vendor_id": str(assignment.vendor_id) if assignment.vendor_id else None,
                         "agent_id": str(assignment.agent_id) if assignment.agent_id else None,
                         "assignment_type": assignment.assignment_type,
-                        "workflow_type": "assessment_assignment"
+                        "workflow_type": "assessment_assignment",
+                        "workflow_ticket_id": assignment.workflow_ticket_id  # Include ticket ID in metadata
                     }
                 )
                 db.add(action_item)
@@ -1502,14 +1496,36 @@ async def get_assignment_questions(
         
         if len(all_questions) > 0:
             # Found questions without tenant filter - likely old data with mismatched tenant_ids
-            # Use these questions but log a warning
             logger.warning(
                 f"Found {len(all_questions)} questions for assessment {assignment.assessment_id} without tenant filter. "
                 f"Assessment tenant: {assessment.tenant_id}, Effective tenant: {effective_tenant_id}. "
-                f"Using these questions but tenant isolation may be compromised. "
-                f"Consider updating question tenant_ids to match assessment tenant_id."
+                f"Question tenant_ids: {[str(q.tenant_id) for q in all_questions[:5]]}"
             )
-            questions = all_questions
+            
+            # Fix tenant_id for questions that have wrong tenant_id
+            fixed_count = 0
+            for q in all_questions:
+                if q.tenant_id != assessment.tenant_id:
+                    logger.info(f"Fixing tenant_id for question {q.id}: {q.tenant_id} -> {assessment.tenant_id}")
+                    q.tenant_id = assessment.tenant_id
+                    fixed_count += 1
+            
+            if fixed_count > 0:
+                try:
+                    db.commit()
+                    logger.info(f"Fixed tenant_id for {fixed_count} questions. Refreshing query.")
+                    # Re-query with correct tenant_id and order
+                    questions = db.query(AssessmentQuestion).filter(
+                        AssessmentQuestion.assessment_id == assignment.assessment_id,
+                        AssessmentQuestion.tenant_id == assessment.tenant_id
+                    ).order_by(AssessmentQuestion.order).all()
+                except Exception as e:
+                    logger.error(f"Error fixing question tenant_ids: {e}", exc_info=True)
+                    db.rollback()
+                    # Use questions as-is if fix fails
+                    questions = all_questions
+            else:
+                questions = all_questions
         else:
             logger.warning(f"No questions found for assessment {assignment.assessment_id} at all. Assessment may not have questions.")
     
@@ -1733,6 +1749,15 @@ async def save_assessment_responses(
             logger.error(f"Error saving question response for question {question.id}: {e}", exc_info=True)
             # Continue with other questions even if one fails
     
+    # Flush responses to database before completion check (so they're available for queries)
+    # This ensures the completion check can find responses that were just saved
+    try:
+        db.flush()
+        logger.info(f"Flushed responses to database for assignment {assignment_id} before completion check")
+    except Exception as e:
+        logger.warning(f"Error flushing responses before completion check: {e}", exc_info=True)
+        # Continue anyway - responses might still be in session
+    
     # Check if all required questions are answered (only if not draft)
     if not is_draft:
         # Ensure assessment has questions
@@ -1747,22 +1772,54 @@ async def save_assessment_responses(
         
         logger.info(f"Checking completion for assignment {assignment_id}: {len(required_questions)} required questions, {len(questions)} total questions, {len(responses)} responses in request")
         
+        # Helper function to check if a response value is actually provided (not None, not empty string, not empty dict/list)
+        def is_response_provided(response_value):
+            """Check if a response value is actually provided (not None, empty string, empty dict, or empty list)"""
+            if response_value is None:
+                return False
+            if isinstance(response_value, str) and response_value.strip() == "":
+                return False
+            if isinstance(response_value, dict) and len(response_value) == 0:
+                return False
+            if isinstance(response_value, list) and len(response_value) == 0:
+                return False
+            # Check if it's a dict with a 'value' key (enhanced format)
+            if isinstance(response_value, dict):
+                value = response_value.get('value')
+                if value is None or (isinstance(value, str) and value.strip() == ""):
+                    return False
+            return True
+        
         # If there are required questions, all must be answered
         # If there are no required questions, at least one question must be answered
         if len(required_questions) > 0:
             answered_status = []
             for q in required_questions:
-                in_request = str(q.id) in responses
-                in_db = db.query(AssessmentQuestionResponseModel).filter(
+                # Check if answered in current request
+                question_response = responses.get(str(q.id))
+                in_request = question_response is not None and is_response_provided(question_response)
+                
+                # Check if answered in database (with non-empty value)
+                # Query for responses with non-null, non-empty values
+                from sqlalchemy import and_, or_, func
+                db_response = db.query(AssessmentQuestionResponseModel).filter(
                     AssessmentQuestionResponseModel.assignment_id == assignment_id,
                     AssessmentQuestionResponseModel.question_id == q.id,
                     AssessmentQuestionResponseModel.value.isnot(None)
-                ).first() is not None
+                ).first()
+                # Additional check: ensure the value is not an empty string, empty dict, or empty list
+                if db_response:
+                    in_db = is_response_provided(db_response.value)
+                else:
+                    in_db = False
+                
+                # Check if answered via requirement reference
                 in_requirement = (q.question_type == 'requirement_reference' and q.requirement_id and assignment.agent_id and
                  db.query(SubmissionRequirementResponse).filter(
                      SubmissionRequirementResponse.requirement_id == q.requirement_id,
                      SubmissionRequirementResponse.agent_id == assignment.agent_id
                  ).first() is not None)
+                
                 is_answered = in_request or in_db or in_requirement
                 answered_status.append((str(q.id), is_answered, in_request, in_db, in_requirement))
             
@@ -1773,39 +1830,72 @@ async def save_assessment_responses(
                 logger.info(f"Not all required questions answered for assignment {assignment_id}. Unanswered question IDs: {unanswered}")
                 logger.debug(f"Answered status details: {answered_status}")
         else:
-            # No required questions - check if at least one question has been answered
-            answered_count = sum(
-                1 for q in questions
-                if str(q.id) in responses or
-                db.query(AssessmentQuestionResponseModel).filter(
+            # No required questions - check if ALL questions have been answered with actual content
+            # This ensures that when a questionnaire is submitted, all questions must be answered
+            answered_status = []
+            for q in questions:
+                # Check if answered in current request
+                question_response = responses.get(str(q.id))
+                in_request = question_response is not None and is_response_provided(question_response)
+                
+                # Check if answered in database (with non-empty value)
+                db_response = db.query(AssessmentQuestionResponseModel).filter(
                     AssessmentQuestionResponseModel.assignment_id == assignment_id,
                     AssessmentQuestionResponseModel.question_id == q.id,
                     AssessmentQuestionResponseModel.value.isnot(None)
-                ).first() or
-                (q.question_type == 'requirement_reference' and q.requirement_id and assignment.agent_id and
+                ).first()
+                # Additional check: ensure the value is not an empty string, empty dict, or empty list
+                if db_response:
+                    in_db = is_response_provided(db_response.value)
+                else:
+                    in_db = False
+                
+                # Check if answered via requirement reference
+                in_requirement = (q.question_type == 'requirement_reference' and q.requirement_id and assignment.agent_id and
                  db.query(SubmissionRequirementResponse).filter(
                      SubmissionRequirementResponse.requirement_id == q.requirement_id,
                      SubmissionRequirementResponse.agent_id == assignment.agent_id
-                 ).first())
-            )
-            all_answered = answered_count > 0
-            logger.info(f"No required questions. Checking if any questions answered: {answered_count}/{len(questions)} answered")
+                 ).first() is not None)
+                
+                is_answered = in_request or in_db or in_requirement
+                answered_status.append((str(q.id), is_answered, in_request, in_db, in_requirement))
+            
+            all_answered = all(status[1] for status in answered_status)
+            answered_count = sum(1 for status in answered_status if status[1])
+            
+            if not all_answered:
+                unanswered = [s[0] for s in answered_status if not s[1]]
+                logger.info(f"Not all questions answered for assignment {assignment_id} (no required questions). Unanswered question IDs: {unanswered}")
+                logger.debug(f"Answered status details: {answered_status}")
+            
+            logger.info(f"No required questions. Checking if all questions answered: {answered_count}/{len(questions)} answered")
+        
+        # Log completion check result with detailed information
+        logger.info(f"Completion check for assignment {assignment_id}: all_answered={all_answered}, is_draft={is_draft}, required_questions={len(required_questions) if len(required_questions) > 0 else 0}, total_questions={len(questions)}")
         
         if all_answered:
+            logger.info(f"✅ Completion check passed for assignment {assignment_id}. Proceeding to mark as completed and trigger workflow.")
             # Capture previous status before any changes
             previous_status = assignment.status
             # Check if assignment is already completed
             was_already_completed = assignment.status == 'completed'
             
-            logger.info(f"All required questions answered for assignment {assignment_id}. Marking as completed and triggering workflows.")
+            logger.info(f"✅ All required questions answered for assignment {assignment_id}. Marking as completed and triggering workflows.")
             assignment.status = 'completed'
             if not assignment.completed_at:
                 assignment.completed_at = datetime.utcnow()
+                logger.info(f"✅ Set completed_at timestamp for assignment {assignment_id}")
             
             # Generate workflow ticket ID if not already set (human-friendly ticket number)
             if not assignment.workflow_ticket_id:
-                assignment.workflow_ticket_id = _generate_assessment_ticket_id(db, assignment.tenant_id)
-                logger.info(f"Generated workflow ticket ID {assignment.workflow_ticket_id} for assignment {assignment_id}")
+                try:
+                    assignment.workflow_ticket_id = _generate_assessment_ticket_id(db, assignment.tenant_id)
+                    logger.info(f"✅ Generated workflow ticket ID {assignment.workflow_ticket_id} for assignment {assignment_id}")
+                except Exception as e:
+                    logger.error(f"❌ Failed to generate workflow ticket ID for assignment {assignment_id}: {str(e)}", exc_info=True)
+                    # Continue without ticket ID - it's not critical
+            else:
+                logger.info(f"✅ Assignment {assignment_id} already has workflow ticket ID: {assignment.workflow_ticket_id}")
             
             # Create workflow history entry for submission (only if not already completed)
             if not was_already_completed:
@@ -1901,10 +1991,17 @@ async def save_assessment_responses(
                 # Create approval action items directly on submission
                 # This creates action items that will show in approver inbox based on form layout visibility
                 try:
-                    logger.info(f"Assignment {assignment_id} submitted. Triggering approval workflow, submitted by user {current_user.id} ({current_user.email})")
-                    logger.info(f"Assignment details: status={assignment.status}, assessment_id={assignment.assessment_id}, tenant_id={assignment.tenant_id}")
+                    logger.info(f"🚀 Assignment {assignment_id} submitted. Triggering approval workflow, submitted by user {current_user.id} ({current_user.email})")
+                    logger.info(f"   Assignment details: status={assignment.status}, assessment_id={assignment.assessment_id}, tenant_id={assignment.tenant_id}, workflow_ticket_id={assignment.workflow_ticket_id}")
+                    
+                    # Ensure assignment is flushed before triggering workflow
+                    db.flush()
+                    
                     # Run synchronously to create action items immediately (they'll be committed with the main transaction)
                     await _trigger_assessment_approval_workflow(assignment, current_user, db, background_tasks)
+                    
+                    # Flush again to ensure action items are in the session
+                    db.flush()
                     
                     # Verify action items were created
                     created_count = db.query(ActionItem).filter(
@@ -1912,9 +2009,13 @@ async def save_assessment_responses(
                         ActionItem.source_type == "assessment_approval",
                         ActionItem.action_type == ActionItemType.APPROVAL
                     ).count()
-                    logger.info(f"Successfully triggered approval workflow for assignment {assignment_id}. Created {created_count} approval action items for approvers.")
+                    
+                    if created_count > 0:
+                        logger.info(f"✅ Successfully triggered approval workflow for assignment {assignment_id}. Created {created_count} approval action items for approvers.")
+                    else:
+                        logger.warning(f"⚠️ Approval workflow triggered but no action items were created for assignment {assignment_id}. This may indicate no approvers were found.")
                 except Exception as e:
-                    logger.error(f"Error triggering approval workflow for assignment {assignment_id}: {e}", exc_info=True, extra={
+                    logger.error(f"❌ Error triggering approval workflow for assignment {assignment_id}: {e}", exc_info=True, extra={
                         "assignment_id": str(assignment_id),
                         "user_id": str(current_user.id),
                         "error_type": type(e).__name__,
@@ -1923,7 +2024,29 @@ async def save_assessment_responses(
                     # Don't fail the submission if workflow trigger fails, but log the error
                     # The workflow can be manually triggered later if needed
         else:
-            logger.info(f"Assignment {assignment_id} not yet complete. Required questions: {len(required_questions)}, Answered: {sum(1 for q in required_questions if str(q.id) in responses or db.query(AssessmentQuestionResponseModel).filter(AssessmentQuestionResponseModel.assignment_id == assignment_id, AssessmentQuestionResponseModel.question_id == q.id, AssessmentQuestionResponseModel.value.isnot(None)).first())}")
+            # Log detailed information about why assignment is not complete
+            if len(required_questions) > 0:
+                unanswered_required = []
+                for q in required_questions:
+                    question_response = responses.get(str(q.id))
+                    db_response = db.query(AssessmentQuestionResponseModel).filter(
+                        AssessmentQuestionResponseModel.assignment_id == assignment_id,
+                        AssessmentQuestionResponseModel.question_id == q.id,
+                        AssessmentQuestionResponseModel.value.isnot(None)
+                    ).first()
+                    if not question_response and not db_response:
+                        unanswered_required.append(str(q.id))
+                logger.warning(f"Assignment {assignment_id} not yet complete. Required questions: {len(required_questions)}, Unanswered required question IDs: {unanswered_required}")
+            else:
+                total_answered = sum(1 for q in questions if (
+                    str(q.id) in responses or 
+                    db.query(AssessmentQuestionResponseModel).filter(
+                        AssessmentQuestionResponseModel.assignment_id == assignment_id,
+                        AssessmentQuestionResponseModel.question_id == q.id,
+                        AssessmentQuestionResponseModel.value.isnot(None)
+                    ).first()
+                ))
+                logger.warning(f"Assignment {assignment_id} not yet complete. Total questions: {len(questions)}, Answered: {total_answered}")
     
     try:
         # Ensure assignment status and action items are saved before committing
@@ -2377,22 +2500,28 @@ async def _update_entity_status_on_approval(
             from app.models.vendor import Vendor
             vendor = db.query(Vendor).filter(Vendor.id == assignment.vendor_id).first()
             if vendor:
-                # Set vendor to Green status (this would depend on your vendor model)
-                # For now, we'll just log the approval
-                logger.info(f"Assessment approved - Vendor {vendor.name} marked as Green")
-                # You could add vendor.compliance_status = "green" here if the model supports it
+                # Set vendor compliance_score to 100 (Green status)
+                vendor.compliance_score = 100
+                logger.info(f"Assessment approved - Vendor {vendor.name} (ID: {vendor.id}) marked as Green (compliance_score: 100)")
 
         if assignment.agent_id:
-            # Update agent compliance score
-            from app.models.agent import Agent
+            # Update agent status and compliance score
+            from app.models.agent import Agent, AgentStatus
             agent = db.query(Agent).filter(Agent.id == assignment.agent_id).first()
             if agent:
-                # Set agent to Green status
-                logger.info(f"Assessment approved - Agent {agent.name} marked as Green")
-                # You could add agent.compliance_status = "green" here if the model supports it
+                # Set agent status to APPROVED and compliance_score to 100
+                agent.status = AgentStatus.APPROVED.value
+                agent.compliance_score = 100
+                agent.approval_date = datetime.utcnow()
+                logger.info(f"Assessment approved - Agent {agent.name} (ID: {agent.id}) marked as APPROVED (compliance_score: 100)")
+        
+        # Commit the status updates
+        db.commit()
+        logger.info(f"Successfully updated entity statuses for assignment {assignment.id}")
 
     except Exception as e:
         logger.error(f"Error updating entity status on approval: {e}", exc_info=True)
+        db.rollback()
         # Don't fail the approval if status update fails
 
 
@@ -2636,9 +2765,9 @@ async def _trigger_assessment_approval_workflow(
             agent_name = agent.name
 
     # Create action items for approvers
-    # Action URL points to approver view which uses form layout (assessment_workflow, pending_approval stage)
+    # Action URL points to generic approver view which uses source_type and source_id from business process
     frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
-    approval_url = f"/assessments/review/{assignment.id}"  # Opens approver view with form layout
+    approval_url = f"/approver/assessment_approval/{assignment.id}"  # Opens generic approver view
 
     logger.info(f"Triggering assessment approval workflow for assignment {assignment.id}. Found {len(unique_approvers)} approvers.")
 
@@ -2660,17 +2789,30 @@ async def _trigger_assessment_approval_workflow(
             logger.info(f"Using tenant admin {tenant_admin.id} ({tenant_admin.email}) as fallback approver for assignment {assignment.id}")
             unique_approvers = [tenant_admin]
         else:
-            # Last resort: find any active user in the tenant
+            # Last resort: find any active user in the tenant (excluding the submitter)
             any_user = db.query(User).filter(
                 User.tenant_id == assignment.tenant_id,
-                User.is_active == True
+                User.is_active == True,
+                User.id != submitted_by.id  # Exclude the submitter
             ).first()
             if any_user:
                 logger.warning(f"No approvers or tenant admin found. Using any active user {any_user.id} ({any_user.email}) as fallback for assignment {assignment.id}")
                 unique_approvers = [any_user]
             else:
-                logger.error(f"No approvers, tenant admin, or active users found for tenant {assignment.tenant_id}. Cannot create approval action items for assignment {assignment.id}")
-                return  # Cannot proceed without any user to assign to
+                # Even if no approvers found, still try to create action item assigned to assessment owner or submitter's manager
+                # This ensures the workflow doesn't fail silently
+                logger.error(f"No approvers, tenant admin, or active users found for tenant {assignment.tenant_id}. Attempting to use assessment owner as last resort.")
+                if assessment.owner_id:
+                    owner = db.query(User).filter(User.id == assessment.owner_id).first()
+                    if owner and owner.is_active:
+                        logger.warning(f"Using assessment owner {owner.id} ({owner.email}) as last resort approver for assignment {assignment.id}")
+                        unique_approvers = [owner]
+                    else:
+                        logger.error(f"Assessment owner {assessment.owner_id} is not active or not found. Cannot create approval action items for assignment {assignment.id}")
+                        return  # Cannot proceed without any user to assign to
+                else:
+                    logger.error(f"No approvers found and assessment has no owner. Cannot create approval action items for assignment {assignment.id}")
+                    return  # Cannot proceed without any user to assign to
 
     action_items_created = 0
     for approver in unique_approvers:
@@ -3225,10 +3367,105 @@ async def get_assignment_status(
                 detail="Assignment not found"
             )
     
-    # Get questions
+    # Authorization check: Approvers should only access completed assignments for review/approval
+    # They should NOT access pending/in_progress assignments (those are for vendors to fill out)
+    from app.models.user import UserRole
+    is_approver_role = current_user.role in [
+        UserRole.APPROVER, 
+        UserRole.SECURITY_REVIEWER, 
+        UserRole.COMPLIANCE_REVIEWER, 
+        UserRole.TECHNICAL_REVIEWER, 
+        UserRole.BUSINESS_REVIEWER
+    ]
+    
+    if is_approver_role and assignment.status not in ['completed', 'approved', 'rejected', 'needs_revision']:
+        # Approver trying to access a pending/in_progress assignment
+        # Check if there's an approval action item for this assignment
+        from app.models.action_item import ActionItem, ActionItemType, ActionItemStatus
+        approval_item = db.query(ActionItem).filter(
+            ActionItem.source_id == assignment_id,
+            ActionItem.source_type == "assessment_approval",
+            ActionItem.action_type == ActionItemType.APPROVAL,
+            ActionItem.assigned_to == current_user.id,
+            ActionItem.status.in_([ActionItemStatus.PENDING, ActionItemStatus.IN_PROGRESS])
+        ).first()
+        
+        if not approval_item:
+            # No approval item exists - approver shouldn't access this assignment
+            logger.warning(
+                f"Approver {current_user.email} (role: {current_user.role.value}) attempted to access "
+                f"assignment {assignment_id} with status '{assignment.status}' without an approval action item. "
+                f"Approvers can only review/approve completed assessments."
+            )
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Access denied. Approvers can only review/approve completed assessments. "
+                       f"This assessment is currently '{assignment.status}' and must be completed by the vendor first. "
+                       f"Please use the approval workflow from your inbox."
+            )
+    
+    # Get assessment details first (needed for tenant_id)
+    assessment = db.query(Assessment).filter(Assessment.id == assignment.assessment_id).first()
+    if not assessment:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Assessment not found"
+        )
+    
+    # Get questions with tenant filtering (consistent with other endpoints)
+    # First try with assessment.tenant_id
     questions = db.query(AssessmentQuestion).filter(
-        AssessmentQuestion.assessment_id == assignment.assessment_id
+        AssessmentQuestion.assessment_id == assignment.assessment_id,
+        AssessmentQuestion.tenant_id == assessment.tenant_id  # Use assessment's tenant_id
     ).all()
+    
+    # If no questions found, try without tenant filter (for backward compatibility)
+    if len(questions) == 0:
+        logger.warning(
+            f"No questions found for assessment {assignment.assessment_id} with tenant filter (tenant: {assessment.tenant_id}). "
+            f"Trying without tenant filter for backward compatibility."
+        )
+        questions_without_filter = db.query(AssessmentQuestion).filter(
+            AssessmentQuestion.assessment_id == assignment.assessment_id
+        ).all()
+        
+        if len(questions_without_filter) > 0:
+            logger.warning(
+                f"Found {len(questions_without_filter)} questions without tenant filter. "
+                f"Assessment tenant: {assessment.tenant_id}, Assignment tenant: {assignment.tenant_id}. "
+                f"Question tenant_ids: {[str(q.tenant_id) for q in questions_without_filter[:5]]}"
+            )
+            
+            # Fix tenant_id for questions that have wrong tenant_id
+            # This ensures future queries work correctly
+            fixed_count = 0
+            for q in questions_without_filter:
+                if q.tenant_id != assessment.tenant_id:
+                    logger.info(f"Fixing tenant_id for question {q.id}: {q.tenant_id} -> {assessment.tenant_id}")
+                    q.tenant_id = assessment.tenant_id
+                    fixed_count += 1
+            
+            if fixed_count > 0:
+                try:
+                    db.commit()
+                    logger.info(f"Fixed tenant_id for {fixed_count} questions. Refreshing query.")
+                    # Re-query with correct tenant_id
+                    questions = db.query(AssessmentQuestion).filter(
+                        AssessmentQuestion.assessment_id == assignment.assessment_id,
+                        AssessmentQuestion.tenant_id == assessment.tenant_id
+                    ).all()
+                except Exception as e:
+                    logger.error(f"Error fixing question tenant_ids: {e}", exc_info=True)
+                    db.rollback()
+                    # Use questions as-is if fix fails
+                    questions = questions_without_filter
+            else:
+                questions = questions_without_filter
+        else:
+            logger.warning(
+                f"No questions found for assessment {assignment.assessment_id} at all. "
+                f"Assessment ID: {assessment.assessment_id}, Assessment name: {assessment.name}"
+            )
     
     from app.models.submission_requirement import SubmissionRequirementResponse
     
@@ -3244,9 +3481,22 @@ async def get_assignment_status(
                 ).first()
             if response:
                 answered_count += 1
-    
-    # Get assessment details
-    assessment = db.query(Assessment).filter(Assessment.id == assignment.assessment_id).first()
+        else:
+            # Check if regular question has a response
+            question_response = db.query(AssessmentQuestionResponseModel).filter(
+                AssessmentQuestionResponseModel.assignment_id == assignment_id,
+                AssessmentQuestionResponseModel.question_id == question.id,
+                AssessmentQuestionResponseModel.value.isnot(None)
+            ).first()
+            if question_response and question_response.value:
+                # Check if value is not empty
+                value = question_response.value
+                if isinstance(value, str) and value.strip():
+                    answered_count += 1
+                elif isinstance(value, dict) and value.get('value'):
+                    answered_count += 1
+                elif not isinstance(value, (str, dict)):
+                    answered_count += 1
     
     # Get point of contact (assigned_by user)
     point_of_contact = None
@@ -3273,6 +3523,7 @@ async def get_assignment_status(
         "started_at": assignment.started_at.isoformat() if assignment.started_at else None,
         "completed_at": assignment.completed_at.isoformat() if assignment.completed_at else None,
         "due_date": assignment.due_date.isoformat() if assignment.due_date else None,
+        "workflow_ticket_id": assignment.workflow_ticket_id,  # Include workflow ticket ID
         "point_of_contact": point_of_contact,
     }
 
@@ -3374,45 +3625,64 @@ async def get_assignment_responses(
     db: Session = Depends(get_db)
 ):
     """Get all responses for an assessment assignment"""
-    from app.core.tenant_utils import get_effective_tenant_id
-    effective_tenant_id = get_effective_tenant_id(current_user, db)
-    if not effective_tenant_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Tenant access required"
-        )
-    
-    assignment = db.query(AssessmentAssignment).filter(
-        AssessmentAssignment.id == assignment_id,
-        AssessmentAssignment.tenant_id == effective_tenant_id
-    ).first()
-    
-    if not assignment:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Assignment not found"
-        )
-    
-    # Get all question responses - optimized query
-    question_responses = db.query(AssessmentQuestionResponseModel).filter(
-        AssessmentQuestionResponseModel.assignment_id == assignment_id
-    ).all()
-    
-    # Format responses as {question_id: {value, comment, documents}}
-    # Removed excessive logging to improve performance
-    responses = {}
-    for qr in question_responses:
-        question_id_str = str(qr.question_id)
-        responses[question_id_str] = {
-            "value": qr.value,
-            "comment": qr.comment,
-            "documents": qr.documents or []
+    try:
+        from app.core.tenant_utils import get_effective_tenant_id
+        effective_tenant_id = get_effective_tenant_id(current_user, db)
+        if not effective_tenant_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Tenant access required"
+            )
+        
+        assignment = db.query(AssessmentAssignment).filter(
+            AssessmentAssignment.id == assignment_id,
+            AssessmentAssignment.tenant_id == effective_tenant_id
+        ).first()
+        
+        if not assignment:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Assignment not found"
+            )
+        
+        # Get all question responses - optimized query
+        question_responses = db.query(AssessmentQuestionResponseModel).filter(
+            AssessmentQuestionResponseModel.assignment_id == assignment_id
+        ).all()
+        
+        # Format responses as {question_id: {value, comment, documents}}
+        # Removed excessive logging to improve performance
+        responses = {}
+        for qr in question_responses:
+            question_id_str = str(qr.question_id)
+            # Handle None values gracefully
+            responses[question_id_str] = {
+                "value": qr.value if qr.value is not None else None,
+                "comment": qr.comment if qr.comment is not None else None,
+                "documents": qr.documents if qr.documents is not None else []
+            }
+        
+        return {
+            "assignment_id": str(assignment_id),
+            "responses": responses
         }
-    
-    return {
-        "assignment_id": str(assignment_id),
-        "responses": responses
-    }
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
+    except ValueError as e:
+        # Handle invalid UUID or other value errors
+        logger.error(f"Value error in get_assignment_responses for assignment {assignment_id}: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid request: {str(e)}"
+        )
+    except Exception as e:
+        # Handle any other unexpected errors
+        logger.error(f"Unexpected error in get_assignment_responses for assignment {assignment_id}: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred while retrieving assignment responses"
+        )
 
 
 @router.post("/trigger-schedules", response_model=Dict[str, Any])
@@ -4743,6 +5013,22 @@ async def get_my_assessments(
     from app.models.agent import Agent
     from app.models.user import UserRole
 
+    # Approvers and reviewers should NOT see vendor assignments - they only review/approve completed ones
+    # They should use the approval workflow inbox instead
+    is_approver_role = current_user.role in [
+        UserRole.APPROVER, 
+        UserRole.SECURITY_REVIEWER, 
+        UserRole.COMPLIANCE_REVIEWER, 
+        UserRole.TECHNICAL_REVIEWER, 
+        UserRole.BUSINESS_REVIEWER
+    ]
+    
+    if is_approver_role:
+        # Approvers don't have "my assignments" - they review/approve through the approval workflow
+        logger.info(f"Approver {current_user.email} (role: {current_user.role.value}) requested my-assignments. "
+                   f"Approvers should use the approval workflow inbox instead.")
+        return []
+
     # For platform admin or tenant admin, show all assignments in their tenant
     if current_user.role in [UserRole.PLATFORM_ADMIN, UserRole.TENANT_ADMIN]:
         query = db.query(AssessmentAssignment).join(Assessment).filter(
@@ -5291,6 +5577,7 @@ async def submit_final_decision(
     new_assignment_status = assignment.status
     if decision == "accepted":
         new_assignment_status = "approved"
+        assignment.status = "approved"  # Update assignment status immediately
         assignment.completed_at = datetime.utcnow()
         # Mark entity as Green when approved
         await _update_entity_status_on_approval(assignment, current_user, db)
@@ -5318,6 +5605,7 @@ async def submit_final_decision(
         
     elif decision == "denied":
         new_assignment_status = "rejected"
+        assignment.status = "rejected"  # Update assignment status immediately
         
         # Get failed questions with their comments for history
         from app.models.assessment_review import AssessmentQuestionReview
@@ -5484,6 +5772,35 @@ async def submit_final_decision(
 
     assignment.status = new_assignment_status
     assignment.updated_at = datetime.utcnow()
+    
+    # Update action items to completed when assessment is approved/denied
+    from app.models.action_item import ActionItem, ActionItemType, ActionItemStatus
+    if decision in ["accepted", "denied"]:
+        # Mark all approval action items for this assignment as completed
+        approval_action_items = db.query(ActionItem).filter(
+            ActionItem.source_id == assignment_id,
+            ActionItem.source_type == "assessment_approval",
+            ActionItem.action_type == ActionItemType.APPROVAL,
+            ActionItem.status.in_([ActionItemStatus.PENDING.value, ActionItemStatus.IN_PROGRESS.value])
+        ).all()
+        
+        for item in approval_action_items:
+            item.status = ActionItemStatus.COMPLETED.value
+            item.completed_at = datetime.utcnow()
+            logger.info(f"Marked approval action item {item.id} as completed for assignment {assignment_id}")
+        
+        # Also mark any review action items as completed
+        review_action_items = db.query(ActionItem).filter(
+            ActionItem.source_id == assignment_id,
+            ActionItem.source_type.in_(["assessment_review", "assessment_assignment"]),
+            ActionItem.action_type.in_([ActionItemType.REVIEW.value, ActionItemType.APPROVAL.value]),
+            ActionItem.status.in_([ActionItemStatus.PENDING.value, ActionItemStatus.IN_PROGRESS.value])
+        ).all()
+        
+        for item in review_action_items:
+            item.status = ActionItemStatus.COMPLETED.value
+            item.completed_at = datetime.utcnow()
+            logger.info(f"Marked review action item {item.id} as completed for assignment {assignment_id}")
 
     # Create audit record
     audit = AssessmentReviewAudit(

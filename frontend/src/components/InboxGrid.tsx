@@ -112,6 +112,7 @@ const COLUMN_DEFINITIONS: Record<keyof InboxColumnVisibilityConfig, { label: str
   type: { label: 'Type', width: 'w-32' },
   status: { label: 'Status', width: 'w-28' },
   priority: { label: 'Priority', width: 'w-24' },
+  workflowStage: { label: 'Workflow Stage', width: 'w-36' },
   generatedDate: { label: 'Generated', width: 'w-40' },
   dueDate: { label: 'Due Date', width: 'w-40' },
   poc: { label: 'POC', width: 'w-40' },
@@ -143,7 +144,7 @@ export default function InboxGrid({ items, isLoading, onItemClick }: InboxGridPr
       if (a === 'workflowTicketId') return -1
       if (b === 'workflowTicketId') return 1
       // Keep other columns in their original order
-      const order = ['workflowTicketId', 'title', 'type', 'status', 'priority', 'generatedDate', 'dueDate', 'poc', 'customer', 'vendor', 'agent', 'description', 'actions']
+      const order = ['workflowTicketId', 'title', 'type', 'status', 'priority', 'workflowStage', 'generatedDate', 'dueDate', 'poc', 'customer', 'vendor', 'agent', 'description', 'actions']
       const indexA = order.indexOf(a)
       const indexB = order.indexOf(b)
       if (indexA === -1 && indexB === -1) return 0
@@ -156,11 +157,12 @@ export default function InboxGrid({ items, isLoading, onItemClick }: InboxGridPr
     if (onItemClick) {
       onItemClick(item)
     } else {
-      // Navigate based on action type and source type
-      if (item.type === 'approval' || item.source_type === 'assessment_approval') {
-        // For approvers: navigate to approver review page
-        if (item.source_id) {
-          navigate(`/assessments/approver/${item.source_id}`)
+      // Use generic approver route with source_type and source_id from business process
+      // This allows the approver view to load entity details dynamically
+      if (item.type === 'approval' || item.source_type === 'assessment_approval' || item.source_type === 'assessment_review') {
+        // For approvers: navigate to generic approver page
+        if (item.source_type && item.source_id) {
+          navigate(`/approver/${item.source_type}/${item.source_id}`)
         } else if (item.action_url) {
           navigate(item.action_url)
         }
@@ -412,6 +414,61 @@ function renderCell(item: ActionItem, columnKey: keyof InboxColumnVisibilityConf
       ) : (
         <span className="text-muted-foreground text-xs">N/A</span>
       )
+    
+    case 'workflowStage': {
+      // Get workflow stage from metadata (set by backend based on assignment status)
+      // Backend maps: pending->new, in_progress->in_progress, completed->pending_approval, approved->approved, rejected->rejected, etc.
+      const workflowStage = item.metadata?.workflow_stage || 
+                           item.metadata?.assignment_status || // Fallback to assignment_status if workflow_stage not set
+                           (item.status === 'pending' ? 'new' :
+                            item.status === 'in_progress' ? 'in_progress' :
+                            item.status === 'completed' ? 'pending_approval' :
+                            item.status === 'approved' ? 'approved' :
+                            item.status === 'rejected' ? 'rejected' : 'new')
+      
+      // Map workflow stage to display-friendly label
+      const stageLabels: Record<string, string> = {
+        'new': 'New',
+        'in_progress': 'In Progress',
+        'pending_approval': 'Pending Approval',
+        'approved': 'Approved',
+        'rejected': 'Rejected',
+        'needs_revision': 'Needs Revision',
+        'cancelled': 'Cancelled',
+        'closed': 'Closed'
+      }
+      
+      const stageLabel = stageLabels[workflowStage] || workflowStage.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+      
+      // Color coding for workflow stages
+      const getStageColor = (stage: string) => {
+        switch (stage) {
+          case 'new':
+            return 'bg-gray-100 text-gray-800 border-gray-200'
+          case 'in_progress':
+            return 'bg-blue-100 text-blue-800 border-blue-200'
+          case 'pending_approval':
+            return 'bg-yellow-100 text-yellow-800 border-yellow-200'
+          case 'approved':
+            return 'bg-green-100 text-green-800 border-green-200'
+          case 'rejected':
+            return 'bg-red-100 text-red-800 border-red-200'
+          case 'needs_revision':
+            return 'bg-orange-100 text-orange-800 border-orange-200'
+          case 'cancelled':
+          case 'closed':
+            return 'bg-gray-100 text-gray-800 border-gray-200'
+          default:
+            return 'bg-gray-100 text-gray-800 border-gray-200'
+        }
+      }
+      
+      return (
+        <Badge variant="outline" className={cn("text-xs", getStageColor(workflowStage))}>
+          {stageLabel}
+        </Badge>
+      )
+    }
     
     case 'vendor':
       return (

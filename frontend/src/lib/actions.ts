@@ -57,5 +57,10 @@ export const actionsApi = {
   getCounts: async (): Promise<{ pending: number; completed: number; overdue: number; total: number }> => {
     const response = await api.get('/actions/inbox/counts')
     return response.data
+  },
+
+  getBySource: async (sourceType: string, sourceId: string): Promise<ActionItem> => {
+    const response = await api.get(`/actions/inbox/${sourceType}/${sourceId}`)
+    return response.data
   }
 }

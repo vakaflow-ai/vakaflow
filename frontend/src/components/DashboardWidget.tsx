@@ -189,7 +189,7 @@ export default function DashboardWidget({
 
       {/* Content */}
       {!isMinimized && (
-        <div className="p-4">
+        <div className="p-4 min-h-0">
           {children}
         </div>
       )}

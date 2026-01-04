@@ -4,9 +4,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { MaterialButton, MaterialInput, MaterialCard, MaterialChip } from '../components/material'
 import { assessmentsApi } from '../lib/assessments'
 import { authApi } from '../lib/auth'
-import { formLayoutsApi } from '../lib/formLayouts'
 import Layout from '../components/Layout'
-import DynamicForm from '../components/DynamicForm'
+import CommentDialog from '../components/CommentDialog'
 import { showToast } from '../utils/toast'
 import {
   FileText,
@@ -26,7 +25,10 @@ import {
   HelpCircle,
   Users,
   X,
-  Workflow
+  Workflow,
+  Paperclip,
+  ExternalLink,
+  Download
 } from 'lucide-react'
 
 interface AssessmentApproverPageProps {}
@@ -41,12 +43,48 @@ export default function AssessmentApproverPage({}: AssessmentApproverPageProps) 
   const [decisionComment, setDecisionComment] = useState('')
   const [showDecisionDialog, setShowDecisionDialog] = useState(false)
   const [pendingDecision, setPendingDecision] = useState<'accepted' | 'denied' | 'need_info' | null>(null)
-  const [useDynamicForm, setUseDynamicForm] = useState(true)
+  // Assessment approver view is locked to use assessment questions directly (no form layouts)
+  // Questions are loaded directly from the assessment, ensuring approvers see exactly what was submitted
   const [approvalFormData, setApprovalFormData] = useState<Record<string, any>>({})
   const [showForwardDialog, setShowForwardDialog] = useState(false)
   const [forwardQuestionIds, setForwardQuestionIds] = useState<string[]>([])
   const [forwardUserId, setForwardUserId] = useState('')
   const [forwardComment, setForwardComment] = useState('')
+  
+  // Dialog state for question review actions (Deny/More Info)
+  const [showQuestionReviewDialog, setShowQuestionReviewDialog] = useState(false)
+  const [pendingQuestionReview, setPendingQuestionReview] = useState<{
+    questionId: string
+    action: 'deny' | 'more_info'
+  } | null>(null)
+  
+  // Team assignment dialog state
+  const [showAssignDialog, setShowAssignDialog] = useState(false)
+  const [assignQuestionId, setAssignQuestionId] = useState<string | null>(null)
+  const [assignUserSearch, setAssignUserSearch] = useState('')
+  const [assignUserId, setAssignUserId] = useState('')
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1)
+  const questionsPerPage = 5 // Compact view - 5 questions per page
+  
+  // Fetch users for assignment
+  const { data: assignableUsers = [], isLoading: usersLoading } = useQuery({
+    queryKey: ['assignable-users', id, assignUserSearch],
+    queryFn: async () => {
+      if (!id) return []
+      return assessmentsApi.searchVendorUsers(id, assignUserSearch || undefined)
+    },
+    enabled: !!id && showAssignDialog,
+    staleTime: 5 * 60 * 1000,
+  })
+  
+  // Fetch question owners
+  const { data: questionOwners = {} } = useQuery({
+    queryKey: ['question-owners', id],
+    queryFn: () => assessmentsApi.getQuestionOwners(id!),
+    enabled: !!id,
+  })
 
   useEffect(() => {
     authApi.getCurrentUser()
@@ -75,28 +113,11 @@ export default function AssessmentApproverPage({}: AssessmentApproverPageProps) 
     enabled: !!id,
   })
 
-  // Get form layout for assessment approval (assessment_workflow, pending_approval stage)
-  const { data: approverLayout, isLoading: approverLayoutLoading } = useQuery({
-    queryKey: ['assessment-approver-layout', assignment?.assessment_id],
-    queryFn: async () => {
-      try {
-        const layout = await formLayoutsApi.getActiveForScreen(
-          'assessment_workflow',
-          'pending_approval'
-        )
-        return layout
-      } catch (error) {
-        console.warn('AssessmentApprover - No form layout found, using default view:', error)
-        return null
-      }
-    },
-    enabled: !!assignment?.assessment_id,
-    retry: false,
-    staleTime: 5 * 60 * 1000,
-    gcTime: 10 * 60 * 1000,
-  })
+  // Assessment approver view is locked to use assessment questions directly
+  // No form layouts - always show questions as they exist in the assessment
+  // This ensures approvers see exactly what was submitted, based on the assessment definition
 
-  // Map assessment responses to form data format for DynamicForm
+  // Map assessment responses for display
   // Use defensive checks to handle undefined values during initial render
   const formData = useMemo(() => {
     // Defensive check - ensure responses and questions are defined
@@ -302,6 +323,107 @@ export default function AssessmentApproverPage({}: AssessmentApproverPageProps) 
     }
   })
 
+  // Question assignment mutation
+  const assignQuestionMutation = useMutation({
+    mutationFn: ({ questionId, ownerData }: { questionId: string, ownerData: { owner_id?: string; owner_email?: string; owner_name?: string } }) =>
+      assessmentsApi.assignQuestionOwner(id!, questionId, ownerData),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ['question-owners', id] })
+      queryClient.invalidateQueries({ queryKey: ['assessment-assignment-approver', id] })
+      showToast.success(`Question assigned to ${result.owner_name || result.owner_email}`)
+      setShowAssignDialog(false)
+      setAssignQuestionId(null)
+      setAssignUserId('')
+      setAssignUserSearch('')
+    },
+    onError: (err: any) => {
+      showToast.error(err?.response?.data?.detail || err.message || 'Failed to assign question')
+    }
+  })
+
+  // Helper function to render question options (for select/radio/checkbox) - Compact horizontal layout
+  const renderQuestionOptions = (question: any, response: any) => {
+    if (!question.options || !Array.isArray(question.options) || question.options.length === 0) {
+      return null
+    }
+
+    const fieldType = question.field_type || question.response_type
+    const isMultiSelect = fieldType === 'multi_select' || fieldType === 'checkbox'
+    const responseValue = response?.value
+    const selectedValues = Array.isArray(responseValue) ? responseValue : (responseValue ? [responseValue] : [])
+
+    return (
+      <div className="mt-1.5">
+        <div className="text-xs text-gray-400 mb-1">Options</div>
+        <div className="flex flex-wrap gap-1.5">
+          {question.options.map((option: any, optIndex: number) => {
+            const optionValue = typeof option === 'string' ? option : (option.value || option.label || option)
+            const optionLabel = typeof option === 'string' ? option : (option.label || option.value || option)
+            const isSelected = selectedValues.some((val: any) => String(val) === String(optionValue))
+
+            return (
+              <div
+                key={optIndex}
+                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs transition-all ${
+                  isSelected
+                    ? 'bg-blue-600 text-white font-medium'
+                    : 'bg-gray-100 text-gray-600'
+                }`}
+              >
+                {isSelected && <CheckCircle className="w-3 h-3" />}
+                <span>{optionLabel}</span>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
+  
+  // Pagination logic
+  const allQuestions = useMemo(() => {
+    const needsAttention = questionsByStatus.needsAttention || []
+    const pending = questionsByStatus.pending || []
+    const accepted = questionsByStatus.accepted || []
+    return [...needsAttention, ...pending, ...accepted]
+  }, [questionsByStatus])
+  
+  const totalPages = Math.ceil(allQuestions.length / questionsPerPage)
+  const startIndex = (currentPage - 1) * questionsPerPage
+  const endIndex = startIndex + questionsPerPage
+  const paginatedQuestions = allQuestions.slice(startIndex, endIndex)
+  
+  // Reset to page 1 when questions change
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [allQuestions.length])
+
+  // Handle question assignment
+  const handleAssignClick = (questionId: string) => {
+    setAssignQuestionId(questionId)
+    setShowAssignDialog(true)
+    setAssignUserSearch('')
+    setAssignUserId('')
+  }
+
+  const handleAssignSubmit = () => {
+    if (!assignQuestionId || !assignUserId) {
+      showToast.error('Please select a user to assign')
+      return
+    }
+
+    const selectedUser = assignableUsers.find((u: any) => u.id === assignUserId)
+    if (!selectedUser) {
+      showToast.error('Selected user not found')
+      return
+    }
+
+    assignQuestionMutation.mutate({
+      questionId: assignQuestionId,
+      ownerData: { owner_id: assignUserId }
+    })
+  }
+
   const handleForwardClick = (questionIds?: string[]) => {
     setForwardQuestionIds(questionIds || [])
     setShowForwardDialog(true)
@@ -320,19 +442,30 @@ export default function AssessmentApproverPage({}: AssessmentApproverPageProps) 
     })
   }
 
-  // Handle individual question review
+  // Handle opening question review dialog (for Deny/More Info)
+  const handleQuestionReviewClick = (questionId: string, action: 'deny' | 'more_info') => {
+    setPendingQuestionReview({ questionId, action })
+    setShowQuestionReviewDialog(true)
+  }
+
+  // Handle submitting question review from dialog
+  const handleQuestionReviewSubmit = (comment: string) => {
+    if (!pendingQuestionReview) return
+    
+    const status = pendingQuestionReview.action === 'deny' ? 'fail' : 'in_progress'
+    reviewQuestionMutation.mutate({ 
+      questionId: pendingQuestionReview.questionId, 
+      status, 
+      comment 
+    })
+    
+    setShowQuestionReviewDialog(false)
+    setPendingQuestionReview(null)
+  }
+
+  // Handle individual question review (for Accept - no comment needed)
   const handleQuestionReview = (questionId: string, status: 'pass' | 'fail' | 'in_progress', comment?: string) => {
-    // For fail and in_progress, require a comment
-    if ((status === 'fail' || status === 'in_progress') && !comment?.trim()) {
-      const commentText = prompt(`Please provide a comment for ${status === 'fail' ? 'denying' : 'requesting more info on'} this question:`)
-      if (!commentText?.trim()) {
-        showToast.error('Comment is required for this action')
-        return
-      }
-      reviewQuestionMutation.mutate({ questionId, status, comment: commentText })
-    } else {
-      reviewQuestionMutation.mutate({ questionId, status, comment })
-    }
+    reviewQuestionMutation.mutate({ questionId, status, comment })
   }
 
   const getDecisionButtonColor = (decision: string) => {
@@ -511,7 +644,7 @@ export default function AssessmentApproverPage({}: AssessmentApproverPageProps) 
                   <div className="flex gap-2 justify-end">
                     <MaterialButton
                       onClick={() => handleDecisionClick('accepted')}
-                      color="success"
+                      color="primary"
                       variant="contained"
                       size="medium"
                       disabled={submitDecisionMutation.isPending}
@@ -522,7 +655,7 @@ export default function AssessmentApproverPage({}: AssessmentApproverPageProps) 
                     </MaterialButton>
                     <MaterialButton
                       onClick={() => handleDecisionClick('denied')}
-                      color="error"
+                      color="neutral"
                       variant="outlined"
                       size="medium"
                       disabled={submitDecisionMutation.isPending}
@@ -584,17 +717,8 @@ export default function AssessmentApproverPage({}: AssessmentApproverPageProps) 
               <div className="p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-medium text-gray-900">Assessment Responses</h3>
-                  {approverLayout && (
-                    <label className="flex items-center gap-2 text-sm text-gray-700">
-                      <input
-                        type="checkbox"
-                        checked={useDynamicForm}
-                        onChange={(e) => setUseDynamicForm(e.target.checked)}
-                        className="rounded"
-                      />
-                      Use Form Designer Layout
-                    </label>
-                  )}
+                  {/* Assessment approver view is locked to use assessment questions directly */}
+                  {/* No form layout toggle - always shows questions from assessment */}
                 </div>
 
                 {questions.length === 0 ? (
@@ -602,821 +726,238 @@ export default function AssessmentApproverPage({}: AssessmentApproverPageProps) 
                   <FileText className="w-12 h-12 mx-auto mb-4 text-gray-400" />
                   <p>No questions found in this assessment.</p>
                 </div>
-              ) : useDynamicForm && approverLayout ? (
-                // Use DynamicForm with form designer layout
-                <div className="space-y-6">
-                  {approverLayoutLoading ? (
-                    <div className="text-center py-8">
-                      <Loader2 className="w-8 h-8 animate-spin text-blue-600 mx-auto" />
-                      <p className="mt-2 text-gray-500">Loading form layout...</p>
-                    </div>
-                  ) : (
-                    <DynamicForm
-                      requestType="approver"
-                      formData={{ 
-                        ...formData, 
-                        ...approvalFormData,
-                        questions: questions, // Pass questions to DynamicForm
-                        responses: responses, // Pass responses to DynamicForm
-                        questionReviews: questionReviewsData?.question_reviews || {} // Pass question reviews
-                      }}
-                      onChange={(fieldName, value) => {
-                        setApprovalFormData(prev => ({ ...prev, [fieldName]: value }))
-                      }}
-                      readOnly={false} // Allow editing approval notes
-                      assignmentId={id} // Pass assignment ID for assessment response grid
-                    />
-                  )}
-                </div>
               ) : (
-                // Fallback to default question/response view - Organized by status
-                <div className="space-y-8">
-                  {/* Questions Needing Attention (Denied or More Info) - Show First */}
-                  {questionsByStatus.needsAttention.length > 0 && (
-                    <div>
-                      <div className="mb-4 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <AlertTriangle className="w-5 h-5 text-yellow-600" />
-                          <h4 className="text-lg font-semibold text-yellow-900">
-                            Needs Attention ({questionsByStatus.needsAttention.length})
-                          </h4>
-                        </div>
-                        <MaterialButton
-                          variant="outlined"
-                          size="small"
-                          onClick={() => handleForwardClick(questionsByStatus.needsAttention.map((q: any) => String(q.id)))}
-                        >
-                          <Users className="w-4 h-4 mr-2" />
-                          Forward All
-                        </MaterialButton>
-                      </div>
-                      <div className="space-y-4">
-                        {questionsByStatus.needsAttention.map((question) => {
-                          const questionIdStr = String(question.id)
-                          const response = responses?.[questionIdStr]
-                          const questionReview = questionReviewsData?.question_reviews?.[question.id]
-                          const questionIndex = questions.findIndex((q: any) => q.id === question.id) + 1
-
-                          return (
-                            <div key={question.id} className="border-2 border-yellow-300 bg-yellow-50 rounded-lg p-4">
-                              <div className="flex items-start justify-between mb-3">
-                                <div className="flex-1">
-                                  <h4 className="text-sm font-semibold text-yellow-900">
-                                    Question {questionIndex}
-                                    {question.is_required && <span className="text-red-500 ml-1">*</span>}
-                                  </h4>
-                                  <p className="text-sm text-yellow-800 mt-1">{question.question_text}</p>
-                                  {question.description && (
-                                    <p className="text-xs text-yellow-700 mt-1">{question.description}</p>
-                                  )}
-                                </div>
-
-                                <div className="ml-4 flex items-center gap-2">
-                                  {/* Review Status */}
-                                  {questionReview && (
-                                    <>
-                                      {questionReview.status === 'fail' && (
-                                        <MaterialChip color="error" size="small">
-                                          <XCircle className="w-3 h-3 mr-1" />
-                                          Denied
-                                        </MaterialChip>
-                                      )}
-                                      {questionReview.status === 'in_progress' && (
-                                        <MaterialChip color="warning" size="small">
-                                          <HelpCircle className="w-3 h-3 mr-1" />
-                                          More Info
-                                        </MaterialChip>
-                                      )}
-                                    </>
-                                  )}
-                                  {/* Forward Button */}
-                                  <MaterialButton
-                                    variant="text"
-                                    size="small"
-                                    onClick={() => handleForwardClick([String(question.id)])}
-                                    title="Forward this question"
-                                  >
-                                    <Users className="w-4 h-4" />
-                                  </MaterialButton>
-                                </div>
-                              </div>
-
-                              {/* Response Display */}
-                              <div className="bg-white rounded p-3 mb-3">
-                                <div className="text-sm text-gray-700">
-                                  <strong>Response:</strong>
-                                  {response?.value ? (
-                                    <div className="mt-1 whitespace-pre-wrap">{String(response.value)}</div>
-                                  ) : (
-                                    <span className="text-gray-500 italic">No response provided</span>
-                                  )}
-                                </div>
-                                {response?.comment && (
-                                  <div className="text-sm text-gray-700 mt-2">
-                                    <strong>Comment:</strong>
-                                    <div className="mt-1 whitespace-pre-wrap">{response.comment}</div>
-                                  </div>
-                                )}
-                              </div>
-
-                              {/* Review Comments */}
-                              {questionReview && (questionReview.reviewer_comment || questionReview.vendor_comment) && (
-                                <div className="space-y-2">
-                                  {questionReview.reviewer_comment && (
-                                    <div className="bg-blue-50 border border-blue-200 rounded p-3">
-                                      <div className="text-sm">
-                                        <strong className="text-blue-800">Reviewer Comment:</strong>
-                                        <div className="mt-1 text-blue-700 whitespace-pre-wrap">{questionReview.reviewer_comment}</div>
-                                      </div>
-                                    </div>
-                                  )}
-                                  {questionReview.vendor_comment && (
-                                    <div className="bg-yellow-50 border border-yellow-200 rounded p-3">
-                                      <div className="text-sm">
-                                        <strong className="text-yellow-800">Vendor Response:</strong>
-                                        <div className="mt-1 text-yellow-700 whitespace-pre-wrap">{questionReview.vendor_comment}</div>
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Accepted Questions - Collapsed Section */}
-                  {questionsByStatus.accepted.length > 0 && (
-                    <div>
-                      <div className="mb-4 flex items-center gap-2">
-                        <CheckCircle className="w-5 h-5 text-green-600" />
-                        <h4 className="text-lg font-semibold text-green-900">
-                          Accepted ({questionsByStatus.accepted.length})
-                        </h4>
-                      </div>
-                      <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                        <p className="text-sm text-green-700">
-                          {questionsByStatus.accepted.length} question{questionsByStatus.accepted.length !== 1 ? 's' : ''} have been accepted.
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Pending Questions */}
-                  {questionsByStatus.pending.length > 0 && (
-                    <div>
-                      <div className="mb-4 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Clock className="w-5 h-5 text-gray-600" />
-                          <h4 className="text-lg font-semibold text-gray-900">
-                            Pending Review ({questionsByStatus.pending.length})
-                          </h4>
-                        </div>
-                        <MaterialButton
-                          variant="outlined"
-                          size="small"
-                          onClick={() => handleForwardClick(questionsByStatus.pending.map((q: any) => String(q.id)))}
-                        >
-                          <Users className="w-4 h-4 mr-2" />
-                          Forward All
-                        </MaterialButton>
-                      </div>
-                      <div className="space-y-4">
-                        {questionsByStatus.pending.map((question) => {
-                          const questionIdStr = String(question.id)
-                          const response = responses?.[questionIdStr]
-                          const questionReview = questionReviewsData?.question_reviews?.[question.id]
-                          const questionIndex = questions.findIndex((q: any) => q.id === question.id) + 1
-
-                          return (
-                            <div key={question.id} className="border border-gray-200 rounded-lg p-4">
-                              <div className="flex items-start justify-between mb-3">
-                                <div className="flex-1">
-                                  <h4 className="text-sm font-medium text-gray-900">
-                                    Question {questionIndex}
-                                    {question.is_required && <span className="text-red-500 ml-1">*</span>}
-                                  </h4>
-                                  <p className="text-sm text-gray-700 mt-1">{question.question_text}</p>
-                                  {question.description && (
-                                    <p className="text-xs text-gray-600 mt-1">{question.description}</p>
-                                  )}
-                                </div>
-
-                                {/* Forward Button */}
-                                <MaterialButton
-                                  variant="text"
-                                  size="small"
-                                  onClick={() => handleForwardClick([String(question.id)])}
-                                  title="Forward this question"
-                                >
-                                  <Users className="w-4 h-4" />
-                                </MaterialButton>
-                              </div>
-
-                              {/* Response Display */}
-                              <div className="bg-gray-50 rounded p-3 mb-3">
-                                <div className="text-sm text-gray-700">
-                                  <strong>Response:</strong>
-                                  {response?.value ? (
-                                    <div className="mt-1 whitespace-pre-wrap">{String(response.value)}</div>
-                                  ) : (
-                                    <span className="text-gray-500 italic">No response provided</span>
-                                  )}
-                                </div>
-                                {response?.comment && (
-                                  <div className="text-sm text-gray-700 mt-2">
-                                    <strong>Comment:</strong>
-                                    <div className="mt-1 whitespace-pre-wrap">{response.comment}</div>
-                                  </div>
-                                )}
-                              </div>
-
-                              {/* Review Actions */}
-                              <div className="flex items-center gap-2 pt-2 border-t border-gray-200">
-                                <MaterialButton
-                                  variant="outlined"
-                                  color="success"
-                                  size="small"
-                                  onClick={() => handleQuestionReview(String(question.id), 'pass')}
-                                  disabled={reviewQuestionMutation.isPending}
-                                  loading={reviewQuestionMutation.isPending}
-                                >
-                                  <CheckCircle className="w-4 h-4 mr-1" />
-                                  Accept
-                                </MaterialButton>
-                                <MaterialButton
-                                  variant="outlined"
-                                  color="error"
-                                  size="small"
-                                  onClick={() => {
-                                    const comment = prompt('Please provide a reason for denying this question:')
-                                    if (comment?.trim()) {
-                                      handleQuestionReview(String(question.id), 'fail', comment)
-                                    }
-                                  }}
-                                  disabled={reviewQuestionMutation.isPending}
-                                >
-                                  <XCircle className="w-4 h-4 mr-1" />
-                                  Deny
-                                </MaterialButton>
-                                <MaterialButton
-                                  variant="outlined"
-                                  color="warning"
-                                  size="small"
-                                  onClick={() => {
-                                    const comment = prompt('Please specify what additional information is needed:')
-                                    if (comment?.trim()) {
-                                      handleQuestionReview(String(question.id), 'in_progress', comment)
-                                    }
-                                  }}
-                                  disabled={reviewQuestionMutation.isPending}
-                                >
-                                  <HelpCircle className="w-4 h-4 mr-1" />
-                                  More Info
-                                </MaterialButton>
-                              </div>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Fallback: Show all questions if organization fails */}
-                  {questionsByStatus.accepted.length === 0 && questionsByStatus.needsAttention.length === 0 && questionsByStatus.pending.length === 0 && (
-                    <div className="space-y-6">
-                      {questions.map((question, index) => {
+                // Assessment approver view: Always use direct assessment questions (locked view)
+                // Questions are loaded directly from the assessment, not from form layouts
+                // This ensures approvers see exactly what was submitted based on the assessment definition
+                <div className="space-y-3">
+                  {/* Compact Questions Display with Pagination */}
+                  {paginatedQuestions.length > 0 ? (
+                    <div className="space-y-3">
+                      {paginatedQuestions.map((question) => {
                         const questionIdStr = String(question.id)
                         const response = responses?.[questionIdStr]
                         const questionReview = questionReviewsData?.question_reviews?.[question.id]
+                        const questionIndex = questions.findIndex((q: any) => q.id === question.id) + 1
 
                         return (
-                          <div key={question.id} className="border border-gray-200 rounded-lg p-4">
-                            <div className="flex items-start justify-between mb-3">
-                              <div className="flex-1">
-                                <h4 className="text-sm font-medium text-gray-900">
-                                  Question {index + 1}
-                                  {question.is_required && <span className="text-red-500 ml-1">*</span>}
-                                </h4>
-                                <p className="text-sm text-gray-700 mt-1">{question.question_text}</p>
+                          <div key={question.id} className="bg-white mb-3 pb-3 border-b border-gray-100" style={{ pageBreakInside: 'avoid' }}>
+                            {/* Compact Question Header */}
+                            <div className="flex items-start justify-between mb-2 gap-3">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1.5">
+                                  <span className="text-xs font-medium text-gray-500">
+                                    Q{questionIndex} {question.is_required && <span className="text-red-500">*</span>}
+                                  </span>
+                                  {questionOwners[question.id] && (
+                                    <span className="text-xs text-gray-400">
+                                      • {questionOwners[question.id].name || questionOwners[question.id].email.split('@')[0]}
+                                    </span>
+                                  )}
+                                  {questionReview && (
+                                    <>
+                                      {questionReview.status === 'fail' && (
+                                        <span className="text-xs text-red-600 font-medium">• Denied</span>
+                                      )}
+                                      {questionReview.status === 'in_progress' && (
+                                        <span className="text-xs text-yellow-600 font-medium">• More Info</span>
+                                      )}
+                                    </>
+                                  )}
+                                </div>
+                                <h3 className="text-sm font-medium text-gray-900 break-words leading-snug mb-1">
+                                  {question.question_text || question.title}
+                                </h3>
                                 {question.description && (
-                                  <p className="text-xs text-gray-600 mt-1">{question.description}</p>
+                                  <p className="text-xs text-gray-400 mt-0.5 break-words line-clamp-2">
+                                    {question.description}
+                                  </p>
+                                )}
+                                
+                                {/* Show Question Options (Horizontal Layout) */}
+                                {renderQuestionOptions(question, response)}
+                              </div>
+
+                              {/* Action Buttons - Compact */}
+                              <div className="flex items-center gap-1 flex-shrink-0">
+                                <button
+                                  onClick={() => handleAssignClick(String(question.id))}
+                                  title="Assign to team member"
+                                  className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded transition-colors"
+                                >
+                                  <User className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  onClick={() => handleForwardClick([String(question.id)])}
+                                  title="Forward this question"
+                                  className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded transition-colors"
+                                >
+                                  <Users className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Response Display - Compact */}
+                            <div className="mt-2 mb-2">
+                              <div className="text-xs text-gray-500 mb-1">Response</div>
+                              <div className="text-xs text-gray-700 break-words bg-gray-50 rounded px-2 py-1.5 line-clamp-3">
+                                {response?.value ? (
+                                  <div className="whitespace-pre-wrap break-words leading-snug">{String(response.value)}</div>
+                                ) : (
+                                  <span className="text-gray-400 italic">No response provided</span>
                                 )}
                               </div>
 
-                              {/* Review Status */}
-                              {questionReview && (
-                                <div className="ml-4">
-                                  {questionReview.status === 'pass' && (
-                                    <MaterialChip color="success" size="small" label="Accepted">
-                                      <CheckCircle className="w-3 h-3 mr-1" />
-                                      Accepted
-                                    </MaterialChip>
-                                  )}
-                                  {questionReview.status === 'fail' && (
-                                    <MaterialChip color="error" size="small" label="Denied">
-                                      <XCircle className="w-3 h-3 mr-1" />
-                                      Denied
-                                    </MaterialChip>
-                                  )}
-                                  {questionReview.status === 'in_progress' && (
-                                    <MaterialChip color="warning" size="small" label="More Info">
-                                      <HelpCircle className="w-3 h-3 mr-1" />
-                                      More Info
-                                    </MaterialChip>
-                                  )}
+                              {/* Attachments - Compact */}
+                              {response?.documents && Array.isArray(response.documents) && response.documents.length > 0 && (
+                                <div className="mt-1.5 flex flex-wrap gap-1.5">
+                                  {response.documents.map((doc: any, docIndex: number) => (
+                                    <a
+                                      key={docIndex}
+                                      href={`${import.meta.env.VITE_API_URL || ''}/uploads/${doc.path}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center gap-1 px-1.5 py-0.5 text-xs text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded transition-colors"
+                                    >
+                                      <Paperclip className="w-2.5 h-2.5" />
+                                      <span className="truncate max-w-[120px]">{doc.name || 'File'}</span>
+                                    </a>
+                                  ))}
+                                </div>
+                              )}
+
+                              {/* Links - Compact */}
+                              {response?.value && typeof response.value === 'string' && (
+                                (() => {
+                                  const urlRegex = /(https?:\/\/[^\s]+)/g
+                                  const urls = response.value.match(urlRegex)
+                                  if (urls && urls.length > 0) {
+                                    return (
+                                      <div className="mt-1.5 flex flex-wrap gap-1.5">
+                                        {urls.slice(0, 2).map((url: string, linkIndex: number) => (
+                                          <a
+                                            key={linkIndex}
+                                            href={url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="inline-flex items-center gap-1 px-1.5 py-0.5 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors"
+                                          >
+                                            <ExternalLink className="w-2.5 h-2.5" />
+                                            <span className="truncate max-w-[150px]">{url}</span>
+                                          </a>
+                                        ))}
+                                        {urls.length > 2 && (
+                                          <span className="text-xs text-gray-500">+{urls.length - 2} more</span>
+                                        )}
+                                      </div>
+                                    )
+                                  }
+                                  return null
+                                })()
+                              )}
+
+                              {/* Submitter's Comment - Compact */}
+                              {response?.comment && (
+                                <div className="mt-1.5 pt-1.5 border-t border-gray-100">
+                                  <div className="text-xs text-gray-500 mb-0.5">Comment</div>
+                                  <div className="text-xs text-gray-600 whitespace-pre-wrap break-words line-clamp-2">
+                                    {response.comment}
+                                  </div>
                                 </div>
                               )}
                             </div>
 
-                        {/* Response Display */}
-                        <div className="bg-gray-50 rounded p-3">
-                          <div className="text-sm text-gray-700">
-                            <strong>Response:</strong>
-                            {response?.value ? (
-                              <div className="mt-1 whitespace-pre-wrap">{String(response.value)}</div>
-                            ) : (
-                              <span className="text-gray-500 italic">No response provided</span>
+                            {/* Review Comments - Compact */}
+                            {questionReview && (questionReview.reviewer_comment || questionReview.vendor_comment) && (
+                              <div className="mt-1.5 pt-1.5 border-t border-gray-100 space-y-1">
+                                {questionReview.reviewer_comment && (
+                                  <div>
+                                    <div className="text-xs text-gray-500 mb-0.5">Reviewer</div>
+                                    <div className="text-xs text-gray-600 whitespace-pre-wrap break-words line-clamp-2">{questionReview.reviewer_comment}</div>
+                                  </div>
+                                )}
+                                {questionReview.vendor_comment && (
+                                  <div>
+                                    <div className="text-xs text-gray-500 mb-0.5">Vendor</div>
+                                    <div className="text-xs text-gray-600 whitespace-pre-wrap break-words line-clamp-2">{questionReview.vendor_comment}</div>
+                                  </div>
+                                )}
+                              </div>
                             )}
-                          </div>
-                          {response?.comment && (
-                            <div className="text-sm text-gray-700 mt-2">
-                              <strong>Comment:</strong>
-                              <div className="mt-1 whitespace-pre-wrap">{response.comment}</div>
-                            </div>
-                          )}
-                        </div>
 
-                        {/* Review Comments */}
-                        {questionReview && (questionReview.reviewer_comment || questionReview.vendor_comment) && (
-                          <div className="mt-3 space-y-2">
-                            {questionReview.reviewer_comment && (
-                              <div className="bg-blue-50 border border-blue-200 rounded p-3">
-                                <div className="text-sm">
-                                  <strong className="text-blue-800">Reviewer Comment:</strong>
-                                  <div className="mt-1 text-blue-700 whitespace-pre-wrap">{questionReview.reviewer_comment}</div>
-                                </div>
-                              </div>
-                            )}
-                            {questionReview.vendor_comment && (
-                              <div className="bg-yellow-50 border border-yellow-200 rounded p-3">
-                                <div className="text-sm">
-                                  <strong className="text-yellow-800">Vendor Response:</strong>
-                                  <div className="mt-1 text-yellow-700 whitespace-pre-wrap">{questionReview.vendor_comment}</div>
-                                </div>
-                              </div>
-                            )}
+                            {/* Review Actions - Compact */}
+                            <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-gray-100">
+                              <button
+                                onClick={() => handleQuestionReview(String(question.id), 'pass')}
+                                disabled={reviewQuestionMutation.isPending}
+                                className="px-2.5 py-1 bg-green-600 text-white text-xs font-medium rounded hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
+                              >
+                                <CheckCircle className="w-3 h-3" />
+                                Accept
+                              </button>
+                              <button
+                                onClick={() => handleQuestionReviewClick(String(question.id), 'deny')}
+                                disabled={reviewQuestionMutation.isPending}
+                                className="px-2.5 py-1 bg-white text-gray-700 text-xs font-medium rounded border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
+                              >
+                                <XCircle className="w-3 h-3" />
+                                Deny
+                              </button>
+                              <button
+                                onClick={() => handleQuestionReviewClick(String(question.id), 'more_info')}
+                                disabled={reviewQuestionMutation.isPending}
+                                className="px-2.5 py-1 bg-white text-yellow-700 text-xs font-medium rounded border border-yellow-300 hover:bg-yellow-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
+                              >
+                                <HelpCircle className="w-3 h-3" />
+                                More Info
+                              </button>
+                            </div>
                           </div>
-                        )}
-                          </div>
-                        )
+                          )
                       })}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-gray-500">
+                      <FileText className="w-8 h-8 mx-auto mb-2 text-gray-400" />
+                      <p className="text-sm">No questions to display</p>
+                    </div>
+                  )}
+                  
+                  {/* Pagination */}
+                  {totalPages > 1 && (
+                    <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
+                      <div className="text-xs text-gray-500">
+                        Showing {startIndex + 1}-{Math.min(endIndex, allQuestions.length)} of {allQuestions.length} questions
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                          disabled={currentPage === 1}
+                          className="px-3 py-1.5 text-xs border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
+                        >
+                          <ArrowLeft className="w-3 h-3" />
+                          Previous
+                        </button>
+                        <span className="px-3 py-1.5 text-xs text-gray-700">
+                          Page {currentPage} of {totalPages}
+                        </span>
+                        <button
+                          onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                          disabled={currentPage >= totalPages}
+                          className="px-3 py-1.5 text-xs border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
+                        >
+                          Next
+                          <ArrowLeft className="w-3 h-3 rotate-180" />
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
               )}
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'history' && (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-              <div className="p-6">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Workflow History</h3>
-
-              {workflowHistoryLoading ? (
-                <div className="text-center py-8">
-                  <Loader2 className="w-8 h-8 animate-spin text-blue-600 mx-auto" />
-                  <p className="mt-2 text-gray-500">Loading workflow history...</p>
-                </div>
-              ) : workflowHistory.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  <History className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-                  <p>No workflow history available yet.</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {workflowHistory.map((item: any, index: number) => (
-                    <div key={item.id || index} className="border border-gray-200 rounded-lg p-4">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
-                            <MaterialChip
-                              color={
-                                item.action_type === 'approved' ? 'success' :
-                                item.action_type === 'denied' ? 'error' :
-                                item.action_type === 'sent_back' ? 'warning' :
-                                item.action_type === 'forwarded' ? 'primary' : 'default'
-                              }
-                              size="small"
-                            >
-                              {item.action_type.replace('_', ' ').toUpperCase()}
-                            </MaterialChip>
-                            <span className="text-sm font-medium text-gray-900">
-                              by {item.action_by?.name || item.action_by?.email || 'Unknown'}
-                            </span>
-                            <span className="text-xs text-gray-500">
-                              on {new Date(item.action_at).toLocaleString()}
-                            </span>
-                          </div>
-
-                          {item.forwarded_to && (
-                            <div className="text-sm text-gray-700 mb-2">
-                              <strong>Forwarded to:</strong> {item.forwarded_to?.name || item.forwarded_to?.email || 'Unknown'}
-                            </div>
-                          )}
-
-                          {item.question_ids && item.question_ids.length > 0 && (
-                            <div className="text-sm text-gray-700 mb-2">
-                              <strong>Questions:</strong> {item.question_ids.length} question(s)
-                            </div>
-                          )}
-
-                          {item.decision_comment && (
-                            <div className="text-sm text-gray-700 mb-2">
-                              <strong>Comment:</strong>
-                              <div className="mt-1 whitespace-pre-wrap bg-gray-50 p-2 rounded">{item.decision_comment}</div>
-                            </div>
-                          )}
-
-                          {item.comments && item.comments !== item.decision_comment && (
-                            <div className="text-sm text-gray-700 mb-2">
-                              <strong>Notes:</strong>
-                              <div className="mt-1 whitespace-pre-wrap bg-gray-50 p-2 rounded">{item.comments}</div>
-                            </div>
-                          )}
-
-                          {(item.previous_status || item.new_status) && (
-                            <div className="text-xs text-gray-600 mt-2">
-                              Status: {item.previous_status} → {item.new_status}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-          )}
-
-          {activeTab === 'workflow' && (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-              <div className="p-6">
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Workflow Status</h3>
-                
-                {assignment && (
-                  <div className="space-y-4">
-                    {/* Workflow Ticket ID */}
-                    {assignment.workflow_ticket_id && (
-                      <div>
-                        <div className="text-xs text-muted-foreground mb-1">Workflow Ticket ID</div>
-                        <div className="font-mono text-lg font-semibold bg-blue-50 px-3 py-2 rounded border border-blue-200">
-                          {assignment.workflow_ticket_id}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Assignment Status */}
-                    <div>
-                      <div className="text-xs text-muted-foreground mb-1">Status</div>
-                      <div>
-                        <span className={`inline-block px-3 py-1 rounded text-sm font-medium ${
-                          assignment.status === 'approved' ? 'bg-green-100 text-green-800' :
-                          assignment.status === 'denied' ? 'bg-red-100 text-red-800' :
-                          assignment.status === 'completed' ? 'bg-blue-100 text-blue-800' :
-                          assignment.status === 'in_progress' ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-gray-100 text-gray-800'
-                        }`}>
-                          {assignment.status?.replace('_', ' ').toUpperCase()}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Submitted At */}
-                    {assignment.completed_at && (
-                      <div>
-                        <div className="text-xs text-muted-foreground mb-1">Submitted At</div>
-                        <div className="text-sm">{new Date(assignment.completed_at).toLocaleString()}</div>
-                      </div>
-                    )}
-
-                    {/* Due Date */}
-                    {assignment.due_date && (
-                      <div>
-                        <div className="text-xs text-muted-foreground mb-1">Due Date</div>
-                        <div className="text-sm">{new Date(assignment.due_date).toLocaleString()}</div>
-                      </div>
-                    )}
-
-                    {/* Questions Summary */}
-                    <div>
-                      <div className="text-xs text-muted-foreground mb-1">Questions</div>
-                      <div className="text-sm">
-                        {assignment.total_questions || 0} total, {assignment.answered_questions || 0} answered
-                      </div>
-                    </div>
-
-                    {/* Review Progress */}
-                    <div>
-                      <div className="text-xs text-muted-foreground mb-2">Review Progress</div>
-                      <div className="grid grid-cols-3 gap-2">
-                        <div className="bg-green-50 border border-green-200 rounded p-2 text-center">
-                          <div className="text-lg font-bold text-green-600">{reviewStats.pass || 0}</div>
-                          <div className="text-xs text-green-700">Accepted</div>
-                        </div>
-                        <div className="bg-red-50 border border-red-200 rounded p-2 text-center">
-                          <div className="text-lg font-bold text-red-600">{reviewStats.fail || 0}</div>
-                          <div className="text-xs text-red-700">Denied</div>
-                        </div>
-                        <div className="bg-yellow-50 border border-yellow-200 rounded p-2 text-center">
-                          <div className="text-lg font-bold text-yellow-600">{reviewStats.in_progress || 0}</div>
-                          <div className="text-xs text-yellow-700">More Info</div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
           )}
         </>
-
-        {/* Overall Approval Actions - Only shown when all questions are accepted */}
-        {isApprover && allQuestionsAccepted && (
-          <div className="mt-6 bg-green-50 border-2 border-green-200 rounded-lg p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h3 className="text-lg font-semibold text-green-900 mb-1">All Questions Accepted</h3>
-                <p className="text-sm text-green-700">You can now make an overall decision on this assessment.</p>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap gap-3">
-              <MaterialButton
-                onClick={() => handleDecisionClick('accepted')}
-                color="success"
-                variant="contained"
-                size="large"
-                disabled={submitDecisionMutation.isPending}
-                loading={submitDecisionMutation.isPending && pendingDecision === 'accepted'}
-              >
-                <CheckCircle className="w-5 h-5 mr-2" />
-                Overall Accept
-              </MaterialButton>
-
-              <MaterialButton
-                onClick={() => handleDecisionClick('denied')}
-                color="error"
-                variant="outlined"
-                size="large"
-                disabled={submitDecisionMutation.isPending}
-                loading={submitDecisionMutation.isPending && pendingDecision === 'denied'}
-              >
-                <XCircle className="w-5 h-5 mr-2" />
-                Overall Deny
-              </MaterialButton>
-
-              <MaterialButton
-                onClick={() => handleDecisionClick('need_info')}
-                color="warning"
-                variant="outlined"
-                size="large"
-                disabled={submitDecisionMutation.isPending}
-                loading={submitDecisionMutation.isPending && pendingDecision === 'need_info'}
-              >
-                <HelpCircle className="w-5 h-5 mr-2" />
-                Need Info
-              </MaterialButton>
-            </div>
-          </div>
-        )}
-
-        {/* Action Buttons - For individual question actions */}
-        {isApprover && !allQuestionsAccepted && (
-          <div className="mt-6 bg-yellow-50 border border-yellow-200 rounded-lg p-6">
-            <h3 className="text-lg font-medium text-yellow-900 mb-2">Review Required</h3>
-            <p className="text-sm text-yellow-700 mb-4">
-              Please review all questions and accept them individually. Overall Accept/Deny will be available once all questions are reviewed.
-            </p>
-          </div>
-        )}
-
-            {/* Review Statistics Summary */}
-            <div className="bg-gray-50 rounded-lg p-4">
-              <h4 className="text-sm font-medium text-gray-900 mb-2">Review Summary</h4>
-              <div className="grid grid-cols-4 gap-4 text-sm">
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-green-600">{reviewStats.pass || 0}</div>
-                  <div className="text-gray-600">Accepted</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-red-600">{reviewStats.fail || 0}</div>
-                  <div className="text-gray-600">Denied</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-yellow-600">{reviewStats.in_progress || 0}</div>
-                  <div className="text-gray-600">More Info</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-gray-600">{reviewStats.pending || 0}</div>
-                  <div className="text-gray-600">Pending</div>
-                </div>
-              </div>
-            </div>
-
-        {/* Decision Confirmation Dialog */}
-        {showDecisionDialog && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
-              <div className="flex items-center justify-between p-6 border-b">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-blue-100 rounded-lg">
-                    {pendingDecision === 'accepted' && <CheckCircle className="w-6 h-6 text-green-600" />}
-                    {pendingDecision === 'denied' && <XCircle className="w-6 h-6 text-red-600" />}
-                    {pendingDecision === 'need_info' && <MessageSquare className="w-6 h-6 text-yellow-600" />}
-                  </div>
-                  <h2 className="text-xl font-medium text-gray-900">
-                    Confirm {getDecisionButtonText(pendingDecision || '')}
-                  </h2>
-                </div>
-                <button
-                  onClick={() => setShowDecisionDialog(false)}
-                  className="text-gray-500 hover:text-gray-700 p-2 hover:bg-gray-100 rounded-lg"
-                >
-                  <XCircle className="w-5 h-5" />
-                </button>
-              </div>
-              <div className="p-6 space-y-4">
-                <p className="text-gray-700">
-                  Are you sure you want to {pendingDecision === 'accepted' ? 'accept' :
-                                          pendingDecision === 'denied' ? 'deny' :
-                                          'request more information for'} this assessment?
-                </p>
-
-                {(pendingDecision === 'denied' || pendingDecision === 'need_info') && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Comment <span className="text-red-500">*</span>
-                    </label>
-                    <textarea
-                      value={decisionComment}
-                      onChange={(e) => setDecisionComment(e.target.value)}
-                      placeholder="Please provide a reason for your decision..."
-                      rows={4}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      required
-                    />
-                  </div>
-                )}
-              </div>
-              <div className="flex items-center justify-end gap-3 p-6 border-t bg-gray-50">
-                <button
-                  onClick={() => setShowDecisionDialog(false)}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleDecisionSubmit}
-                  disabled={submitDecisionMutation.isPending ||
-                           ((pendingDecision === 'denied' || pendingDecision === 'need_info') && !decisionComment.trim())}
-                  className={`flex items-center gap-2 px-4 py-2 text-sm font-medium text-white rounded-lg ${
-                    pendingDecision === 'accepted' ? 'bg-green-600 hover:bg-green-700' :
-                    pendingDecision === 'denied' ? 'bg-red-600 hover:bg-red-700' :
-                    'bg-yellow-600 hover:bg-yellow-700'
-                  } disabled:opacity-50 disabled:cursor-not-allowed`}
-                >
-                  {submitDecisionMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-                  Confirm {getDecisionButtonText(pendingDecision || '')}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Forward Dialog */}
-        {showForwardDialog && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-            <MaterialCard elevation={24} className="max-w-md w-full border-none overflow-hidden">
-              {/* Header */}
-              <div className="p-6 border-b bg-surface-variant/10 flex items-center justify-between">
-                <h2 className="text-xl font-medium text-gray-900">
-                  Forward {forwardQuestionIds.length > 0 ? `${forwardQuestionIds.length} Question(s)` : 'Assessment'}
-                </h2>
-                <MaterialButton
-                  variant="text"
-                  size="small"
-                  onClick={() => {
-                    setShowForwardDialog(false)
-                    setForwardQuestionIds([])
-                    setForwardUserId('')
-                    setForwardComment('')
-                  }}
-                  className="!p-2 text-gray-600"
-                >
-                  <X className="w-6 h-6" />
-                </MaterialButton>
-              </div>
-
-              {/* Content */}
-              <div className="p-6 space-y-5 bg-background">
-                <MaterialInput
-                  label="Forward to User ID"
-                  placeholder="Enter user ID or email..."
-                  value={forwardUserId}
-                  onChange={(e) => setForwardUserId(e.target.value)}
-                  fullWidth
-                  required
-                  autoFocus
-                />
-                <MaterialInput
-                  label="Comment (Optional)"
-                  placeholder="Add a comment for the forwarded user..."
-                  value={forwardComment}
-                  onChange={(e) => setForwardComment(e.target.value)}
-                  multiline
-                  rows={4}
-                  fullWidth
-                />
-                {forwardQuestionIds.length > 0 && (
-                  <div className="text-sm text-gray-600 bg-blue-50 p-3 rounded">
-                    Forwarding {forwardQuestionIds.length} specific question(s)
-                  </div>
-                )}
-              </div>
-
-              {/* Actions */}
-              <div className="p-4 bg-surface-variant/10 border-t flex justify-end gap-3">
-                <MaterialButton
-                  variant="text"
-                  onClick={() => {
-                    setShowForwardDialog(false)
-                    setForwardQuestionIds([])
-                    setForwardUserId('')
-                    setForwardComment('')
-                  }}
-                >
-                  Cancel
-                </MaterialButton>
-                <MaterialButton
-                  variant="contained"
-                  color="primary"
-                  onClick={handleForwardSubmit}
-                  disabled={!forwardUserId.trim() || forwardMutation.isPending}
-                  loading={forwardMutation.isPending}
-                >
-                  Forward
-                </MaterialButton>
-              </div>
-            </MaterialCard>
-          </div>
-        )}
-
-        {/* Overall Status Display */}
-        <div className="mt-6 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Overall Assessment Status</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <FileText className="w-5 h-5 text-blue-600" />
-                <span className="font-semibold text-blue-900">Workflow Ticket</span>
-              </div>
-              <div className="text-2xl font-mono font-bold text-blue-700">
-                {assignment?.workflow_ticket_id || 'N/A'}
-              </div>
-            </div>
-            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <Clock className="w-5 h-5 text-gray-600" />
-                <span className="font-semibold text-gray-900">Current Status</span>
-              </div>
-              <div className="text-xl font-semibold text-gray-700 capitalize">
-                {assignment?.status || 'Unknown'}
-              </div>
-              {assignment?.completed_at && (
-                <div className="text-xs text-gray-500 mt-1">
-                  Submitted: {new Date(assignment.completed_at).toLocaleString()}
-                </div>
-              )}
-            </div>
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <CheckCircle className="w-5 h-5 text-green-600" />
-                <span className="font-semibold text-green-900">Review Progress</span>
-              </div>
-              <div className="text-xl font-semibold text-green-700">
-                {reviewStats.pass || 0} / {questions.length} Accepted
-              </div>
-              <div className="text-xs text-gray-600 mt-1">
-                {reviewStats.fail || 0} Denied, {reviewStats.in_progress || 0} More Info
-              </div>
-            </div>
-          </div>
-        </div>
       </div>
     </Layout>
   )

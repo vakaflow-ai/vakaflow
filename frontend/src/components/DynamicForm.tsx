@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { formLayoutsApi, FieldAccessForRole } from '../lib/formLayouts'
 import { submissionRequirementsApi, SubmissionRequirement } from '../lib/submissionRequirements'
@@ -7,7 +7,8 @@ import { authApi } from '../lib/auth'
 import AssessmentResponseGrid from './AssessmentResponseGrid'
 
 interface DynamicFormProps {
-  requestType: 'admin' | 'approver' | 'end_user' | 'vendor'
+  requestType: 'admin' | 'approver' | 'end_user' | 'vendor' | 'assessment_workflow' | 'agent_onboarding_workflow' | 'vendor_submission_workflow'
+  workflowStage?: string // Optional workflow stage, defaults to 'new'
   agentType?: string
   agentCategory?: string
   formData: Record<string, any>
@@ -16,10 +17,12 @@ interface DynamicFormProps {
   readOnly?: boolean
   showValidation?: boolean
   onValidationChange?: (isValid: boolean, errors: Record<string, string>) => void
+  assignmentId?: string // Assignment ID for assessment workflows
 }
 
 export default function DynamicForm({
   requestType,
+  workflowStage = 'new',
   agentType,
   agentCategory,
   formData,
@@ -43,15 +46,15 @@ export default function DynamicForm({
 
   // Fetch active layout for this request type
   const { data: layout, isLoading: layoutLoading } = useQuery({
-    queryKey: ['form-layout', requestType, agentType, agentCategory],
-    queryFn: () => formLayoutsApi.getActiveForScreen(requestType, 'new', agentType, agentCategory),
+    queryKey: ['form-layout', requestType, workflowStage, agentType, agentCategory],
+    queryFn: () => formLayoutsApi.getActiveForScreen(requestType, workflowStage, agentType, agentCategory),
     enabled: !!user,
   })
 
   // Fetch field access for current role
   const { data: fieldAccess, isLoading: accessLoading } = useQuery({
-    queryKey: ['field-access', requestType, userRole, agentType, 'new'],
-    queryFn: () => formLayoutsApi.getFieldsWithAccessForRole(requestType, userRole, agentType, 'new').catch((error) => {
+    queryKey: ['field-access', requestType, userRole, agentType, workflowStage],
+    queryFn: () => formLayoutsApi.getFieldsWithAccessForRole(requestType, userRole, agentType, workflowStage).catch((error) => {
       // Handle 400 and 422 errors gracefully
       if (error?.response?.status === 400 || error?.response?.status === 422) {
         console.warn(`Field access query returned ${error?.response?.status}, returning empty array`)
@@ -80,6 +83,149 @@ export default function DynamicForm({
   requirements?.forEach((req) => {
     requirementsMap.set(req.field_name, req)
   })
+
+  // Check if field should be visible based on dependencies
+  // This function must be defined before useMemo to avoid hook order issues
+  const isFieldVisibleForSection = (fieldName: string, layout: any, formData: any, fieldAccessMap: Map<string, FieldAccessForRole>): boolean => {
+    // Special fields like assessment_response_grid don't require field access
+    if (fieldName === 'assessment_response_grid') {
+      // Check field dependencies if any
+      if (layout?.field_dependencies && layout.field_dependencies[fieldName]) {
+        const dependency = layout.field_dependencies[fieldName]
+        const dependsOnValue = formData[dependency.depends_on]
+
+        switch (dependency.condition) {
+          case 'equals':
+            return dependsOnValue === dependency.value
+          case 'not_equals':
+            return dependsOnValue !== dependency.value
+          case 'contains':
+            if (Array.isArray(dependsOnValue)) {
+              return dependsOnValue.includes(dependency.value)
+            }
+            return String(dependsOnValue || '').includes(String(dependency.value || ''))
+          case 'not_contains':
+            if (Array.isArray(dependsOnValue)) {
+              return !dependsOnValue.includes(dependency.value)
+            }
+            return !String(dependsOnValue || '').includes(String(dependency.value || ''))
+          case 'greater_than':
+            return Number(dependsOnValue) > Number(dependency.value)
+          case 'less_than':
+            return Number(dependsOnValue) < Number(dependency.value)
+          case 'is_empty':
+            return !dependsOnValue || dependsOnValue === '' || (Array.isArray(dependsOnValue) && dependsOnValue.length === 0)
+          case 'is_not_empty':
+            return !!dependsOnValue && dependsOnValue !== '' && (!Array.isArray(dependsOnValue) || dependsOnValue.length > 0)
+          default:
+            return true
+        }
+      }
+      return true // Always visible if no dependencies
+    }
+
+    // For regular fields, check access
+    const access = fieldAccessMap.get(fieldName)
+    if (!access || !access.can_view) {
+      return false
+    }
+
+    // Check field dependencies
+    if (layout?.field_dependencies && layout.field_dependencies[fieldName]) {
+      const dependency = layout.field_dependencies[fieldName]
+      const dependsOnValue = formData[dependency.depends_on]
+
+      switch (dependency.condition) {
+        case 'equals':
+          return dependsOnValue === dependency.value
+        case 'not_equals':
+          return dependsOnValue !== dependency.value
+        case 'contains':
+          if (Array.isArray(dependsOnValue)) {
+            return dependsOnValue.includes(dependency.value)
+          }
+          return String(dependsOnValue || '').includes(String(dependency.value || ''))
+        case 'not_contains':
+          if (Array.isArray(dependsOnValue)) {
+            return !dependsOnValue.includes(dependency.value)
+          }
+          return !String(dependsOnValue || '').includes(String(dependency.value || ''))
+        case 'greater_than':
+          return Number(dependsOnValue) > Number(dependency.value)
+        case 'less_than':
+          return Number(dependsOnValue) < Number(dependency.value)
+        case 'is_empty':
+          return !dependsOnValue || dependsOnValue === '' || (Array.isArray(dependsOnValue) && dependsOnValue.length === 0)
+        case 'is_not_empty':
+          return !!dependsOnValue && dependsOnValue !== '' && (!Array.isArray(dependsOnValue) || dependsOnValue.length > 0)
+        default:
+          return true
+      }
+    }
+
+    return true
+  }
+
+  // Process sections: filter visible fields first, then filter out empty sections
+  // This hook must be called before any early returns to follow Rules of Hooks
+  const visibleSections = useMemo(() => {
+    if (!layout?.sections || layout.sections.length === 0) {
+      return []
+    }
+
+    // Deduplicate sections by ID first (in case layout has duplicate sections)
+    const seenIds = new Set<string>()
+    const uniqueSections = layout.sections.filter((section) => {
+      if (seenIds.has(section.id)) {
+        console.warn(`DynamicForm - Duplicate section ID detected: ${section.id}, skipping duplicate`)
+        return false
+      }
+      seenIds.add(section.id)
+      return true
+    })
+
+    console.log('DynamicForm - Sections after deduplication:', {
+      originalCount: layout.sections.length,
+      uniqueCount: uniqueSections.length,
+      sectionIds: uniqueSections.map(s => s.id)
+    })
+
+    return uniqueSections
+      .sort((a, b) => (a.order || 0) - (b.order || 0))
+      .map((section, sectionIndex) => {
+        const sectionFields = section.fields.filter((fieldName) => {
+          const visible = isFieldVisibleForSection(fieldName, layout, formData, fieldAccessMap)
+          console.log(`DynamicForm - Field visibility check: ${fieldName} = ${visible}`)
+          return visible
+        })
+
+        console.log('DynamicForm - Section processing:', {
+          sectionId: section.id,
+          sectionTitle: section.title,
+          allFields: section.fields,
+          visibleFields: sectionFields,
+          willRender: sectionFields.length > 0
+        })
+
+        if (sectionFields.length === 0) {
+          console.log(`DynamicForm - Skipping section ${section.id} (${section.title}) - no visible fields`)
+          return null // Skip empty sections
+        }
+
+        return {
+          section,
+          sectionFields,
+          sectionIndex,
+          uniqueKey: `${layout?.id || 'no-layout'}-${section.id}-${sectionIndex}`
+        }
+      })
+      .filter((item) => item !== null) as Array<{
+        section: any
+        sectionFields: string[]
+        sectionIndex: number
+        uniqueKey: string
+      }>
+  }, [layout, fieldAccessMap, formData])
 
   if (layoutLoading || accessLoading) {
     return <div className="text-center p-8">Loading form...</div>
@@ -206,6 +352,44 @@ export default function DynamicForm({
 
   // Check if field should be visible based on dependencies
   const isFieldVisible = (fieldName: string): boolean => {
+    // Special fields like assessment_response_grid don't require field access
+    if (fieldName === 'assessment_response_grid') {
+      // Check field dependencies if any
+      if (layout.field_dependencies && layout.field_dependencies[fieldName]) {
+        const dependency = layout.field_dependencies[fieldName]
+        const dependsOnValue = formData[dependency.depends_on]
+
+        switch (dependency.condition) {
+          case 'equals':
+            return dependsOnValue === dependency.value
+          case 'not_equals':
+            return dependsOnValue !== dependency.value
+          case 'contains':
+            if (Array.isArray(dependsOnValue)) {
+              return dependsOnValue.includes(dependency.value)
+            }
+            return String(dependsOnValue || '').includes(String(dependency.value || ''))
+          case 'not_contains':
+            if (Array.isArray(dependsOnValue)) {
+              return !dependsOnValue.includes(dependency.value)
+            }
+            return !String(dependsOnValue || '').includes(String(dependency.value || ''))
+          case 'greater_than':
+            return Number(dependsOnValue) > Number(dependency.value)
+          case 'less_than':
+            return Number(dependsOnValue) < Number(dependency.value)
+          case 'is_empty':
+            return !dependsOnValue || dependsOnValue === '' || (Array.isArray(dependsOnValue) && dependsOnValue.length === 0)
+          case 'is_not_empty':
+            return !!dependsOnValue && dependsOnValue !== '' && (!Array.isArray(dependsOnValue) || dependsOnValue.length > 0)
+          default:
+            return true
+        }
+      }
+      return true // Always visible if no dependencies
+    }
+
+    // For regular fields, check access
     const access = fieldAccessMap.get(fieldName)
     if (!access || !access.can_view) {
       return false
@@ -252,14 +436,47 @@ export default function DynamicForm({
     const access = fieldAccessMap.get(fieldName)
     const requirement = requirementsMap.get(fieldName)
 
-    // Check if user has view access
-    if (!access || !access.can_view) {
+    // Check if user has view access (skip for special fields like assessment_response_grid)
+    if (fieldName !== 'assessment_response_grid' && (!access || !access.can_view)) {
       return null // Don't render field if user can't view it
     }
 
     // Check field dependencies
     if (!isFieldVisible(fieldName)) {
       return null // Don't render field if dependency condition is not met
+    }
+
+    // Handle special field types that don't require a requirement definition
+    if (fieldName === 'assessment_response_grid') {
+      // Special field type for displaying assessment responses in a grid
+      const questions = formData.questions || []
+      const responses = formData.responses || {}
+      const questionReviews = formData.questionReviews || {}
+      
+      console.log('DynamicForm - Rendering assessment_response_grid:', {
+        assignmentId: assignmentId || formData.assignment_id,
+        questionsCount: Array.isArray(questions) ? questions.length : 0,
+        responsesCount: Object.keys(responses).length,
+        questionReviewsCount: Object.keys(questionReviews).length,
+        formDataKeys: Object.keys(formData)
+      })
+      
+      return (
+        <div key={`${sectionId}-${fieldName}`} className="enterprise-form-field">
+          <label className="enterprise-label mb-3">
+            {requirement?.label || 'Assessment Questions & Responses'}
+          </label>
+          <AssessmentResponseGrid
+            assignmentId={assignmentId || formData.assignment_id}
+            questions={questions}
+            responses={responses}
+            questionReviews={questionReviews}
+            readOnly={readOnly}
+            showReviewStatus={requestType === 'approver' || requestType === 'assessment_workflow'}
+            showQuestionActions={!readOnly && (requestType === 'approver' || requestType === 'assessment_workflow')} // Show actions for approvers when not read-only
+          />
+        </div>
+      )
     }
 
     if (!requirement) {
@@ -272,13 +489,13 @@ export default function DynamicForm({
           type="text"
           value={formData[fieldName] || ''}
           onChange={(e) => handleFieldChange(fieldName, e.target.value)}
-          disabled={readOnly || !access.can_edit}
+          disabled={readOnly || !access?.can_edit}
           required={false}
         />
       )
     }
 
-    const isReadOnly = readOnly || !access.can_edit
+    const isReadOnly = readOnly || !access?.can_edit
     const value = formData[fieldName] || ''
 
     switch (requirement.field_type) {
@@ -461,23 +678,6 @@ export default function DynamicForm({
           </div>
         )
 
-      case 'assessment_response_grid':
-        // Special field type for displaying assessment responses in a grid
-        return (
-          <div key={`${sectionId}-${fieldName}`} className="enterprise-form-field">
-            <label className="enterprise-label mb-3">
-              {requirement.label || 'Assessment Responses'}
-            </label>
-            <AssessmentResponseGrid
-              assignmentId={assignmentId || formData.assignment_id}
-              questions={formData.questions} // Pass questions if available in formData
-              responses={formData.responses} // Pass responses if available in formData
-              questionReviews={formData.questionReviews} // Pass question reviews if available
-              readOnly={isReadOnly}
-              showReviewStatus={requestType === 'approver'}
-            />
-          </div>
-        )
 
       default:
         // Default to text input
@@ -500,31 +700,30 @@ export default function DynamicForm({
     }
   }
 
+  console.log('DynamicForm - Layout loaded:', {
+    hasLayout: !!layout,
+    sectionsCount: layout?.sections?.length || 0,
+    sections: layout?.sections?.map(s => ({
+      id: s.id,
+      title: s.title,
+      fields: s.fields,
+      order: s.order
+    })) || []
+  })
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {layout.sections
-        .sort((a, b) => a.order - b.order)
-        .map((section) => {
-          const sectionFields = section.fields.filter((fieldName) => {
-            return isFieldVisible(fieldName)
-          })
-
-          if (sectionFields.length === 0) {
-            return null // Skip empty sections
-          }
-
-          return (
-            <div key={section.id} className="border rounded-lg p-6">
-              <h3 className="text-lg font-medium mb-4">{section.title}</h3>
-              {section.description && (
-                <p className="text-sm text-gray-600 mb-4">{section.description}</p>
-              )}
-              <div className="space-y-4">
-                {sectionFields.map((fieldName) => renderField(fieldName, sectionFields, section.id))}
-              </div>
-            </div>
-          )
-        })}
+      {visibleSections.map(({ section, sectionFields, sectionIndex, uniqueKey }) => (
+        <div key={uniqueKey} className="border rounded-lg p-6">
+          <h3 className="text-lg font-medium mb-4">{section.title}</h3>
+          {section.description && (
+            <p className="text-sm text-gray-600 mb-4">{section.description}</p>
+          )}
+          <div className="space-y-4">
+            {sectionFields.map((fieldName) => renderField(fieldName, sectionFields, section.id))}
+          </div>
+        </div>
+      ))}
 
       {onSubmit && !readOnly && (
         <div className="flex justify-end gap-2">

@@ -174,150 +174,177 @@ async def create_agent(
     db: Session = Depends(get_db)
 ):
     """Create a new agent submission"""
-    # Validate user role
-    if current_user.role.value not in ["vendor_user", "tenant_admin"]:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only vendors can create agents"
-        )
-    
-    # Check feature gate: agent creation
-    if current_user.tenant_id:
-        from app.core.feature_gating import FeatureGate
-        can_create, current_count = FeatureGate.check_agent_limit(db, str(current_user.tenant_id))
-        if not can_create:
+    try:
+        # Validate user role
+        if current_user.role.value not in ["vendor_user", "tenant_admin"]:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Agent limit reached ({current_count}). Please upgrade your plan."
+                detail="Only vendors can create agents"
             )
-    
-    # Get or create vendor
-    vendor = db.query(Vendor).filter(Vendor.contact_email == current_user.email).first()
-    if not vendor:
-        vendor = Vendor(
-            name=f"{current_user.name}'s Company",
-            contact_email=current_user.email,
-            tenant_id=current_user.tenant_id
+        
+        # Check feature gate: agent creation (with timeout protection)
+        if current_user.tenant_id:
+            try:
+                from app.core.feature_gating import FeatureGate
+                can_create, current_count = FeatureGate.check_agent_limit(db, str(current_user.tenant_id))
+                if not can_create:
+                    raise HTTPException(
+                        status_code=status.HTTP_403_FORBIDDEN,
+                        detail=f"Agent limit reached ({current_count}). Please upgrade your plan."
+                    )
+            except HTTPException:
+                raise
+            except Exception as e:
+                # If feature gate check fails, log but allow creation (fail open)
+                logger.warning(f"Feature gate check failed for tenant {current_user.tenant_id}: {e}", exc_info=True)
+                # Continue with creation - fail open to prevent blocking legitimate requests
+        
+        # Get or create vendor
+        vendor = db.query(Vendor).filter(Vendor.contact_email == current_user.email).first()
+        if not vendor:
+            vendor = Vendor(
+                name=f"{current_user.name}'s Company",
+                contact_email=current_user.email,
+                tenant_id=current_user.tenant_id
+            )
+            db.add(vendor)
+            db.commit()
+            db.refresh(vendor)
+        
+        # Check for duplicate agent name (same vendor, same name) - optimized query
+        existing = db.query(Agent).filter(
+            Agent.vendor_id == vendor.id,
+            Agent.name == agent_data.name
+        ).first()
+        if existing:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Agent with this name already exists"
+            )
+        
+        # Create agent
+        agent = Agent(
+            vendor_id=vendor.id,
+            name=agent_data.name,
+            type=agent_data.type,
+            category=agent_data.category,
+            subcategory=agent_data.subcategory,
+            description=agent_data.description,
+            version=agent_data.version,
+            status=AgentStatus.DRAFT.value,
         )
-        db.add(vendor)
+        
+        db.add(agent)
         db.commit()
-        db.refresh(vendor)
-    
-    # Check for duplicate agent name (same vendor, same name)
-    existing = db.query(Agent).filter(
-        Agent.vendor_id == vendor.id,
-        Agent.name == agent_data.name
-    ).first()
-    if existing:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Agent with this name already exists"
+        db.refresh(agent)
+        
+        # Prepare architecture_info with connection diagram if provided
+        architecture_info = {}
+        connection_diagram = agent_data.connection_diagram or agent_data.mermaid_diagram
+        if connection_diagram:
+            # Store the diagram exactly as provided (preserve the original format)
+            architecture_info['connection_diagram'] = connection_diagram
+            logger.info(f"Storing connection diagram for agent {agent.name}: {len(connection_diagram)} characters")
+        
+        # Create metadata
+        metadata = AgentMetadata(
+            agent_id=agent.id,
+            capabilities=agent_data.capabilities or [],
+            data_types=agent_data.data_types or [],
+            regions=agent_data.regions or [],
+            integrations=agent_data.integrations or [],
+            use_cases=agent_data.use_cases or [],
+            features=agent_data.features or [],
+            personas=agent_data.personas or [],
+            version_info=agent_data.version_info or {},
+            architecture_info=architecture_info if architecture_info else None,
+            llm_vendor=agent_data.llm_vendor,
+            llm_model=agent_data.llm_model,
+            deployment_type=agent_data.deployment_type,
+            data_sharing_scope=agent_data.data_sharing_scope,
+            data_usage_purpose=agent_data.data_usage_purpose,
         )
-    
-    # Create agent
-    agent = Agent(
-        vendor_id=vendor.id,
-        name=agent_data.name,
-        type=agent_data.type,
-        category=agent_data.category,
-        subcategory=agent_data.subcategory,
-        description=agent_data.description,
-        version=agent_data.version,
-        status=AgentStatus.DRAFT.value,
-    )
-    
-    db.add(agent)
-    db.commit()
-    db.refresh(agent)
-    
-    # Prepare architecture_info with connection diagram if provided
-    architecture_info = {}
-    connection_diagram = agent_data.connection_diagram or agent_data.mermaid_diagram
-    if connection_diagram:
-        # Store the diagram exactly as provided (preserve the original format)
-        architecture_info['connection_diagram'] = connection_diagram
-        logger.info(f"Storing connection diagram for agent {agent.name}: {len(connection_diagram)} characters")
-    
-    # Create metadata
-    metadata = AgentMetadata(
-        agent_id=agent.id,
-        capabilities=agent_data.capabilities or [],
-        data_types=agent_data.data_types or [],
-        regions=agent_data.regions or [],
-        integrations=agent_data.integrations or [],
-        use_cases=agent_data.use_cases or [],
-        features=agent_data.features or [],
-        personas=agent_data.personas or [],
-        version_info=agent_data.version_info or {},
-        architecture_info=architecture_info if architecture_info else None,
-        llm_vendor=agent_data.llm_vendor,
-        llm_model=agent_data.llm_model,
-        deployment_type=agent_data.deployment_type,
-        data_sharing_scope=agent_data.data_sharing_scope,
-        data_usage_purpose=agent_data.data_usage_purpose,
-    )
-    
-    # Handle workflow_current_step if provided
-    if agent_data.workflow_current_step is not None:
-        if not metadata.extra_data:
-            metadata.extra_data = {}
-        metadata.extra_data['workflow_current_step'] = agent_data.workflow_current_step
-    
-    db.add(metadata)
-    db.commit()
-    db.refresh(agent)
-    db.refresh(metadata)
-    
-    # Audit log
-    audit_service.log_action(
-        db=db,
-        user_id=str(current_user.id),
-        action=AuditAction.CREATE,
-        resource_type="agent",
-        resource_id=str(agent.id),
-        tenant_id=str(current_user.tenant_id) if current_user.tenant_id else None,
-        details={"name": agent.name, "type": agent.type},
-        ip_address=request.client.host if request.client else None,
-        user_agent=request.headers.get("user-agent")
-    )
-    
-    # Invalidate cache
-    invalidate_cache(f"agents:*")
-    
-    # Convert to response model
-    return AgentResponse(
-        id=str(agent.id),
-        vendor_id=str(agent.vendor_id),
-        name=agent.name,
-        type=agent.type,
-        category=agent.category,
-        subcategory=agent.subcategory,
-        description=agent.description,
-        version=agent.version,
-        status=agent.status,
-        compliance_score=agent.compliance_score,
-        risk_score=agent.risk_score,
-        submission_date=agent.submission_date,
-        created_at=agent.created_at,
-        updated_at=agent.updated_at,
-        capabilities=metadata.capabilities,
-        data_types=metadata.data_types,
-        regions=metadata.regions,
-        integrations=metadata.integrations,
-        use_cases=metadata.use_cases,
-        features=metadata.features,
-        personas=metadata.personas,
-        version_info=metadata.version_info,
-        llm_vendor=metadata.llm_vendor,
-        llm_model=metadata.llm_model,
-        deployment_type=metadata.deployment_type,
-        data_sharing_scope=metadata.data_sharing_scope,
-        data_usage_purpose=metadata.data_usage_purpose,
-        vendor_name=vendor.name if vendor else None,
-        vendor_logo_url=vendor.logo_url if vendor else None,
-        architecture_info=metadata.architecture_info,
-        workflow_current_step=metadata.extra_data.get('workflow_current_step') if metadata.extra_data else None
-    )
+        
+        # Handle workflow_current_step if provided
+        if agent_data.workflow_current_step is not None:
+            if not metadata.extra_data:
+                metadata.extra_data = {}
+            metadata.extra_data['workflow_current_step'] = agent_data.workflow_current_step
+        
+        db.add(metadata)
+        db.commit()
+        db.refresh(agent)
+        db.refresh(metadata)
+        
+        # Audit log (non-blocking - log errors but don't fail the request)
+        try:
+            audit_service.log_action(
+                db=db,
+                user_id=str(current_user.id),
+                action=AuditAction.CREATE,
+                resource_type="agent",
+                resource_id=str(agent.id),
+                tenant_id=str(current_user.tenant_id) if current_user.tenant_id else None,
+                details={"name": agent.name, "type": agent.type},
+                ip_address=request.client.host if request.client else None,
+                user_agent=request.headers.get("user-agent")
+            )
+        except Exception as audit_error:
+            logger.warning(f"Failed to log audit action for agent creation: {audit_error}", exc_info=True)
+            # Continue - don't fail the request if audit logging fails
+        
+        # Invalidate cache (non-blocking)
+        try:
+            invalidate_cache(f"agents:*")
+        except Exception as cache_error:
+            logger.warning(f"Failed to invalidate cache: {cache_error}", exc_info=True)
+            # Continue - don't fail the request if cache invalidation fails
+        
+        # Convert to response model
+        return AgentResponse(
+            id=str(agent.id),
+            vendor_id=str(agent.vendor_id),
+            name=agent.name,
+            type=agent.type,
+            category=agent.category,
+            subcategory=agent.subcategory,
+            description=agent.description,
+            version=agent.version,
+            status=agent.status,
+            compliance_score=agent.compliance_score,
+            risk_score=agent.risk_score,
+            submission_date=agent.submission_date,
+            created_at=agent.created_at,
+            updated_at=agent.updated_at,
+            capabilities=metadata.capabilities,
+            data_types=metadata.data_types,
+            regions=metadata.regions,
+            integrations=metadata.integrations,
+            use_cases=metadata.use_cases,
+            features=metadata.features,
+            personas=metadata.personas,
+            version_info=metadata.version_info,
+            llm_vendor=metadata.llm_vendor,
+            llm_model=metadata.llm_model,
+            deployment_type=metadata.deployment_type,
+            data_sharing_scope=metadata.data_sharing_scope,
+            data_usage_purpose=metadata.data_usage_purpose,
+            vendor_name=vendor.name if vendor else None,
+            vendor_logo_url=vendor.logo_url if vendor else None,
+            architecture_info=metadata.architecture_info,
+            workflow_current_step=metadata.extra_data.get('workflow_current_step') if metadata.extra_data else None
+        )
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
+    except Exception as e:
+        # Rollback transaction on error
+        db.rollback()
+        logger.error(f"Failed to create agent: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create agent: {str(e)}"
+        )
 
 
 @router.get("", response_model=AgentListResponse)
@@ -1197,19 +1224,33 @@ async def submit_agent(
             business_contact_id=business_contact_id
         )
         
-        # Auto-assign assessments based on rules
-        try:
-            from app.services.assessment_service import AssessmentService
-            assessment_service = AssessmentService(db)
-            assessment_service.auto_assign_assessments(
-                vendor=vendor,
-                agent=agent,
-                assignment_type='agent_onboarding'
-            )
-            logger.info(f"Auto-assigned assessments for agent {agent.id}")
-        except Exception as e:
-            logger.warning(f"Failed to auto-assign assessments for agent {agent.id}: {e}", exc_info=True)
-            # Don't fail the agent submission if assessment assignment fails
+        # Auto-assign assessments based on rules (moved to background task to avoid blocking)
+        async def auto_assign_assessments_task():
+            """Background task to auto-assign assessments"""
+            try:
+                from app.core.database import SessionLocal
+                background_db = SessionLocal()
+                try:
+                    # Refresh vendor and agent in background session
+                    background_vendor = background_db.query(Vendor).filter(Vendor.id == vendor.id).first()
+                    background_agent = background_db.query(Agent).filter(Agent.id == agent.id).first()
+                    
+                    if background_vendor and background_agent:
+                        from app.services.assessment_service import AssessmentService
+                        assessment_service = AssessmentService(background_db)
+                        assessment_service.auto_assign_assessments(
+                            vendor=background_vendor,
+                            agent=background_agent,
+                            assignment_type='agent_onboarding'
+                        )
+                        logger.info(f"Auto-assigned assessments for agent {agent.id}")
+                finally:
+                    background_db.close()
+            except Exception as e:
+                logger.warning(f"Failed to auto-assign assessments for agent {agent.id}: {e}", exc_info=True)
+                # Don't fail the agent submission if assessment assignment fails
+        
+        background_tasks.add_task(auto_assign_assessments_task)
         
         # Initialize workflow - assign to first step if workflow exists
         if workflow_config and workflow_config.workflow_steps:
@@ -1386,36 +1427,62 @@ async def submit_agent(
     else:
         logger.info(f"Using existing onboarding request {onboarding_request.id} for agent {agent.id}, status: {onboarding_request.status}")
     
-    # Create ticket for tracking
-    from app.services.ticket_service import TicketService
+    # Create ticket for tracking (moved to background task to avoid blocking)
+    async def create_ticket_task():
+        """Background task to create ticket"""
+        try:
+            from app.core.database import SessionLocal
+            background_db = SessionLocal()
+            try:
+                from app.services.ticket_service import TicketService
+                ticket = TicketService.create_ticket(
+                    db=background_db,
+                    agent_id=agent.id,
+                    submitted_by=current_user.id,
+                    tenant_id=vendor.tenant_id,
+                    title=f"Agent Submission: {agent.name}",
+                    description=f"Ticket created for agent {agent.name} submission"
+                )
+                logger.info(f"Created ticket for agent {agent.id}")
+            finally:
+                background_db.close()
+        except Exception as e:
+            # Log error but don't fail the submission
+            logger.error(f"Failed to create ticket for agent {agent.id}: {str(e)}")
+    
+    background_tasks.add_task(create_ticket_task)
+    
+    # Audit log (moved to background task to avoid blocking)
+    async def audit_log_task():
+        """Background task to log audit action"""
+        try:
+            from app.core.database import SessionLocal
+            background_db = SessionLocal()
+            try:
+                from app.core.audit import audit_service
+                audit_service.log_action(
+                    db=background_db,
+                    user_id=str(current_user.id),
+                    action=AuditAction.SUBMIT,
+                    resource_type="agent",
+                    resource_id=str(agent.id),
+                    tenant_id=str(current_user.tenant_id) if current_user.tenant_id else None,
+                    details={"name": agent.name},
+                    ip_address=request.client.host if request.client else None,
+                    user_agent=request.headers.get("user-agent")
+                )
+            finally:
+                background_db.close()
+        except Exception as e:
+            logger.warning(f"Failed to log audit action for agent {agent.id}: {str(e)}")
+    
+    background_tasks.add_task(audit_log_task)
+    
+    # Invalidate cache (non-blocking, but keep synchronous for immediate effect)
     try:
-        ticket = TicketService.create_ticket(
-            db=db,
-            agent_id=agent.id,
-            submitted_by=current_user.id,
-            tenant_id=vendor.tenant_id,
-            title=f"Agent Submission: {agent.name}",
-            description=f"Ticket created for agent {agent.name} submission"
-        )
+        invalidate_cache(f"agents:*")
     except Exception as e:
-        # Log error but don't fail the submission
-        logger.error(f"Failed to create ticket for agent {agent.id}: {str(e)}")
-    
-    # Audit log
-    audit_service.log_action(
-        db=db,
-        user_id=str(current_user.id),
-        action=AuditAction.SUBMIT,
-        resource_type="agent",
-        resource_id=str(agent.id),
-        tenant_id=str(current_user.tenant_id) if current_user.tenant_id else None,
-        details={"name": agent.name},
-        ip_address=request.client.host if request.client else None,
-        user_agent=request.headers.get("user-agent")
-    )
-    
-    # Invalidate cache
-    invalidate_cache(f"agents:*")
+        logger.warning(f"Failed to invalidate cache: {str(e)}")
     
     # Get workflow information - refresh from DB to ensure we have latest
     workflow_status = None

@@ -41,6 +41,7 @@ import SubmissionRequirementsManagement from './pages/SubmissionRequirementsMana
 import AssessmentsManagement from './pages/AssessmentsManagement'
 import AssessmentAssignmentPage from './pages/AssessmentAssignment'
 import AssessmentApprover from './pages/AssessmentApprover'
+import GenericApprover from './pages/GenericApprover'
 import QuestionLibrary from './pages/QuestionLibrary'
 import MyActions from './pages/MyActions'
 import AssessmentAnalytics from './pages/AssessmentAnalytics'
@@ -66,6 +67,8 @@ import CVESettings from './pages/CVESettings'
 import VendorSecurity from './pages/VendorSecurity'
 import CustomFields from './pages/CustomFields'
 import MyAssessments from './pages/MyAssessments'
+import Entities from './pages/Entities'
+import SuppliersMasterView from './pages/SuppliersMasterView'
 
 const queryClient = new QueryClient()
 
@@ -150,6 +153,7 @@ function App() {
           <Route path="/admin/assessments" element={<AssessmentsManagement />} />
           <Route path="/assessments/analytics" element={<AssessmentAnalytics />} />
           <Route path="/assessments/review/:id" element={<AssessmentApprover />} />
+          <Route path="/approver/:sourceType/:sourceId" element={<GenericApprover />} />
           <Route path="/assessments/assignments/:id" element={<AssessmentAssignmentPage />} />
           <Route path="/assessments/:id" element={<AssessmentAssignmentPage />} />
           <Route path="/my-assessments" element={<MyAssessments />} />
@@ -158,6 +162,8 @@ function App() {
           <Route path="/admin/form-designer/new" element={<FormDesignerEditor />} />
           <Route path="/admin/form-designer/:id" element={<FormDesignerEditor />} />
           <Route path="/admin/master-data" element={<MasterData />} />
+          <Route path="/entities" element={<Entities />} />
+          <Route path="/suppliers-master" element={<SuppliersMasterView />} />
           <Route path="/analytics" element={<AnalyticsDashboard />} />
           <Route path="/ai-posture" element={<AIPostureDashboard />} />
           <Route path="/ecosystem-map" element={<EcosystemMap />} />

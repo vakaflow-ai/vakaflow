@@ -604,40 +604,40 @@ export default function AgentSubmission() {
     queryKey: ['form-layout', 'vendor_submission_workflow', 'new', 'active'],
     queryFn: async () => {
       const layout = await formLayoutsApi.getActiveForScreen('vendor_submission_workflow', 'new')
-      // Debug: Log the full layout response to see what sections are actually returned
-      console.log('🔍 Layout fetched from API (getActiveForScreen):', {
-        id: layout.id,
-        name: layout.name,
-        sectionsCount: layout.sections?.length || 0,
-        sections: layout.sections,
-        sectionsDetail: layout.sections?.map((s: any) => ({
-          id: s.id,
-          title: s.title,
-          order: s.order,
-          fieldsCount: (s.fields || []).length,
-          fields: s.fields
-        })) || [],
-        fullLayout: JSON.stringify(layout, null, 2)
-      })
+      // Debug: Log the full layout response (commented out to reduce console noise)
+      // console.log('🔍 Layout fetched from API (getActiveForScreen):', {
+      //   id: layout.id,
+      //   name: layout.name,
+      //   sectionsCount: layout.sections?.length || 0,
+      //   sections: layout.sections,
+      //   sectionsDetail: layout.sections?.map((s: any) => ({
+      //     id: s.id,
+      //     title: s.title,
+      //     order: s.order,
+      //     fieldsCount: (s.fields || []).length,
+      //     fields: s.fields
+      //   })) || [],
+      //   fullLayout: JSON.stringify(layout, null, 2)
+      // })
       
       // If layout has only 1 section but we expect more, try fetching directly by ID to verify
       if (layout.sections && layout.sections.length === 1) {
-        console.warn('⚠️ Layout has only 1 section. Fetching directly by ID to verify...', layout.id)
+        // console.warn('⚠️ Layout has only 1 section. Fetching directly by ID to verify...', layout.id)
         try {
           const directLayout = await formLayoutsApi.get(layout.id)
-          console.log('🔍 Layout fetched directly by ID:', {
-            id: directLayout.id,
-            name: directLayout.name,
-            sectionsCount: directLayout.sections?.length || 0,
-            sections: directLayout.sections,
-            sectionsDetail: directLayout.sections?.map((s: any) => ({
-              id: s.id,
-              title: s.title,
-              order: s.order,
-              fieldsCount: (s.fields || []).length,
-              fields: s.fields
-            })) || []
-          })
+          // console.log('🔍 Layout fetched directly by ID:', {
+          //   id: directLayout.id,
+          //   name: directLayout.name,
+          //   sectionsCount: directLayout.sections?.length || 0,
+          //   sections: directLayout.sections,
+          //   sectionsDetail: directLayout.sections?.map((s: any) => ({
+          //     id: s.id,
+          //     title: s.title,
+          //     order: s.order,
+          //     fieldsCount: (s.fields || []).length,
+          //     fields: s.fields
+          //   })) || []
+          // })
           // If direct fetch has more sections, use that instead
           if (directLayout.sections && directLayout.sections.length > layout.sections.length) {
             console.warn('⚠️ Direct fetch returned more sections! Using direct fetch result.')
@@ -779,25 +779,25 @@ export default function AgentSubmission() {
     queryKey: ['available-fields'],
     queryFn: async () => {
       const data = await formLayoutsApi.getAvailableFields()
-      // Debug: Log type field from API response
-      if (data?.agent) {
-        const typeField = data.agent.find((f: any) => f.field_name === 'type')
-        if (typeField) {
-          console.log('🔍 API Response - Type field:')
-          console.log('  field_name:', typeField.field_name)
-          console.log('  field_type:', typeField.field_type)
-          console.log('  field_config:', typeField.field_config)
-          console.log('  field_config.options:', typeField.field_config?.options)
-          console.log('  field_config.options.length:', typeField.field_config?.options?.length)
-          console.log('  Full field object:', typeField)
-        } else {
-          console.warn('⚠️ Type field not found in API response agent array')
-          console.log('Available fields:', data.agent.map((f: any) => f.field_name))
-        }
-      } else {
-        console.warn('⚠️ API response has no agent array')
-        console.log('Available data keys:', Object.keys(data || {}))
-      }
+      // Debug: Log type field from API response (commented out to reduce console noise)
+      // if (data?.agent) {
+      //   const typeField = data.agent.find((f: any) => f.field_name === 'type')
+      //   if (typeField) {
+      //     console.log('🔍 API Response - Type field:')
+      //     console.log('  field_name:', typeField.field_name)
+      //     console.log('  field_type:', typeField.field_type)
+      //     console.log('  field_config:', typeField.field_config)
+      //     console.log('  field_config.options:', typeField.field_config?.options)
+      //     console.log('  field_config.options.length:', typeField.field_config?.options?.length)
+      //     console.log('  Full field object:', typeField)
+      //   } else {
+      //     console.warn('⚠️ Type field not found in API response agent array')
+      //     console.log('Available fields:', data.agent.map((f: any) => f.field_name))
+      //   }
+      // } else {
+      //   console.warn('⚠️ API response has no agent array')
+      //   console.log('Available data keys:', Object.keys(data || {}))
+      // }
       return data
     },
     enabled: !!user,
@@ -867,29 +867,29 @@ export default function AgentSubmission() {
       }
     })
     
-    // Debug: Log what's in the map for type and category fields
-    const typeFieldInMap = availableFieldsMap.get('type')
-    const categoryFieldInMap = availableFieldsMap.get('category')
-    if (typeFieldInMap) {
-      console.log('🔍 Type field in availableFieldsMap:', {
-        field_name: typeFieldInMap.field_name,
-        field_type: typeFieldInMap.field_type,
-        field_config: typeFieldInMap.field_config,
-        field_config_options: typeFieldInMap.field_config?.options,
-        field_config_options_length: typeFieldInMap.field_config?.options?.length
-      })
-    } else {
-      console.warn('⚠️ Type field NOT found in availableFieldsMap')
-    }
-    if (categoryFieldInMap) {
-      console.log('🔍 Category field in availableFieldsMap:', {
-        field_name: categoryFieldInMap.field_name,
-        field_type: categoryFieldInMap.field_type,
-        field_config: categoryFieldInMap.field_config,
-        field_config_options: categoryFieldInMap.field_config?.options,
-        field_config_options_length: categoryFieldInMap.field_config?.options?.length
-      })
-    }
+    // Debug: Log what's in the map for type and category fields (commented out to reduce console noise)
+    // const typeFieldInMap = availableFieldsMap.get('type')
+    // const categoryFieldInMap = availableFieldsMap.get('category')
+    // if (typeFieldInMap) {
+    //   console.log('🔍 Type field in availableFieldsMap:', {
+    //     field_name: typeFieldInMap.field_name,
+    //     field_type: typeFieldInMap.field_type,
+    //     field_config: typeFieldInMap.field_config,
+    //     field_config_options: typeFieldInMap.field_config?.options,
+    //     field_config_options_length: typeFieldInMap.field_config?.options?.length
+    //   })
+    // } else {
+    //   console.warn('⚠️ Type field NOT found in availableFieldsMap')
+    // }
+    // if (categoryFieldInMap) {
+    //   console.log('🔍 Category field in availableFieldsMap:', {
+    //     field_name: categoryFieldInMap.field_name,
+    //     field_type: categoryFieldInMap.field_type,
+    //     field_config: categoryFieldInMap.field_config,
+    //     field_config_options: categoryFieldInMap.field_config?.options,
+    //     field_config_options_length: categoryFieldInMap.field_config?.options?.length
+    //   })
+    // }
   }
 
   // Fetch framework requirements (only after agent is created)
@@ -945,47 +945,47 @@ export default function AgentSubmission() {
     ? formLayout.sections 
     : []
   
-  // Debug: Log sections to verify they're being loaded correctly - only log once per layout
-  if (formLayout && layoutSectionsProcessedRef.current !== formLayout.id) {
-    layoutSectionsProcessedRef.current = formLayout.id
-    console.log('📋 Processing layout sections:', {
-      layoutId: formLayout.id,
-      layoutName: formLayout.name,
-      rawSectionsFromAPI: formLayout.sections,
-      sectionsCount: formLayout.sections?.length || 0,
-      layoutSectionsCount: layoutSections.length,
-      layoutSections: layoutSections
-    })
-  }
+  // Debug: Log sections to verify they're being loaded correctly - only log once per layout (commented out to reduce console noise)
+  // if (formLayout && layoutSectionsProcessedRef.current !== formLayout.id) {
+  //   layoutSectionsProcessedRef.current = formLayout.id
+  //   console.log('📋 Processing layout sections:', {
+  //     layoutId: formLayout.id,
+  //     layoutName: formLayout.name,
+  //     rawSectionsFromAPI: formLayout.sections,
+  //     sectionsCount: formLayout.sections?.length || 0,
+  //     layoutSectionsCount: layoutSections.length,
+  //     layoutSections: layoutSections
+  //   })
+  // }
   
   // Sort sections by order
   const sortedLayoutSections = [...layoutSections].sort((a: any, b: any) => (a.order || 0) - (b.order || 0))
   
-  // Debug: Log layout sections to ensure all are loaded (only once when layout changes)
-  useEffect(() => {
-    if (formLayout && sortedLayoutSections.length > 0) {
-      // Only log in development and use a ref to prevent duplicate logs
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-ignore - import.meta.env is a Vite feature
-      if ((import.meta as any).env?.DEV) {
-        const sectionsDetail = sortedLayoutSections.map((s: any) => ({ 
-          id: s.id, 
-          title: s.title, 
-          order: s.order, 
-          fieldsCount: (s.fields || []).length,
-          fields: s.fields || [],
-          fieldsList: (s.fields || []).join(', ') || '(empty)'
-        }))
-        console.log('Layout sections loaded:', {
-          layoutId: formLayout.id,
-          layoutName: formLayout.name,
-          sectionsCount: sortedLayoutSections.length,
-          sections: sectionsDetail
-        })
-        console.log('Full layout sections (raw from API):', JSON.stringify(formLayout.sections, null, 2))
-      }
-    }
-  }, [formLayout?.id, sortedLayoutSections.length]) // Only depend on ID and length, not the full array
+  // Debug: Log layout sections to ensure all are loaded (only once when layout changes) - commented out to reduce console noise
+  // useEffect(() => {
+  //   if (formLayout && sortedLayoutSections.length > 0) {
+  //     // Only log in development and use a ref to prevent duplicate logs
+  //     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  //     // @ts-ignore - import.meta.env is a Vite feature
+  //     // if ((import.meta as any).env?.DEV) {
+  //     //   const sectionsDetail = sortedLayoutSections.map((s: any) => ({ 
+  //     //     id: s.id, 
+  //     //     title: s.title, 
+  //     //     order: s.order, 
+  //     //     fieldsCount: (s.fields || []).length,
+  //     //     fields: s.fields || [],
+  //     //     fieldsList: (s.fields || []).join(', ') || '(empty)'
+  //     //   }))
+  //     //   console.log('Layout sections loaded:', {
+  //     //     layoutId: formLayout.id,
+  //     //     layoutName: formLayout.name,
+  //     //     sectionsCount: sortedLayoutSections.length,
+  //     //     sections: sectionsDetail
+  //     //   })
+  //     //   console.log('Full layout sections (raw from API):', JSON.stringify(formLayout.sections, null, 2))
+  //     // }
+  //   }
+  // }, [formLayout?.id, sortedLayoutSections.length]) // Only depend on ID and length, not the full array
   
   // Build STEPS array from configured sections
   // Use ONLY configured fields from the layout - respect what's configured
@@ -1012,12 +1012,12 @@ export default function AgentSubmission() {
       // Only log in development
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       // @ts-ignore - import.meta.env is a Vite feature
-      if ((import.meta as any).env?.DEV) {
-        console.log('STEPS array created:', {
-          totalSteps: STEPS.length,
-          steps: STEPS.map((s: any) => ({ id: s.id, title: s.title, fieldsCount: (s.fields || []).length }))
-        })
-      }
+      // if ((import.meta as any).env?.DEV) {
+      //   console.log('STEPS array created:', {
+      //     totalSteps: STEPS.length,
+      //     steps: STEPS.map((s: any) => ({ id: s.id, title: s.title, fieldsCount: (s.fields || []).length }))
+      //   })
+      // }
     }
   }, [STEPS.length])
 
@@ -1504,38 +1504,39 @@ export default function AgentSubmission() {
   }
 
   const handleSubmit = async () => {
-    console.log('🚀 handleSubmit called', {
-      currentStep,
-      formData: {
-        name: formData.name,
-        type: formData.type,
-        version: formData.version,
-        llm_vendor: formData.llm_vendor,
-        llm_model: formData.llm_model,
-        llm_model_custom: formData.llm_model_custom,
-      }
-    })
+    // Debug logging commented out to reduce console noise
+    // console.log('🚀 handleSubmit called', {
+    //   currentStep,
+    //   formData: {
+    //     name: formData.name,
+    //     type: formData.type,
+    //     version: formData.version,
+    //     llm_vendor: formData.llm_vendor,
+    //     llm_model: formData.llm_model,
+    //     llm_model_custom: formData.llm_model_custom,
+    //   }
+    // })
     
     // Validate all required steps before submission
     const step1Valid = validateStep(1)
     const step2Valid = validateStep(2)
     
-    console.log('✅ Validation results:', {
-      step1Valid,
-      step2Valid,
-      step1Details: {
-        hasName: !!formData.name,
-        hasType: !!formData.type,
-        hasVersion: !!formData.version,
-      },
-      step2Details: {
-        hasVendor: !!formData.llm_vendor,
-        hasModel: !!formData.llm_model,
-        hasCustomModel: !!formData.llm_model_custom,
-        vendor: formData.llm_vendor,
-        model: formData.llm_model,
-      }
-    })
+    // console.log('✅ Validation results:', {
+    //   step1Valid,
+    //   step2Valid,
+    //   step1Details: {
+    //     hasName: !!formData.name,
+    //     hasType: !!formData.type,
+    //     hasVersion: !!formData.version,
+    //   },
+    //   step2Details: {
+    //     hasVendor: !!formData.llm_vendor,
+    //     hasModel: !!formData.llm_model,
+    //     hasCustomModel: !!formData.llm_model_custom,
+    //     vendor: formData.llm_vendor,
+    //     model: formData.llm_model,
+    //   }
+    // })
     
     if (!step1Valid || !step2Valid) {
       const missingFields = []
@@ -1555,7 +1556,7 @@ export default function AgentSubmission() {
       return
     }
 
-    console.log('✅ Validation passed, starting submission...')
+    // console.log('✅ Validation passed, starting submission...')
     setLoading(true)
 
     try {
@@ -1616,11 +1617,11 @@ export default function AgentSubmission() {
         // Create new agent as draft first with minimal data to avoid timeout
         // Then update with full data in a separate call
         try {
-          console.log('📝 Creating agent with minimal data:', {
-            name: formData.name,
-            type: formData.type,
-            version: formData.version
-          })
+          // console.log('📝 Creating agent with minimal data:', {
+          //   name: formData.name,
+          //   type: formData.type,
+          //   version: formData.version
+          // })
           
           // First, create with absolute minimal required fields only
           // Use a longer timeout for the initial creation since backend does multiple DB operations
@@ -1633,11 +1634,11 @@ export default function AgentSubmission() {
           } as any)
           
           const createDuration = Date.now() - createStartTime
-          console.log(`✅ Agent created in ${createDuration}ms:`, agent.id)
+          // console.log(`✅ Agent created in ${createDuration}ms:`, agent.id)
           setAgentId(agent.id)
           
           // Then update with all other fields in smaller batches to avoid timeout
-          console.log('📝 Updating agent with full data...')
+          // console.log('📝 Updating agent with full data...')
           const updateStartTime = Date.now()
           
           // Update in batches - first batch: basic fields
@@ -1737,13 +1738,13 @@ Please try:
       // Now submit the agent using the submit endpoint (this triggers workflow)
       if (agent.id) {
         try {
-          console.log('📤 Calling agentsApi.submit for agent:', agent.id)
+          // console.log('📤 Calling agentsApi.submit for agent:', agent.id)
           agent = await agentsApi.submit(agent.id)
-          console.log('✅ Agent submitted successfully, workflow triggered:', {
-            onboarding_request_id: agent.onboarding_request_id,
-            workflow_status: agent.workflow_status,
-            workflow_current_step: agent.workflow_current_step
-          })
+          // console.log('✅ Agent submitted successfully, workflow triggered:', {
+          //   onboarding_request_id: agent.onboarding_request_id,
+          //   workflow_status: agent.workflow_status,
+          //   workflow_current_step: agent.workflow_current_step
+          // })
         } catch (submitError: any) {
           console.error('❌ Failed to submit agent:', submitError)
           let errorDetail = 'Unknown error'
@@ -2803,26 +2804,26 @@ Please try:
       // The API should return field_type='select' for type and category fields
       const fieldType = (availableField as any).field_type_display || availableField.field_type || 'text'
       
-      // Debug logging for type and category fields
-      if (fieldName === 'type' || fieldName === 'category') {
-        console.log(`🔍 ${fieldName} field debug:`)
-        console.log('  fieldName:', fieldName)
-        console.log('  fieldType:', fieldType)
-        console.log('  fieldOptions.length:', fieldOptions.length)
-        console.log('  fieldOptions:', fieldOptions)
-        console.log('  apiFieldConfig:', apiFieldConfig)
-        console.log('  apiFieldConfig.options:', apiFieldConfig.options)
-        console.log('  fieldConfig.options:', fieldConfig.options)
-        console.log('  availableField.field_type:', availableField?.field_type)
-        console.log('  availableField.field_config:', (availableField as any)?.field_config)
-        console.log('  Will render as select?', fieldType === 'select' && fieldOptions.length > 0 && !apiFieldConfig.depends_on)
-        console.log('  Condition check:', {
-          fieldTypeIsSelect: fieldType === 'select',
-          hasOptions: fieldOptions.length > 0,
-          noDependsOn: !apiFieldConfig.depends_on,
-          allTrue: fieldType === 'select' && fieldOptions.length > 0 && !apiFieldConfig.depends_on
-        })
-      }
+      // Debug logging for type and category fields (commented out to reduce console noise)
+      // if (fieldName === 'type' || fieldName === 'category') {
+      //   console.log(`🔍 ${fieldName} field debug:`)
+      //   console.log('  fieldName:', fieldName)
+      //   console.log('  fieldType:', fieldType)
+      //   console.log('  fieldOptions.length:', fieldOptions.length)
+      //   console.log('  fieldOptions:', fieldOptions)
+      //   console.log('  apiFieldConfig:', apiFieldConfig)
+      //   console.log('  apiFieldConfig.options:', apiFieldConfig.options)
+      //   console.log('  fieldConfig.options:', fieldConfig.options)
+      //   console.log('  availableField.field_type:', availableField?.field_type)
+      //   console.log('  availableField.field_config:', (availableField as any)?.field_config)
+      //   console.log('  Will render as select?', fieldType === 'select' && fieldOptions.length > 0 && !apiFieldConfig.depends_on)
+      //   console.log('  Condition check:', {
+      //     fieldTypeIsSelect: fieldType === 'select',
+      //     hasOptions: fieldOptions.length > 0,
+      //     noDependsOn: !apiFieldConfig.depends_on,
+      //     allTrue: fieldType === 'select' && fieldOptions.length > 0 && !apiFieldConfig.depends_on
+      //   })
+      // }
       
       // Get field value - handle arrays properly for multi-select fields
       let fieldValue = (formData as any)[fieldName]
@@ -3467,18 +3468,19 @@ Please try:
     
     // Debug: Log field rendering - only log once per layout+step combination
     const fieldDebugKey = `${formLayout?.id}-${currentStep}`
-    if (fieldRenderingDebugLoggedRef.current !== fieldDebugKey) {
-      fieldRenderingDebugLoggedRef.current = fieldDebugKey
-      console.log('Field rendering debug:', {
-        totalFieldsInLayout: fieldsFromLayout.length,
-        visibleFieldsCount: visibleFields.length,
-        fieldNames: visibleFields,
-        availableFieldsMapSize: availableFieldsMap.size,
-        requirementsMapSize: requirementsMap.size,
-        customFieldsMapSize: customFieldsMap.size,
-        fieldAccessMapSize: fieldAccessMap.size
-      })
-    }
+    // Debug logging commented out to reduce console noise
+    // if (fieldRenderingDebugLoggedRef.current !== fieldDebugKey) {
+    //   fieldRenderingDebugLoggedRef.current = fieldDebugKey
+    //   console.log('Field rendering debug:', {
+    //     totalFieldsInLayout: fieldsFromLayout.length,
+    //     visibleFieldsCount: visibleFields.length,
+    //     fieldNames: visibleFields,
+    //     availableFieldsMapSize: availableFieldsMap.size,
+    //     requirementsMapSize: requirementsMap.size,
+    //     customFieldsMapSize: customFieldsMap.size,
+    //     fieldAccessMapSize: fieldAccessMap.size
+    //   })
+    // }
     
     // Render fields with permissions
     const renderedFields = visibleFields
@@ -3524,16 +3526,16 @@ Please try:
         return !isFiltered
       })
     
-    // Debug: Log final rendered fields count - only log once per layout+step combination
-    const finalFieldsDebugKey = `${formLayout?.id}-${currentStep}`
-    if (finalRenderedFieldsLoggedRef.current !== finalFieldsDebugKey) {
-      finalRenderedFieldsLoggedRef.current = finalFieldsDebugKey
-      console.log('Final rendered fields:', {
-        totalVisibleFields: visibleFields.length,
-        totalRenderedFields: renderedFields.length,
-        renderedFieldKeys: renderedFields.map((f: any) => f?.key || 'no-key')
-      })
-    }
+    // Debug: Log final rendered fields count - only log once per layout+step combination (commented out to reduce console noise)
+    // const finalFieldsDebugKey = `${formLayout?.id}-${currentStep}`
+    // if (finalRenderedFieldsLoggedRef.current !== finalFieldsDebugKey) {
+    //   finalRenderedFieldsLoggedRef.current = finalFieldsDebugKey
+    //   console.log('Final rendered fields:', {
+    //     totalVisibleFields: visibleFields.length,
+    //     totalRenderedFields: renderedFields.length,
+    //     renderedFieldKeys: renderedFields.map((f: any) => f?.key || 'no-key')
+    //   })
+    // }
     
     if (renderedFields.length === 0) {
       return (

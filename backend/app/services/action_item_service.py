@@ -80,14 +80,18 @@ class ActionItemService:
                 }
 
         # 1. Get pending approval steps with optimized queries
-        # Admins can see all approval steps in their tenant
+        # Admins can see all approval steps in their tenant (no assigned_to filter)
+        # Regular users see steps assigned to them or their role
         # Optimize: Use single query with conditional filter and apply limit early
         approval_steps = []
         try:
-            from app.models.approval import ApprovalInstance
+            from app.models.approval import ApprovalInstance, ApprovalStep
             from app.models.agent import Agent
             from app.models.vendor import Vendor
+            from sqlalchemy import or_, and_
             
+            # Start with base query - join through ApprovalInstance -> Agent -> Vendor for tenant isolation
+            # Note: Agent.vendor_id is NOT NULL, so all agents have vendors - use INNER JOIN
             approval_steps_query = self.db.query(ApprovalStep).join(
                 ApprovalInstance, ApprovalStep.instance_id == ApprovalInstance.id
             ).join(
@@ -95,18 +99,34 @@ class ActionItemService:
             ).join(
                 Vendor, Agent.vendor_id == Vendor.id
             ).filter(
-                Vendor.tenant_id == tenant_id,
-                ApprovalStep.status == "pending"
+                Vendor.tenant_id == tenant_id,  # Tenant isolation - critical for security
+                ApprovalStep.status.in_(["pending", "in_progress"])  # Include both pending and in_progress steps
             )
             
-            if user_role not in ["tenant_admin", "platform_admin"]:
-                # Regular users: only see approval steps assigned to them
-                approval_steps_query = approval_steps_query.filter(ApprovalStep.assigned_to == user_id)
+            # For admins: show ALL pending approval steps in tenant (no assigned_to filter)
+            # For regular users: filter by assignment (direct or role-based)
+            is_admin = user_role in ["tenant_admin", "platform_admin"]
+            if not is_admin:
+                # Regular users: see approval steps assigned to them OR assigned to their role
+                # Handle both direct assignment (assigned_to) and role-based assignment (assigned_role)
+                role_filter = or_(
+                    ApprovalStep.assigned_to == user_id,  # Directly assigned to user
+                    and_(
+                        ApprovalStep.assigned_to.is_(None),  # Not directly assigned
+                        ApprovalStep.assigned_role == user_role  # But matches user's role
+                    )
+                )
+                approval_steps_query = approval_steps_query.filter(role_filter)
+            # Admins: no additional filter - they see all pending steps in tenant
             
             # Apply limit early to reduce data processing
             approval_steps = approval_steps_query.limit(limit + offset).offset(offset).all()
+            
+            logger.info(f"Found {len(approval_steps)} pending approval steps for user {user_id} (role={user_role}, is_admin={is_admin}) in tenant {tenant_id}")
+            if len(approval_steps) > 0:
+                logger.info(f"  Sample approval steps: {[(str(s.id), s.step_name or 'N/A', s.status, str(s.assigned_to) if s.assigned_to else 'None') for s in approval_steps[:3]]}")
         except Exception as e:
-            logger.warning(f"Error querying pending approval steps: {e}")
+            logger.error(f"Error querying pending approval steps: {e}", exc_info=True)
             self.db.rollback()
             approval_steps = []
 
@@ -177,108 +197,26 @@ class ActionItemService:
                     }
                 })
         
+        # Helper function to map assignment status to workflow stage
+        def get_workflow_stage(assignment_status: str) -> str:
+            """Map assessment assignment status to workflow stage"""
+            status_mapping = {
+                "pending": "new",
+                "in_progress": "in_progress",
+                "completed": "pending_approval",  # Vendor completed, waiting for approver
+                "approved": "approved",
+                "rejected": "rejected",
+                "needs_revision": "needs_revision",
+                "overdue": "in_progress",  # Still in progress but overdue
+                "cancelled": "cancelled"
+            }
+            return status_mapping.get(assignment_status, "new")
+        
         # 2. Get pending assessment assignments
-        try:
-            # Get user to check role and associations
-            user = self.db.query(UserModel).filter(UserModel.id == user_id).first()
-
-            # For platform admin or tenant admin, show all assignments in their tenant
-            if user and user.role.value in ["tenant_admin", "platform_admin"]:
-                query = self.db.query(AssessmentAssignment).filter(
-                    AssessmentAssignment.tenant_id == tenant_id
-                )
-            elif user and user.role.value == "vendor_user":
-                # Vendor users can see all assessment assignments in their tenant
-                query = self.db.query(AssessmentAssignment).filter(
-                    AssessmentAssignment.tenant_id == tenant_id
-                )
-            else:
-                # For other regular users, try to find assignments based on their vendor/agent associations
-                vendor_ids = []
-                agent_ids = []
-
-                # Get vendor associations for users (not just vendor users)
-                if user and user.email:
-                    vendors = self.db.query(Vendor).filter(
-                        Vendor.tenant_id == tenant_id,
-                        Vendor.contact_email == user.email
-                    ).all()
-                    vendor_ids = [v.id for v in vendors]
-
-                # Get agent associations (join through Vendor since Agent doesn't have tenant_id)
-                if user and user.email:
-                    try:
-                        agents = self.db.query(Agent).join(
-                            Vendor, Agent.vendor_id == Vendor.id
-                        ).filter(
-                            Vendor.tenant_id == tenant_id,
-                            Agent.contact_email == user.email
-                        ).all()
-                        agent_ids = [a.id for a in agents]
-                    except Exception as e:
-                        logger.warning(f"Error querying agent associations: {e}")
-                        self.db.rollback()
-                        agent_ids = []
-
-                # Build query for user's assignments
-                query = self.db.query(AssessmentAssignment).filter(
-                    AssessmentAssignment.tenant_id == tenant_id
-                )
-
-                # Filter by vendor or agent assignments
-                # Use OR logic: show assignments for any associated vendors OR agents
-                vendor_filter = AssessmentAssignment.vendor_id.in_(vendor_ids) if vendor_ids else None
-                agent_filter = AssessmentAssignment.agent_id.in_(agent_ids) if agent_ids else None
-
-                if vendor_filter and agent_filter:
-                    query = query.filter(vendor_filter | agent_filter)
-                elif vendor_filter:
-                    query = query.filter(vendor_filter)
-                elif agent_filter:
-                    query = query.filter(agent_filter)
-                else:
-                    # No associations found, return empty list
-                    assessment_assignments = []
-                    # Skip the rest of this section
-                    assessment_assignments = []
-
-            if 'assessment_assignments' not in locals():
-                # Apply status filter for active assignments only
-                query = query.filter(AssessmentAssignment.status.in_(["pending", "in_progress"]))
-                assessment_assignments = query.all()
-            
-            for assignment in assessment_assignments:
-                if not assignment.assessment_id:
-                    logger.warning(f"AssessmentAssignment {assignment.id} has no assessment_id, skipping")
-                    continue
-                    
-                assessment = self.db.query(Assessment).filter(
-                    Assessment.id == assignment.assessment_id
-                ).first()
-                
-                action_items.append({
-                    "id": str(assignment.id),
-                    "type": ActionItemType.ASSESSMENT.value,
-                    "title": f"Complete Assessment: {assessment.name if assessment else 'Assessment'}",
-                    "description": f"Complete the {assessment.assessment_type if assessment else 'assessment'} questionnaire",
-                    "status": ActionItemStatus.PENDING.value if assignment.status == "pending" else ActionItemStatus.IN_PROGRESS.value,
-                    "priority": ActionItemPriority.HIGH.value if assignment.due_date and assignment.due_date < datetime.utcnow() + timedelta(days=3) else ActionItemPriority.MEDIUM.value,
-                    "due_date": assignment.due_date.isoformat() if assignment.due_date else None,
-                    "assigned_at": assignment.assigned_at.isoformat() if assignment.assigned_at else None,
-                    "source_type": "assessment_assignment",
-                    "source_id": str(assignment.id),
-                    "action_url": f"/assessments/{assignment.id}",
-                    "metadata": {
-                        "assessment_id": str(assignment.assessment_id),
-                        "assessment_name": assessment.name if assessment else None,
-                        "vendor_id": str(assignment.vendor_id) if assignment.vendor_id else None,
-                        "workflow_ticket_id": assignment.workflow_ticket_id if hasattr(assignment, 'workflow_ticket_id') else None
-                    }
-                })
-        except Exception as e:
-            logger.warning(f"Error querying assessment assignments: {e}. Continuing without assessment assignments.")
-            self.db.rollback()
-            pass
+        # NOTE: We skip direct assessment assignments here because they are handled in section 3
+        # via the ActionItem table. This ensures we only show ONE action item per assessment assignment.
+        # Direct assignments are only shown if there's no corresponding ActionItem record.
+        assessment_assignment_ids_from_action_items = set()  # Track which assignments already have action items
         
         # 3. Get pending assessment reviews and approvals (action items for completed assessments)
         # Query action items table (gracefully handle if table doesn't exist)
@@ -309,13 +247,51 @@ class ActionItemService:
                     AssessmentAssignment.status != "completed"  # Exclude completed assignments
                 )
                 logger.info(f"User is vendor_user, querying only ASSESSMENT type items (assignments/resubmissions) assigned to user, excluding completed")
+            elif user_role in ["approver", "security_reviewer", "compliance_reviewer", "technical_reviewer", "business_reviewer"]:
+                # Approvers and reviewers should ONLY see approval/review items for completed assessments
+                # They should NOT see assessment_assignment items (those are for vendors to fill out)
+                # IMPORTANT: Join with AssessmentAssignment to show items where assignment is "completed" (submitted, waiting for approval)
+                # but exclude items where assignment is already "approved" or "rejected" (already processed)
+                assessment_query = self.db.query(ActionItem).outerjoin(
+                    AssessmentAssignment,
+                    (ActionItem.source_id == AssessmentAssignment.id) & 
+                    (ActionItem.source_type.in_(["assessment_approval", "assessment_review"]))
+                ).filter(
+                    ActionItem.tenant_id == tenant_id,
+                    ActionItem.action_type.in_([ActionItemType.REVIEW, ActionItemType.APPROVAL]),  # Only approval/review items
+                    ActionItem.status == ActionItemStatus.PENDING,
+                    ActionItem.source_type.in_(["assessment_approval", "assessment_review"]),  # Only approval items, NOT assignments
+                    ActionItem.assigned_to == user_id,  # Only items assigned to this approver
+                    # Show items where assignment is "completed" (submitted, waiting for approval) or doesn't exist
+                    # Exclude only "approved" and "rejected" (already processed)
+                    (AssessmentAssignment.id.is_(None)) |  # For items without assignment (shouldn't happen, but safe)
+                    (AssessmentAssignment.status.notin_(["approved", "rejected"]))  # Exclude only approved/rejected (allow "completed" which means waiting for approval)
+                )
+                logger.info(f"User is {user_role} (approver/reviewer), querying only APPROVAL/REVIEW type items (not assignments), allowing 'completed' status assignments")
             else:
-                # For other users (admins, approvers, reviewers), show all assessment-related items
-                assessment_query = self.db.query(ActionItem).filter(
+                # For other users (admins), show all assessment-related items
+                # IMPORTANT: Join with AssessmentAssignment to show items where assignment is "completed" (submitted, waiting for approval)
+                # but exclude items where assignment is already "approved" or "rejected" (already processed)
+                # For approval items, allow "completed" status. For assignment items, exclude "completed".
+                assessment_query = self.db.query(ActionItem).outerjoin(
+                    AssessmentAssignment,
+                    (ActionItem.source_id == AssessmentAssignment.id) & 
+                    (ActionItem.source_type.in_(["assessment_assignment", "assessment_approval", "assessment_review"]))
+                ).filter(
                     ActionItem.tenant_id == tenant_id,
                     ActionItem.action_type.in_([ActionItemType.REVIEW, ActionItemType.ASSESSMENT, ActionItemType.APPROVAL]),  # REVIEW kept for backward compat, treated as APPROVAL
                     ActionItem.status == ActionItemStatus.PENDING,
-                    ActionItem.source_type.in_(["assessment_assignment", "assessment_approval", "assessment_review"])
+                    ActionItem.source_type.in_(["assessment_assignment", "assessment_approval", "assessment_review"]),
+                    # Show items where assignment doesn't exist OR matches status rules
+                    (AssessmentAssignment.id.is_(None)) |  # For items without assignment (shouldn't happen, but safe)
+                    (
+                        # For approval/review items: allow "completed" (submitted, waiting for approval), exclude "approved"/"rejected"
+                        ((ActionItem.source_type.in_(["assessment_approval", "assessment_review"])) & 
+                         (AssessmentAssignment.status.notin_(["approved", "rejected"]))) |
+                        # For assignment items: exclude "completed", "approved", "rejected" (vendors shouldn't see completed assignments)
+                        ((ActionItem.source_type == "assessment_assignment") & 
+                         (AssessmentAssignment.status.notin_(["completed", "approved", "rejected"])))
+                    )
                 )
                 
                 if user_role not in ["tenant_admin", "platform_admin"]:
@@ -371,10 +347,12 @@ class ActionItemService:
                     try:
                         source_id = UUID(source_id)
                         assignment_ids.append(source_id)
+                        assessment_assignment_ids_from_action_items.add(source_id)  # Track this assignment
                     except ValueError:
                         continue
                 else:
                     assignment_ids.append(source_id)
+                    assessment_assignment_ids_from_action_items.add(source_id)  # Track this assignment
             
             # Batch query all assignments (with tenant filtering for security)
             assignments_map = {}
@@ -433,7 +411,7 @@ class ActionItemService:
                 
                 assessment = assessments_map.get(assignment.assessment_id) if assignment and assignment.assessment_id else None
 
-                # Build metadata, ensuring workflow_ticket_id is included
+                # Build metadata, ensuring workflow_ticket_id and workflow_stage are included
                 base_metadata = review_item.item_metadata or {}
                 if assignment:
                     # Merge assignment data into metadata
@@ -444,7 +422,7 @@ class ActionItemService:
                         "assignment_id": str(assignment.id),
                         "assignment_status": assignment.status if hasattr(assignment, 'status') else None
                     }
-                    # Merge: use item_metadata if exists, otherwise use fallback, but always include workflow_ticket_id and status
+                    # Merge: use item_metadata if exists, otherwise use fallback, but always include workflow_ticket_id, workflow_stage, and status
                     metadata = {**fallback_metadata, **base_metadata}
                     # Always add workflow_ticket_id from assignment if available (override any existing value)
                     if hasattr(assignment, 'workflow_ticket_id'):
@@ -458,12 +436,17 @@ class ActionItemService:
                     # Always update assignment_status from assignment
                     if hasattr(assignment, 'status'):
                         metadata["assignment_status"] = assignment.status
+                        # Add workflow_stage based on assignment status
+                        metadata["workflow_stage"] = get_workflow_stage(assignment.status)
                 else:
                     metadata = base_metadata if base_metadata else {
                         "assessment_id": None,
                         "assessment_name": review_item.title.replace("Approve Assessment: ", "") if review_item.title else None,
                         "assignment_id": str(source_id)
                     }
+                    # If no assignment, try to get workflow_stage from item metadata or default to "new"
+                    if "workflow_stage" not in metadata:
+                        metadata["workflow_stage"] = "new"
 
                 # Add action item (assignment exists and is in correct tenant, verified above)
                 action_items.append({
@@ -477,7 +460,7 @@ class ActionItemService:
                     "assigned_at": review_item.assigned_at.isoformat() if review_item.assigned_at else None,
                     "source_type": review_item.source_type,
                     "source_id": str(review_item.source_id),
-                    "action_url": review_item.action_url or (f"/assessments/approver/{assignment.id}" if assignment else f"/assessments/{source_id}"),
+                    "action_url": review_item.action_url or (f"/assessments/review/{assignment.id}" if assignment else f"/assessments/{source_id}"),
                     "metadata": metadata
                 })
                 items_added_count += 1
@@ -912,13 +895,66 @@ class ActionItemService:
             user_for_completed = self.db.query(UserModel).filter(UserModel.id == user_id).first()
 
             # For platform admin or tenant admin, show all completed assignments in their tenant
+            # Include both "completed" (vendor submitted) and "approved" (approver approved) statuses
             if user_for_completed and user_for_completed.role.value in ["tenant_admin", "platform_admin"]:
                 completed_query = self.db.query(AssessmentAssignment).filter(
                     AssessmentAssignment.tenant_id == tenant_id,
-                    AssessmentAssignment.status == "completed"
+                    AssessmentAssignment.status.in_(["completed", "approved", "rejected"])
                 )
+            elif user_for_completed and user_for_completed.role.value == "vendor_user":
+                # Vendor users should see completed assignments for their vendor or agent
+                # First, find which vendor(s) this user is associated with
+                completed_vendor_ids = []
+                completed_agent_ids = []
+                
+                # Get vendor associations by email match
+                if user_for_completed.email:
+                    completed_vendors = self.db.query(Vendor).filter(
+                        Vendor.tenant_id == tenant_id,
+                        Vendor.contact_email == user_for_completed.email
+                    ).all()
+                    completed_vendor_ids = [v.id for v in completed_vendors]
+                
+                # Get agent associations by email match
+                if user_for_completed.email:
+                    try:
+                        completed_agents = self.db.query(Agent).join(
+                            Vendor, Agent.vendor_id == Vendor.id
+                        ).filter(
+                            Vendor.tenant_id == tenant_id,
+                            Agent.contact_email == user_for_completed.email
+                        ).all()
+                        completed_agent_ids = [a.id for a in completed_agents]
+                    except Exception as e:
+                        logger.warning(f"Error querying agent associations for vendor user (completed): {e}")
+                        self.db.rollback()
+                        completed_agent_ids = []
+                
+                # Build query - filter by vendor_id or agent_id
+                # Include both "completed" (vendor submitted) and "approved" (approver approved) statuses
+                completed_query = self.db.query(AssessmentAssignment).filter(
+                    AssessmentAssignment.tenant_id == tenant_id,
+                    AssessmentAssignment.status.in_(["completed", "approved", "rejected"])
+                )
+                
+                # Filter by vendor or agent assignments
+                completed_vendor_filter = AssessmentAssignment.vendor_id.in_(completed_vendor_ids) if completed_vendor_ids else None
+                completed_agent_filter = AssessmentAssignment.agent_id.in_(completed_agent_ids) if completed_agent_ids else None
+                
+                if completed_vendor_filter and completed_agent_filter:
+                    completed_query = completed_query.filter(completed_vendor_filter | completed_agent_filter)
+                elif completed_vendor_filter:
+                    completed_query = completed_query.filter(completed_vendor_filter)
+                elif completed_agent_filter:
+                    completed_query = completed_query.filter(completed_agent_filter)
+                else:
+                    # No vendor/agent associations found - vendor user won't see any completed assignments
+                    # This is correct behavior - they need to be associated with a vendor/agent
+                    completed_assignments = []
+                    # Skip the rest of this section
+                    completed_assignments = []
             else:
-                # For regular users, try to find completed assignments based on their vendor/agent associations
+                # For other regular users, try to find completed assignments based on their vendor/agent associations
                 completed_vendor_ids = []
                 completed_agent_ids = []
 
@@ -930,18 +966,26 @@ class ActionItemService:
                     ).all()
                     completed_vendor_ids = [v.id for v in completed_vendors]
 
-                # Get agent associations
+                # Get agent associations (join through Vendor since Agent doesn't have tenant_id)
                 if user_for_completed and user_for_completed.email:
-                    completed_agents = self.db.query(Agent).join(Vendor).filter(
-                        Vendor.tenant_id == tenant_id,
-                        Agent.contact_email == user_for_completed.email
-                    ).all()
-                    completed_agent_ids = [a.id for a in completed_agents]
+                    try:
+                        completed_agents = self.db.query(Agent).join(
+                            Vendor, Agent.vendor_id == Vendor.id
+                        ).filter(
+                            Vendor.tenant_id == tenant_id,
+                            Agent.contact_email == user_for_completed.email
+                        ).all()
+                        completed_agent_ids = [a.id for a in completed_agents]
+                    except Exception as e:
+                        logger.warning(f"Error querying agent associations (completed): {e}")
+                        self.db.rollback()
+                        completed_agent_ids = []
 
                 # Build query for user's completed assignments
+                # Include both "completed" (vendor submitted) and "approved" (approver approved) statuses
                 completed_query = self.db.query(AssessmentAssignment).filter(
                     AssessmentAssignment.tenant_id == tenant_id,
-                    AssessmentAssignment.status == "completed"
+                    AssessmentAssignment.status.in_(["completed", "approved", "rejected"])
                 )
 
                 # Filter by vendor or agent assignments
@@ -1060,6 +1104,57 @@ class ActionItemService:
                     "sender_name": sender_name
                 }
             })
+        
+        # Deduplicate action items by workflow_ticket_id or source_id
+        # Ensure we only show ONE action item per assessment (all questions belong to one assessment)
+        seen_tickets = {}  # workflow_ticket_id -> action_item
+        seen_assignments = {}  # assignment_id -> action_item
+        deduplicated_items = []
+        original_count = len(action_items)
+        
+        for item in action_items:
+            # For assessment items, deduplicate by workflow_ticket_id first, then by assignment_id
+            if item.get("source_type") in ["assessment_assignment", "assessment_approval", "assessment_review"]:
+                ticket_id = item.get("metadata", {}).get("workflow_ticket_id")
+                assignment_id = item.get("source_id") or item.get("metadata", {}).get("assignment_id")
+                
+                # Prefer items with workflow_ticket_id for deduplication
+                if ticket_id:
+                    if ticket_id not in seen_tickets:
+                        seen_tickets[ticket_id] = item
+                        deduplicated_items.append(item)
+                    else:
+                        # Keep the one with more complete metadata or higher priority
+                        existing = seen_tickets[ticket_id]
+                        existing_index = deduplicated_items.index(existing)
+                        if (len(item.get("metadata", {})) > len(existing.get("metadata", {})) or
+                            item.get("priority") == "high" and existing.get("priority") != "high"):
+                            # Replace existing with this one
+                            deduplicated_items[existing_index] = item
+                            seen_tickets[ticket_id] = item
+                elif assignment_id:
+                    if assignment_id not in seen_assignments:
+                        seen_assignments[assignment_id] = item
+                        deduplicated_items.append(item)
+                    else:
+                        # Keep the one with more complete metadata or higher priority
+                        existing = seen_assignments[assignment_id]
+                        existing_index = deduplicated_items.index(existing)
+                        if (len(item.get("metadata", {})) > len(existing.get("metadata", {})) or
+                            item.get("priority") == "high" and existing.get("priority") != "high"):
+                            # Replace existing with this one
+                            deduplicated_items[existing_index] = item
+                            seen_assignments[assignment_id] = item
+                else:
+                    # No ticket_id or assignment_id, add as-is
+                    deduplicated_items.append(item)
+            else:
+                # Non-assessment items, add as-is
+                deduplicated_items.append(item)
+        
+        action_items = deduplicated_items
+        removed_count = original_count - len(action_items)
+        logger.info(f"After deduplication: {len(action_items)} items (removed {removed_count} duplicates)")
         
         # Filter by status
         logger.info(f"Before status filter: {len(action_items)} total items in action_items")

@@ -55,6 +55,20 @@ def create_standard_layouts_for_tenant(db: Session, tenant_id: UUID, created_by:
         "vendor_submission_workflow"
     ]
     
+    # Also seed assessment layouts
+    try:
+        import importlib.util
+        seed_assessment_layouts_path = os.path.join(os.path.dirname(__file__), 'seed_assessment_layouts.py')
+        if os.path.exists(seed_assessment_layouts_path):
+            spec = importlib.util.spec_from_file_location("seed_assessment_layouts", seed_assessment_layouts_path)
+            seed_module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(seed_module)
+            assessment_layouts = seed_module.create_assessment_layouts_for_tenant(db, tenant_id, created_by)
+            layouts_created += assessment_layouts
+            logger.info(f"Created {assessment_layouts} assessment layouts for tenant {tenant_id}")
+    except Exception as e:
+        logger.warning(f"Error seeding assessment layouts: {e}")
+    
     # Workflow stages with their layouts
     stage_layouts = {
         "new": {

@@ -449,24 +449,6 @@ class WorkflowOrchestrationService:
                     })
                 else:
                     logger.warning(f"Skipping section {section_id} ({section_title}) - no visible fields (all {len(section.get('fields', []))} fields filtered out)")
-                
-                # Only include sections with visible fields
-                if section_fields:
-                    section_data = {
-                        "id": section.get("id"),
-                        "title": section.get("title"),
-                        "order": section.get("order", 0),
-                        "description": section.get("description"),
-                        "fields": section_fields
-                    }
-                    sections.append(section_data)
-                    
-                    # Sections become tabs
-                    tabs.append({
-                        "id": section.get("id"),
-                        "label": section.get("title"),
-                        "order": section.get("order", 0)
-                    })
         
         # If no layout or no sections, fall back to loading all entity fields
         if not sections:

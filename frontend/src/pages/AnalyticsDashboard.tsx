@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts'
+import ChartContainer from '../components/ChartContainer'
 import { analyticsApi } from '../lib/analytics'
 import { authApi } from '../lib/auth'
 import Layout from '../components/Layout'
@@ -166,7 +167,7 @@ export default function AnalyticsDashboard() {
             collapsible={true}
             filterable={true}
           >
-            <ResponsiveContainer width="100%" height={300}>
+            <ChartContainer height={300}>
               <LineChart data={analytics?.agent_trends || []}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                 <XAxis dataKey="date" tick={{ fontSize: 12 }} stroke="#6b7280" />
@@ -182,7 +183,7 @@ export default function AnalyticsDashboard() {
                 <Legend />
                 <Line type="monotone" dataKey="value" stroke="#3b82f6" strokeWidth={2} name="Agents" />
               </LineChart>
-            </ResponsiveContainer>
+            </ChartContainer>
           </DashboardWidget>
 
           {/* Review Trends */}
@@ -193,7 +194,7 @@ export default function AnalyticsDashboard() {
             collapsible={true}
             filterable={true}
           >
-            <ResponsiveContainer width="100%" height={300}>
+            <ChartContainer height={300}>
               <LineChart data={analytics?.review_trends || []}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                 <XAxis dataKey="date" tick={{ fontSize: 12 }} stroke="#6b7280" />
@@ -209,7 +210,7 @@ export default function AnalyticsDashboard() {
                 <Legend />
                 <Line type="monotone" dataKey="value" stroke="#10b981" strokeWidth={2} name="Reviews" />
               </LineChart>
-            </ResponsiveContainer>
+            </ChartContainer>
           </DashboardWidget>
         </div>
 
@@ -223,7 +224,7 @@ export default function AnalyticsDashboard() {
             collapsible={true}
             filterable={true}
           >
-            <ResponsiveContainer width="100%" height={300}>
+            <ChartContainer height={300}>
               <PieChart>
                 <Pie
                   data={statusData}
@@ -255,7 +256,7 @@ export default function AnalyticsDashboard() {
                   }} 
                 />
               </PieChart>
-            </ResponsiveContainer>
+            </ChartContainer>
             <div className="mt-4 pt-4 border-t border-gray-100">
               <p className="text-xs text-gray-500 text-center">Click on a segment to view agents</p>
             </div>
@@ -269,7 +270,7 @@ export default function AnalyticsDashboard() {
             collapsible={true}
             filterable={true}
           >
-            <ResponsiveContainer width="100%" height={300}>
+            <ChartContainer height={300}>
               <BarChart data={stageData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                 <XAxis dataKey="name" tick={{ fontSize: 12 }} stroke="#6b7280" />
@@ -294,7 +295,7 @@ export default function AnalyticsDashboard() {
                   style={{ cursor: 'pointer' }}
                 />
               </BarChart>
-            </ResponsiveContainer>
+            </ChartContainer>
             <div className="mt-4 pt-4 border-t border-gray-100">
               <p className="text-xs text-gray-500 text-center">Click on a bar to view reviews</p>
             </div>
@@ -308,7 +309,7 @@ export default function AnalyticsDashboard() {
             collapsible={true}
             filterable={true}
           >
-            <ResponsiveContainer width="100%" height={300}>
+            <ChartContainer height={300}>
               <BarChart data={typeData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                 <XAxis dataKey="name" tick={{ fontSize: 12 }} angle={-45} textAnchor="end" height={80} stroke="#6b7280" />
@@ -332,7 +333,7 @@ export default function AnalyticsDashboard() {
                   style={{ cursor: 'pointer' }}
                 />
               </BarChart>
-            </ResponsiveContainer>
+            </ChartContainer>
             <div className="mt-4 pt-4 border-t border-gray-100">
               <p className="text-xs text-gray-500 text-center">Click on a bar to view agents by type</p>
             </div>
@@ -348,7 +349,7 @@ export default function AnalyticsDashboard() {
           filterable={true}
           className="mb-6"
         >
-          <ResponsiveContainer width="100%" height={300}>
+          <ChartContainer height={300}>
             <LineChart data={analytics?.compliance_trends || []}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
               <XAxis dataKey="date" tick={{ fontSize: 12 }} stroke="#6b7280" />
@@ -364,7 +365,7 @@ export default function AnalyticsDashboard() {
               <Legend />
               <Line type="monotone" dataKey="value" stroke="#f59e0b" strokeWidth={2} name="Compliance Score" />
             </LineChart>
-          </ResponsiveContainer>
+          </ChartContainer>
         </DashboardWidget>
 
         {/* Recent Activity */}

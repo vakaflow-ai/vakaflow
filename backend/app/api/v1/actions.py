@@ -272,6 +272,77 @@ async def get_inbox_counts(
         )
 
 
+@router.get("/inbox/{source_type}/{source_id}", response_model=ActionItemResponse)
+async def get_action_item(
+    source_type: str,
+    source_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get action item by source_type and source_id"""
+    # Tenant isolation - ALL users (including platform_admin) must have tenant_id
+    from app.core.tenant_utils import get_effective_tenant_id
+    effective_tenant_id = get_effective_tenant_id(current_user, db)
+    if not effective_tenant_id:
+        raise HTTPException(
+            status_code=http_status.HTTP_403_FORBIDDEN,
+            detail="User must be assigned to a tenant to access action items"
+        )
+    
+    try:
+        from app.models.action_item import ActionItem
+        # Find action item by source_type and source_id, assigned to current user
+        action_item = db.query(ActionItem).filter(
+            ActionItem.source_type == source_type,
+            ActionItem.source_id == source_id,
+            ActionItem.tenant_id == effective_tenant_id,
+            ActionItem.assigned_to == current_user.id
+        ).first()
+        
+        # If not found, check if user is admin (can see all items in tenant)
+        if not action_item:
+            from app.models.user import User as UserModel
+            user = db.query(UserModel).filter(UserModel.id == current_user.id).first()
+            if user and user.role.value in ["tenant_admin", "platform_admin"]:
+                action_item = db.query(ActionItem).filter(
+                    ActionItem.source_type == source_type,
+                    ActionItem.source_id == source_id,
+                    ActionItem.tenant_id == effective_tenant_id
+                ).first()
+        
+        if not action_item:
+            raise HTTPException(
+                status_code=http_status.HTTP_404_NOT_FOUND,
+                detail="Action item not found"
+            )
+        
+        return ActionItemResponse(
+            id=str(action_item.id),
+            type=action_item.action_type.value if hasattr(action_item.action_type, 'value') else str(action_item.action_type),
+            title=action_item.title,
+            description=action_item.description,
+            status=action_item.status.value if hasattr(action_item.status, 'value') else str(action_item.status),
+            priority=action_item.priority.value if hasattr(action_item.priority, 'value') else str(action_item.priority),
+            due_date=action_item.due_date.isoformat() if action_item.due_date else None,
+            assigned_at=action_item.assigned_at.isoformat() if action_item.assigned_at else None,
+            completed_at=action_item.completed_at.isoformat() if action_item.completed_at else None,
+            source_type=action_item.source_type,
+            source_id=str(action_item.source_id),
+            action_url=action_item.action_url or "",
+            metadata=action_item.item_metadata
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error getting action item: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get action item: {str(e)}"
+        )
+
+
 @router.post("/inbox/{source_type}/{source_id}/read")
 async def mark_as_read(
     source_type: str,

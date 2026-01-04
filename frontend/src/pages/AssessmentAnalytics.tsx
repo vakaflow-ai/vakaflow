@@ -19,9 +19,9 @@ import {
   AlertTriangle,
 } from 'lucide-react'
 import {
-  BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
-  ResponsiveContainer
+  BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend
 } from 'recharts'
+import ChartContainer from '../components/ChartContainer'
 import { Button } from '@/components/ui/button'
 
 export default function AssessmentAnalytics() {
@@ -419,7 +419,7 @@ export default function AssessmentAnalytics() {
     >
       {analytics.vendor_grading_heatmap && Object.keys(analytics.vendor_grading_heatmap).length > 0 ? (
         <div className="space-y-4">
-          <ResponsiveContainer width="100%" height={400}>
+          <ChartContainer height={400}>
             <BarChart
               data={Object.entries(analytics.vendor_grading_heatmap)
                 .map(([vendorId, data]: [string, any]) => ({
@@ -464,7 +464,7 @@ export default function AssessmentAnalytics() {
               <Bar dataKey="need_info" stackId="a" fill="#f59e0b" name="Need Info" />
               <Bar dataKey="pending" stackId="a" fill="#6b7280" name="Pending" />
             </BarChart>
-          </ResponsiveContainer>
+          </ChartContainer>
           <div className="mt-4 pt-4 border-t border-gray-100">
             <p className="text-xs text-gray-500 text-center">Stacked bar chart showing assessment grading distribution by vendor</p>
           </div>
@@ -485,7 +485,7 @@ export default function AssessmentAnalytics() {
     >
       {analytics.vendor_cve_risk && Object.keys(analytics.vendor_cve_risk).length > 0 ? (
         <div className="space-y-4">
-          <ResponsiveContainer width="100%" height={400}>
+          <ChartContainer height={400}>
             <BarChart
               data={Object.entries(analytics.vendor_cve_risk)
                 .map(([vendorId, data]: [string, any]) => ({
@@ -537,7 +537,7 @@ export default function AssessmentAnalytics() {
               <Bar dataKey="medium" stackId="a" fill="#f59e0b" name="Medium" />
               <Bar dataKey="low" stackId="a" fill="#10b981" name="Low" />
             </BarChart>
-          </ResponsiveContainer>
+          </ChartContainer>
           <div className="mt-4 pt-4 border-t border-gray-100">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {Object.entries(analytics.vendor_cve_risk)

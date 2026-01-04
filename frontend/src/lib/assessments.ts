@@ -293,8 +293,8 @@ export const assessmentsApi = {
     return response.data.responses || {}
   },
 
-  saveResponses: async (assignmentId: string, responses: Record<string, any>): Promise<void> => {
-    await api.post(`/assessments/assignments/${assignmentId}/responses`, responses)
+  saveResponses: async (assignmentId: string, responses: Record<string, any>, isDraft: boolean = false): Promise<void> => {
+    await api.post(`/assessments/assignments/${assignmentId}/responses?is_draft=${isDraft}`, responses)
   },
 
   saveResponsesDraft: async (assignmentId: string, responses: Record<string, any>): Promise<void> => {
@@ -307,6 +307,7 @@ export const assessmentsApi = {
     assessment_name?: string
     assessment_id_display?: string
     status: string
+    workflow_ticket_id?: string
     total_questions: number
     answered_questions: number
     required_questions: number

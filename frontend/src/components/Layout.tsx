@@ -228,6 +228,7 @@ export default function Layout({ children, user }: LayoutProps) {
     '/messages': 'menu.messages',
     '/profile': 'menu.profile',
     '/mfa': 'menu.mfa_settings',
+    '/suppliers-master': 'menu.suppliers_master',
   }
 
   const checkPermission = useCallback((path: string): boolean => {
@@ -235,8 +236,10 @@ export default function Layout({ children, user }: LayoutProps) {
     if (!userPermissions) return false
     const permissionKey = pathToPermissionKey[path]
     if (!permissionKey) return true // Allow if no permission key defined
+    // For suppliers-master, also allow reviewers
+    if (path === '/suppliers-master' && isReviewer) return true
     return userPermissions[permissionKey] === true
-  }, [isAdmin, userPermissions])
+  }, [isAdmin, isReviewer, userPermissions])
 
   const handleLogout = async () => {
     try {
@@ -292,6 +295,9 @@ export default function Layout({ children, user }: LayoutProps) {
     }
     if (isAdmin && checkPermission('/my-vendors')) {
       overviewItems.push({ path: '/my-vendors', label: 'My Vendors', icon: BuildingIcon, show: true })
+    }
+    if ((isAdmin || isReviewer) && checkPermission('/suppliers-master')) {
+      overviewItems.push({ path: '/suppliers-master', label: 'Suppliers Master', icon: BuildingIcon, show: true })
     }
     if (overviewItems.length > 0) {
       groups.push({ title: 'Overview', items: overviewItems })
@@ -370,6 +376,9 @@ export default function Layout({ children, user }: LayoutProps) {
     }
     if (isAdmin && checkPermission('/admin/entity-fields')) {
       systemItems.push({ path: '/admin/entity-fields', label: 'Entity Fields', icon: DocumentTextIcon, show: true })
+    }
+    if (isAdmin && checkPermission('/entities')) {
+      systemItems.push({ path: '/entities', label: 'Entities', icon: DatabaseIcon, show: true })
     }
     if (isAdmin && checkPermission('/admin/platform-config')) {
       systemItems.push({ path: '/admin/platform-config', label: 'Platform Config', icon: CogIcon, show: true })

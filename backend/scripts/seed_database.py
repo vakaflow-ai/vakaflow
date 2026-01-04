@@ -282,6 +282,20 @@ def seed_database():
         else:
             logger.warning("⚠️  Seed script not found, skipping Workflow Layout Groups")
         
+        # Step 14: Seed Assessment Form Layouts
+        logger.info("\n📋 Seeding Assessment Form Layouts...")
+        seed_assessment_layouts_path = os.path.join(os.path.dirname(__file__), 'seed_assessment_layouts.py')
+        if os.path.exists(seed_assessment_layouts_path):
+            spec = importlib.util.spec_from_file_location("seed_assessment_layouts", seed_assessment_layouts_path)
+            seed_module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(seed_module)
+            
+            logger.info("Seeding assessment form layouts...")
+            seed_module.create_assessment_layouts_for_tenant(db, tenant_id, created_by=tenant_admin.id)
+            logger.info("✅ Assessment form layouts seeded")
+        else:
+            logger.warning("⚠️  Seed script not found, skipping Assessment Form Layouts")
+        
         logger.info("\n" + "="*60)
         logger.info("✅ Database seeding complete!")
         logger.info("="*60)

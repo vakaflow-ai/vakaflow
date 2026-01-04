@@ -50,30 +50,15 @@ def get_workflow_types_from_master_data(db: Session, tenant_id: UUID) -> List[st
         return []
 
 
-def get_fallback_workflow_types() -> List[str]:
-    """Get fallback workflow types when master data is not available"""
-    return [
-        "vendor_submission_workflow",
-        "agent_onboarding_workflow",
-        "assessment_workflow"
-    ]
-
-
 def validate_workflow_type(db: Session, tenant_id: UUID, request_type: str) -> bool:
-    """Validate that request_type is a valid workflow type from master data
-    
-    If master data is empty, falls back to:
-    1. Checking if any layouts exist with this request_type
-    2. Using fallback list of common workflow types
-    """
+    """Validate that request_type is a valid workflow type from master data or has seeded layouts"""
     valid_types = get_workflow_types_from_master_data(db, tenant_id)
     
     # If master data has values, use strict validation
     if valid_types:
         return request_type in valid_types
     
-    # If master data is empty, be more lenient:
-    # 1. Check if any layouts exist with this request_type (allows existing layouts to work)
+    # If master data is empty, check if layouts exist for this request_type (seeded layouts)
     existing_layout = db.query(FormLayout).filter(
         FormLayout.tenant_id == tenant_id,
         FormLayout.request_type == request_type
@@ -82,15 +67,6 @@ def validate_workflow_type(db: Session, tenant_id: UUID, request_type: str) -> b
     if existing_layout:
         logger.info(
             f"Allowing request_type '{request_type}' because layouts exist for it "
-            f"(master data is empty for tenant {tenant_id})"
-        )
-        return True
-    
-    # 2. Fall back to common workflow types
-    fallback_types = get_fallback_workflow_types()
-    if request_type in fallback_types:
-        logger.info(
-            f"Allowing request_type '{request_type}' from fallback list "
             f"(master data is empty for tenant {tenant_id})"
         )
         return True
@@ -110,16 +86,12 @@ def _get_active_layout_internal(
     """
     Internal helper function to get active layout for a stage.
     Returns FormLayout model (not FormLayoutResponse).
-    Uses hierarchical fallback system:
-    1. Exact match by layout_type and agent_type
-    2. Exact match by layout_type only (no agent_type)
-    3. Global default for request_type
-    4. Any active non-template layout for request_type
+    Layouts must be seeded - no fallback logic.
     """
     # Map workflow stage to layout type
     layout_type = get_layout_type_for_stage(workflow_stage)
     
-    # Baseline filters for all queries
+    # Baseline filters
     base_filter = [
         FormLayout.tenant_id == effective_tenant_id,
         FormLayout.request_type == request_type,
@@ -127,8 +99,7 @@ def _get_active_layout_internal(
         FormLayout.is_template == False
     ]
 
-    # 1 & 2: Try to find a layout specifically for this layout_type (stage group)
-    # Check both exact match and comma-separated values
+    # Try to find layout by layout_type and workflow_stage
     from sqlalchemy import or_
     type_query = db.query(FormLayout).filter(
         *base_filter,
@@ -136,7 +107,7 @@ def _get_active_layout_internal(
             FormLayout.layout_type == layout_type,
             FormLayout.layout_type.like(f"%,{layout_type}%"),
             FormLayout.layout_type.like(f"%{layout_type},%"),
-            # For backward compatibility if layout_type is null but workflow_stage matches
+            FormLayout.workflow_stage == workflow_stage,
             FormLayout.workflow_stage.like(f"%{workflow_stage}%")
         )
     )
@@ -145,21 +116,17 @@ def _get_active_layout_internal(
         # Try agent-specific first
         layout = type_query.filter(FormLayout.agent_type == agent_type).first()
         if not layout:
-            # Fallback to general for this type
+            # General layout for this type
             layout = type_query.filter(FormLayout.agent_type.is_(None)).first()
     else:
         layout = type_query.filter(FormLayout.agent_type.is_(None)).first()
     
-    # 3: Global Fallback - Get the ONE default for this request type (regardless of layout_type)
+    # If not found, try default layout for this request_type
     if not layout:
         layout = db.query(FormLayout).filter(
             *base_filter,
             FormLayout.is_default == True
         ).first()
-    
-    # 4: Final Fallback - Get any active layout for this request type
-    if not layout:
-        layout = db.query(FormLayout).filter(*base_filter).first()
     
     return layout
 
@@ -490,11 +457,6 @@ async def create_layout(
     """
     from app.core.tenant_utils import get_effective_tenant_id
     effective_tenant_id = get_effective_tenant_id(current_user, db)
-    if not effective_tenant_id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Tenant ID required to create layouts"
-        )
     
     # Determine if this is a form (saved to Forms entity) or a process (saved to FormLayout)
     # Forms are workflow-agnostic and don't need request_type
@@ -723,8 +685,6 @@ async def list_layouts(
     """List form layouts for current tenant"""
     from app.core.tenant_utils import get_effective_tenant_id
     effective_tenant_id = get_effective_tenant_id(current_user, db)
-    if not effective_tenant_id:
-        return []
     
     # Validate request_type against master data if provided
     if request_type and not validate_workflow_type(db, effective_tenant_id, request_type):
@@ -886,11 +846,6 @@ async def get_available_fields(
     from app.core.tenant_utils import get_effective_tenant_id
     
     effective_tenant_id = get_effective_tenant_id(current_user, db)
-    if not effective_tenant_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="User must be assigned to a tenant to access available fields"
-        )
     
     result: Dict[str, List[AgentFieldDefinition]] = {
         "submission_requirements": [],
@@ -2011,8 +1966,8 @@ async def get_layout(
     
     if form:
         # Return form from Forms entity
-        user_tenant_id = str(effective_tenant_id) if effective_tenant_id else None
-        form_tenant_id = str(form.tenant_id) if form.tenant_id else None
+        user_tenant_id = str(effective_tenant_id)
+        form_tenant_id = str(form.tenant_id)
         
         if current_user.role.value != "platform_admin" and user_tenant_id != form_tenant_id:
             raise HTTPException(
@@ -2060,8 +2015,8 @@ async def get_layout(
     # Platform admins without tenant_id use the default platform admin tenant
     from app.core.tenant_utils import get_effective_tenant_id
     effective_tenant_id = get_effective_tenant_id(current_user, db)
-    user_tenant_id = str(effective_tenant_id) if effective_tenant_id else None
-    layout_tenant_id = str(layout.tenant_id) if layout.tenant_id else None
+    user_tenant_id = str(effective_tenant_id)
+    layout_tenant_id = str(layout.tenant_id)
     
     # Allow platform admins to access any layout
     if current_user.role.value == "platform_admin":
@@ -2187,8 +2142,8 @@ async def update_layout(
     if form:
         # Update form in Forms entity
         # Tenant isolation check
-        user_tenant_id = str(effective_tenant_id) if effective_tenant_id else None
-        form_tenant_id = str(form.tenant_id) if form.tenant_id else None
+        user_tenant_id = str(effective_tenant_id)
+        form_tenant_id = str(form.tenant_id)
         
         if current_user.role.value != "platform_admin" and user_tenant_id != form_tenant_id:
             raise HTTPException(
@@ -2293,8 +2248,8 @@ async def update_layout(
     # Platform admins without tenant_id use the default platform admin tenant
     from app.core.tenant_utils import get_effective_tenant_id
     effective_tenant_id = get_effective_tenant_id(current_user, db)
-    user_tenant_id = str(effective_tenant_id) if effective_tenant_id else None
-    layout_tenant_id = str(layout.tenant_id) if layout.tenant_id else None
+    user_tenant_id = str(effective_tenant_id)
+    layout_tenant_id = str(layout.tenant_id)
     
     # Allow platform admins to update any layout
     if current_user.role.value == "platform_admin":
@@ -2437,11 +2392,6 @@ async def cleanup_multiple_defaults(
     """Cleanup multiple defaults - ensure only one default per request_type"""
     from app.core.tenant_utils import get_effective_tenant_id
     effective_tenant_id = get_effective_tenant_id(current_user, db)
-    if not effective_tenant_id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Tenant ID required"
-        )
     
     # Get all layouts for this tenant
     layouts = db.query(FormLayout).filter(
@@ -2496,8 +2446,8 @@ async def delete_layout(
     # Platform admins without tenant_id use the default platform admin tenant
     from app.core.tenant_utils import get_effective_tenant_id
     effective_tenant_id = get_effective_tenant_id(current_user, db)
-    user_tenant_id = str(effective_tenant_id) if effective_tenant_id else None
-    layout_tenant_id = str(layout.tenant_id) if layout.tenant_id else None
+    user_tenant_id = str(effective_tenant_id)
+    layout_tenant_id = str(layout.tenant_id)
     
     # Allow platform admins to delete any layout
     if current_user.role.value == "platform_admin":
@@ -2548,19 +2498,9 @@ async def get_active_layout_for_stage(
     - Maps workflow_stage to layout_type (submission, approver, completed)
     - Queries by layout_type only
     """
-    # CRITICAL DEBUG: Print to stdout to ensure we see it
-    print(f"🚀🚀🚀 get_active_layout_for_stage called: request_type={request_type}, workflow_stage={workflow_stage}")
-    logger.info(f"🚀 get_active_layout_for_stage called: request_type={request_type}, workflow_stage={workflow_stage}, agent_type={agent_type}")
-    # Platform admins without tenant_id use the default platform admin tenant
+    logger.info(f"get_active_layout_for_stage called: request_type={request_type}, workflow_stage={workflow_stage}, agent_type={agent_type}")
     from app.core.tenant_utils import get_effective_tenant_id
     effective_tenant_id = get_effective_tenant_id(current_user, db)
-    print(f"   effective_tenant_id: {effective_tenant_id}")
-    logger.info(f"   effective_tenant_id: {effective_tenant_id}, current_user.tenant_id: {current_user.tenant_id if current_user else None}")
-    if not effective_tenant_id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Tenant ID required"
-        )
     
     # Validate request_type against master data
     if not validate_workflow_type(db, effective_tenant_id, request_type):
@@ -2606,8 +2546,7 @@ async def get_active_layout_for_stage(
             elif layout_type == 'completed':
                 action_name = 'Completion'
         
-        print(f"🔍🔍🔍 Process mapping check - request_type: {request_type}, workflow_stage: {workflow_stage}, layout_type: {layout_type}, action_name: {action_name}")
-        logger.info(f"🔍 Process mapping check - request_type: {request_type}, workflow_stage: {workflow_stage}, layout_type: {layout_type}, action_name: {action_name}, tenant_id: {effective_tenant_id}")
+        logger.info(f"Process mapping check - request_type: {request_type}, workflow_stage: {workflow_stage}, layout_type: {layout_type}, action_name: {action_name}")
         
         # Try to find a process that has the required action mapping
         # First try default, then try any active process that has the mapping
@@ -2625,53 +2564,44 @@ async def get_active_layout_for_stage(
                 action_lower = action_name.lower()
                 if action_name in default_process.stage_mappings or any(key.lower() == action_lower for key in default_process.stage_mappings.keys()):
                     workflow_group = default_process
-                    print(f"  ✅✅✅ Found default process with {action_name} mapping: {default_process.name}")
-                    logger.info(f"  ✅ Found default process with {action_name} mapping: {default_process.name}")
+                    logger.info(f"Found default process with {action_name} mapping: {default_process.name}")
             
             # If default process doesn't have the mapping, try all processes
             if not workflow_group:
-                print(f"  🔍 Default process doesn't have {action_name} mapping, checking all processes...")
                 # Try any active process that has the required mapping (case-insensitive)
                 all_processes = db.query(FormType).filter(
                     FormType.tenant_id == effective_tenant_id,
                     FormType.request_type == request_type,
                     FormType.is_active == True
                 ).order_by(FormType.is_default.desc()).all()
-                
-                print(f"  Found {len(all_processes)} active processes")
                 action_lower = action_name.lower()
                 for process in all_processes:
                     if process.stage_mappings:
-                        print(f"    Checking process: {process.name}, mappings: {list(process.stage_mappings.keys())}")
                         # Try exact match first
                         if action_name in process.stage_mappings:
                             workflow_group = process
-                            print(f"  ✅✅✅ Found process with {action_name} mapping: {process.name} (is_default: {process.is_default})")
-                            logger.info(f"  ✅ Found process with {action_name} mapping: {process.name} (is_default: {process.is_default})")
+                            logger.info(f"Found process with {action_name} mapping: {process.name}")
                             break
                         # Try case-insensitive match
                         for key in process.stage_mappings.keys():
                             if key.lower() == action_lower:
                                 workflow_group = process
-                                print(f"  ✅✅✅ Found process with {action_name} mapping (case-insensitive): {process.name} (is_default: {process.is_default}, key: '{key}')")
-                                logger.info(f"  ✅ Found process with {action_name} mapping (case-insensitive): {process.name} (is_default: {process.is_default}, key: '{key}')")
+                                logger.info(f"Found process with {action_name} mapping (case-insensitive): {process.name}, key: '{key}'")
                                 break
                         if workflow_group:
                             break
                 
                 if not workflow_group:
-                    print(f"  ⚠️⚠️⚠️ No process found with '{action_name}' mapping for {request_type}")
-                    logger.info(f"  ⚠️ No process found with '{action_name}' mapping for {request_type}")
-                    if default_process:
-                        print(f"     Default process has mappings: {list(default_process.stage_mappings.keys()) if default_process.stage_mappings else []}")
-                        logger.info(f"     Default process has mappings: {list(default_process.stage_mappings.keys()) if default_process.stage_mappings else []}")
+                    logger.info(f"No process found with '{action_name}' mapping for {request_type}")
         else:
             logger.info(f"  ⚠️ Could not determine action_name from workflow_stage={workflow_stage}, layout_type={layout_type}")
+        
+        # Initialize mapping to None to avoid UnboundLocalError
+        mapping = None
         
         if workflow_group and workflow_group.stage_mappings and action_name:
             # Find the mapped form in stage_mappings
             # Try exact match first, then case-insensitive match
-            mapping = None
             if action_name in workflow_group.stage_mappings:
                 mapping = workflow_group.stage_mappings[action_name]
             else:
@@ -2687,8 +2617,7 @@ async def get_active_layout_for_stage(
             if mapping and mapping.get('layout_id'):
                 try:
                     form_id = UUID(mapping['layout_id'])
-                    print(f"  🔍 Looking for form with id: {form_id}, tenant_id: {effective_tenant_id}")
-                    logger.info(f"  Looking for form with id: {form_id}, tenant_id: {effective_tenant_id}")
+                    logger.info(f"Looking for form with id: {form_id}, tenant_id: {effective_tenant_id}")
                     
                     # Try to load from Forms entity first (new system)
                     form_from_mapping = db.query(Form).filter(
@@ -2698,63 +2627,32 @@ async def get_active_layout_for_stage(
                     ).first()
                     
                     if form_from_mapping:
-                        print(f"  ✅✅✅ FORM FOUND: {form_from_mapping.name} with {len(form_from_mapping.sections) if form_from_mapping.sections else 0} sections")
-                    else:
-                        print(f"  ❌ Form not found in Forms entity")
-                        logger.warning(f"  ⚠️ Form not found - checking if Form model is accessible...")
-                        # Debug: Check if any forms exist
-                        all_forms = db.query(Form).filter(Form.tenant_id == effective_tenant_id).all()
-                        print(f"  Total forms in Forms table for tenant: {len(all_forms)}")
-                        logger.info(f"  Total forms in Forms table for tenant: {len(all_forms)}")
-                        if all_forms:
-                            print(f"  Forms found: {[f.name for f in all_forms]}")
-                            logger.info(f"  Forms found: {[f.name for f in all_forms]}")
-                except Exception as e:
-                    print(f"  ❌❌❌ EXCEPTION loading form: {e}")
-                    import traceback
-                    traceback.print_exc()
-                    logger.error(f"  ❌ Exception loading form: {e}", exc_info=True)
-                    form_from_mapping = None
-                    
-                    if form_from_mapping:
-                        logger.info(f"✅ Found form from process mapping: {form_from_mapping.name} (id: {form_id}) for {request_type} at {workflow_stage}")
-                        logger.info(f"   Form sections count: {len(form_from_mapping.sections) if form_from_mapping.sections else 0}")
+                        logger.info(f"Found form from process mapping: {form_from_mapping.name} (id: {form_id}) for {request_type} at {workflow_stage}")
                         if form_from_mapping.sections:
                             for idx, section in enumerate(form_from_mapping.sections):
                                 fields_count = len(section.get('fields', [])) if isinstance(section, dict) else 0
-                                logger.info(f"     Section {idx + 1}: {section.get('title', 'Untitled')} - {fields_count} fields")
-                        # Convert Form to FormLayoutResponse format will be done below
-                    else:
-                        logger.info(f"  ❌ Form not found in Forms entity with id: {form_id}, tenant_id: {effective_tenant_id}")
-                        # Check if form exists with different tenant_id
-                        form_any_tenant = db.query(Form).filter(Form.id == form_id).first()
-                        if form_any_tenant:
-                            logger.info(f"  ⚠️ Form exists but with different tenant_id: {form_any_tenant.tenant_id} (expected: {effective_tenant_id})")
-                        # Fallback: try FormLayout (old system/processes)
+                                logger.info(f"  Section {idx + 1}: {section.get('title', 'Untitled')} - {fields_count} fields")
+                except Exception as e:
+                    logger.error(f"Exception loading form: {e}", exc_info=True)
+                    form_from_mapping = None
+                    
+                    # If form not found in Forms entity, try FormLayout
+                    if not form_from_mapping:
                         layout = db.query(FormLayout).filter(
                             FormLayout.id == form_id,
                             FormLayout.tenant_id == effective_tenant_id,
                             FormLayout.is_active == True
                         ).first()
                         if layout:
-                            logger.info(f"✅ Found process from mapping: {layout.name} (id: {form_id}) for {request_type} at {workflow_stage}")
+                            logger.info(f"Found layout from mapping: {layout.name} (id: {form_id}) for {request_type} at {workflow_stage}")
     except Exception as e:
-        print(f"❌❌❌ EXCEPTION in process mapping lookup: {e}")
-        import traceback
-        traceback.print_exc()
-        logger.error(f"❌ Exception in process mapping lookup: {e}", exc_info=True)
-        # Continue to fallback - don't fail the entire request
+        logger.error(f"Exception in process mapping lookup: {e}", exc_info=True)
         workflow_group = None
         form_from_mapping = None
         layout = None
     
-    # If no form found from process mapping, fall back to old system (FormLayout with request_type)
+    # If no form found from process mapping, try FormLayout (seeded layouts)
     if not layout and not form_from_mapping:
-        logger.info(f"⚠️ No form found from process mapping, falling back to FormLayout query")
-        logger.info(f"   workflow_group found: {workflow_group is not None}")
-        logger.info(f"   action_name: {action_name}")
-        if workflow_group:
-            logger.info(f"   workflow_group.stage_mappings keys: {list(workflow_group.stage_mappings.keys()) if workflow_group.stage_mappings else []}")
         layout = _get_active_layout_internal(
             db=db,
             effective_tenant_id=effective_tenant_id,
@@ -2764,16 +2662,11 @@ async def get_active_layout_for_stage(
             agent_category=agent_category,
             current_user=current_user
         )
-        if layout:
-            logger.info(f"⚠️ Using fallback FormLayout: {layout.name} (id: {layout.id})")
     
-    user_tenant_id = str(effective_tenant_id) if effective_tenant_id else None
+    user_tenant_id = str(effective_tenant_id)
     
     # If we found a form from process mapping, convert it to FormLayoutResponse
-    print(f"🔍🔍🔍 Final check - form_from_mapping: {form_from_mapping is not None}, layout: {layout is not None}, workflow_group: {workflow_group is not None}, action_name: {action_name}")
-    logger.info(f"🔍 Final check - form_from_mapping: {form_from_mapping is not None}, layout: {layout is not None}")
     if form_from_mapping:
-        print(f"✅✅✅ RETURNING FORM FROM MAPPING: {form_from_mapping.name}")
         # Resolve custom fields for response
         resolved_fields = resolve_custom_fields_from_catalog(
             db=db,
@@ -2813,97 +2706,16 @@ async def get_active_layout_for_stage(
             updated_at=form_from_mapping.updated_at.isoformat() if form_from_mapping.updated_at else None
         )
     
-    # Auto-create a simple default layout if none exists (only if no form from mapping either)
+    # Layouts must be seeded - no auto-creation
     if not layout and not form_from_mapping:
-        logger.info(
-            f"No layout found for tenant {effective_tenant_id}, request_type {request_type}, "
-            f"workflow_stage {workflow_stage}. Creating default layout."
-        )
-        
-        try:
-            # If setting as default, unset other defaults for this request type
-            # This ensures only one default per request_type
-            db.query(FormLayout).filter(
-                FormLayout.tenant_id == effective_tenant_id,
-                FormLayout.request_type == request_type,
-                FormLayout.is_default == True
-            ).update({"is_default": False})
-            db.flush()  # Flush before creating new layout
-            
-            # Create a simple default layout with basic fields
-            default_sections = [
-                {
-                    "id": "section-1",
-                    "title": "Agent Details",
-                    "description": "Basic information about the agent",
-                    "order": 1,
-                    "fields": ["name", "type", "category", "description", "version"]
-                }
-            ]
-            
-            layout = FormLayout(
-                tenant_id=effective_tenant_id,
-                name=f"Default {request_type} Layout",
-                request_type=request_type,
-                workflow_stage=workflow_stage,
-                layout_type=layout_type,
-                description=f"Auto-generated default layout for {request_type} at {workflow_stage} stage (layout_type: {layout_type})",
-                sections=default_sections,
-                is_default=True,
-                is_active=True,
-                created_by=current_user.id
-            )
-            
-            db.add(layout)
-            db.commit()
-            db.refresh(layout)
-            
-            # Audit log
-            try:
-                audit_service.log_action(
-                    db=db,
-                    user_id=str(current_user.id),
-                    action=AuditAction.CREATE,
-                    resource_type="form_layout",
-                    resource_id=str(layout.id),
-                    tenant_id=str(effective_tenant_id),
-                    details={
-                        "name": layout.name,
-                        "request_type": layout.request_type,
-                        "workflow_stage": layout.workflow_stage,
-                        "auto_created": True
-                    },
-                    ip_address=None,
-                    user_agent=None
-                )
-            except Exception as audit_error:
-                # Don't fail if audit logging fails
-                logger.warning(f"Failed to log audit for auto-created layout: {audit_error}")
-            
-            logger.info(f"Created default layout {layout.id} for tenant {effective_tenant_id}")
-        except Exception as e:
-            logger.error(
-                f"Failed to auto-create default layout for tenant {effective_tenant_id}, "
-                f"request_type {request_type}, workflow_stage {workflow_stage}: {e}",
-                exc_info=True
-            )
-            db.rollback()
-            # Re-raise the exception so the API returns an error
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to create default screen layout. Please contact your administrator or create a layout manually in the Process Designer. Error: {str(e)}"
-            )
-    
-    # Ensure we have a layout at this point
-    if not layout:
-        logger.error(f"❌ No layout found and auto-create failed for {request_type} at {workflow_stage}")
+        logger.error(f"No layout found for tenant {effective_tenant_id}, request_type {request_type}, workflow_stage {workflow_stage}")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="No active layout found for this workflow stage. Please configure a layout in the Process Designer."
+            detail=f"No active layout found for {request_type} at {workflow_stage} stage. Please ensure layouts are seeded or create one in the Process Designer."
         )
     
     # Double-check tenant_id match (defensive programming)
-    layout_tenant_id = str(layout.tenant_id) if layout.tenant_id else None
+    layout_tenant_id = str(layout.tenant_id)
     if user_tenant_id != layout_tenant_id and current_user.role.value != "platform_admin":
         logger.error(
             f"CRITICAL: Layout returned from tenant-filtered query has mismatched tenant_id! "
@@ -2956,11 +2768,6 @@ async def create_field_access(
     """Create field access control (idempotent - returns existing if already present)"""
     from app.core.tenant_utils import get_effective_tenant_id
     effective_tenant_id = get_effective_tenant_id(current_user, db)
-    if not effective_tenant_id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Tenant ID required"
-        )
     
     # Ensure request_type and workflow_stage are strings (handle lists from frontend)
     request_type = access_data.request_type
@@ -3085,8 +2892,6 @@ async def list_field_access(
     """List field access controls"""
     from app.core.tenant_utils import get_effective_tenant_id
     effective_tenant_id = get_effective_tenant_id(current_user, db)
-    if not effective_tenant_id:
-        return []
     
     query = db.query(FormFieldAccess).filter(
         FormFieldAccess.tenant_id == effective_tenant_id
@@ -3148,8 +2953,8 @@ async def update_field_access(
     # Platform admins without tenant_id use the default platform admin tenant
     from app.core.tenant_utils import get_effective_tenant_id
     effective_tenant_id = get_effective_tenant_id(current_user, db)
-    user_tenant_id = str(effective_tenant_id) if effective_tenant_id else None
-    field_access_tenant_id = str(field_access.tenant_id) if field_access.tenant_id else None
+    user_tenant_id = str(effective_tenant_id)
+    field_access_tenant_id = str(field_access.tenant_id)
     
     # Allow platform admins to update any field access
     if current_user.role.value == "platform_admin":
@@ -3225,11 +3030,6 @@ async def get_fields_with_access_for_role(
     """
     from app.core.tenant_utils import get_effective_tenant_id
     effective_tenant_id = get_effective_tenant_id(current_user, db)
-    if not effective_tenant_id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Tenant ID required"
-        )
     
     # Use current user's role if role not specified
     user_role = role or (current_user.role.value if hasattr(current_user.role, 'value') else str(current_user.role))

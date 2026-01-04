@@ -195,18 +195,25 @@ class FeatureGate:
         
         try:
             limit = int(tenant.max_agents)
-            # Count current agents
+            # Count current agents - optimized query using join instead of loading all vendors
             from app.models.agent import Agent
             from app.models.vendor import Vendor
+            from sqlalchemy import func
             
-            # Get vendors for this tenant
-            vendors = db.query(Vendor).filter(Vendor.tenant_id == tenant_id).all()
-            vendor_ids = [v.id for v in vendors]
-            
-            count = db.query(Agent).filter(Agent.vendor_id.in_(vendor_ids)).count()
+            # Use a single optimized query with join instead of loading all vendors
+            count = db.query(func.count(Agent.id)).join(
+                Vendor, Agent.vendor_id == Vendor.id
+            ).filter(
+                Vendor.tenant_id == tenant_id
+            ).scalar() or 0
             
             return (count < limit, count)
-        except (ValueError, TypeError):
+        except (ValueError, TypeError) as e:
+            logger.warning(f"Error checking agent limit for tenant {tenant_id}: {e}")
+            return (True, None)
+        except Exception as e:
+            logger.error(f"Unexpected error checking agent limit for tenant {tenant_id}: {e}", exc_info=True)
+            # Fail open - allow creation if we can't check the limit
             return (True, None)
     
     @classmethod

@@ -668,6 +668,18 @@ class AssessmentService:
         assignment_dict.pop('tenant_id', None)
         assignment_dict.pop('assigned_by', None)
         assignment_dict.pop('assigned_at', None)
+        assignment_dict.pop('workflow_ticket_id', None)  # Will be generated
+        
+        # Generate workflow ticket ID when assignment is created (not just on completion)
+        # This ensures ticket IDs are available for pending assignments in the inbox
+        workflow_ticket_id = None
+        try:
+            from app.core.ticket_id_generator import generate_assessment_ticket_id
+            workflow_ticket_id = generate_assessment_ticket_id(self.db, tenant_id)
+            logger.info(f"Generated workflow ticket ID {workflow_ticket_id} for new assignment")
+        except Exception as e:
+            logger.warning(f"Failed to generate workflow ticket ID for new assignment: {e}. Will retry on completion.")
+            # Continue without ticket ID - it will be generated on completion as fallback
         
         assignment = AssessmentAssignment(
             assessment_id=assessment_id,
@@ -676,6 +688,7 @@ class AssessmentService:
             assigned_by=assigned_by,
             assigned_at=datetime.utcnow(),
             status=status,
+            workflow_ticket_id=workflow_ticket_id,  # Set ticket ID at creation
             **assignment_dict
         )
         
@@ -701,48 +714,64 @@ class AssessmentService:
                         User.email == vendor.contact_email,
                         User.is_active == True
                     ).all()
-                    # If no exact match, find any vendor users in the tenant
+                    logger.info(f"Found {len(vendor_users)} vendor user(s) with email matching vendor contact_email {vendor.contact_email} for assignment {assignment.id}")
+                    # If no exact match, try to find vendor users associated with this vendor
                     if not vendor_users:
+                        # Try to find vendor users by matching vendor_id through some association
+                        # For now, find any active vendor users in the tenant as fallback
                         vendor_users = self.db.query(User).filter(
                             User.tenant_id == tenant_id,
                             User.role == UserRole.VENDOR_USER,
                             User.is_active == True
                         ).limit(1).all()
+                        if vendor_users:
+                            logger.warning(f"No vendor user found with email {vendor.contact_email} for assignment {assignment.id}. Using fallback vendor user {vendor_users[0].email} (ID: {vendor_users[0].id})")
+                        else:
+                            logger.warning(f"No vendor users found in tenant {tenant_id} for assignment {assignment.id}. Action items will not be created.")
+                else:
+                    logger.warning(f"Vendor {assignment.vendor_id} has no contact_email for assignment {assignment.id}. Cannot create action items.")
+            else:
+                logger.info(f"Assignment {assignment.id} has no vendor_id. Skipping action item creation (may be agent-only assignment).")
             
             # Get assessment name for action item
             assessment = self.db.query(Assessment).filter(Assessment.id == assessment_id).first()
             assessment_name = assessment.name if assessment else "Assessment"
             
             # Create action items for vendor users
-            for vendor_user in vendor_users:
-                action_item = ActionItem(
-                    tenant_id=tenant_id,
-                    assigned_to=vendor_user.id,
-                    assigned_by=assigned_by,
-                    action_type=ActionItemType.ASSESSMENT.value,
-                    title=f"Complete Assessment: {assessment_name}",
-                    description=f"Assessment has been assigned to you. Please complete all questions by the due date." + (f" Due: {assignment.due_date.strftime('%Y-%m-%d')}" if assignment.due_date else ""),
-                    status=ActionItemStatus.PENDING.value,
-                    priority=ActionItemPriority.HIGH.value if assignment.due_date and assignment.due_date < datetime.utcnow() + timedelta(days=7) else ActionItemPriority.MEDIUM.value,
-                    due_date=assignment.due_date,
-                    source_type="assessment_assignment",
-                    source_id=assignment.id,
-                    action_url=f"/assessments/{assignment.id}",
-                    item_metadata={
-                        "assessment_id": str(assessment_id),
-                        "assessment_name": assessment_name,
-                        "assessment_type": assessment.assessment_type if assessment else None,
-                        "assignment_id": str(assignment.id),
-                        "vendor_id": str(assignment.vendor_id) if assignment.vendor_id else None,
-                        "agent_id": str(assignment.agent_id) if assignment.agent_id else None,
-                        "assignment_type": assignment.assignment_type,
-                        "workflow_type": "assessment_assignment"
-                    }
-                )
-                self.db.add(action_item)
-                logger.info(f"Created assessment action item for vendor user {vendor_user.email} (ID: {vendor_user.id}) for assignment {assignment.id} (type: {assignment.assignment_type})")
-            
-            self.db.commit()
+            if vendor_users:
+                for vendor_user in vendor_users:
+                    action_item = ActionItem(
+                        tenant_id=tenant_id,
+                        assigned_to=vendor_user.id,
+                        assigned_by=assigned_by,
+                        action_type=ActionItemType.ASSESSMENT.value,
+                        title=f"Complete Assessment: {assessment_name}",
+                        description=f"Assessment has been assigned to you. Please complete all questions by the due date." + (f" Due: {assignment.due_date.strftime('%Y-%m-%d')}" if assignment.due_date else ""),
+                        status=ActionItemStatus.PENDING.value,
+                        priority=ActionItemPriority.HIGH.value if assignment.due_date and assignment.due_date < datetime.utcnow() + timedelta(days=7) else ActionItemPriority.MEDIUM.value,
+                        due_date=assignment.due_date,
+                        source_type="assessment_assignment",
+                        source_id=assignment.id,
+                        action_url=f"/assessments/{assignment.id}",
+                        item_metadata={
+                            "assessment_id": str(assessment_id),
+                            "assessment_name": assessment_name,
+                            "assessment_type": assessment.assessment_type if assessment else None,
+                            "assignment_id": str(assignment.id),
+                            "vendor_id": str(assignment.vendor_id) if assignment.vendor_id else None,
+                            "agent_id": str(assignment.agent_id) if assignment.agent_id else None,
+                            "assignment_type": assignment.assignment_type,
+                            "workflow_type": "assessment_assignment",
+                            "workflow_ticket_id": assignment.workflow_ticket_id  # Include ticket ID in metadata
+                        }
+                    )
+                    self.db.add(action_item)
+                    logger.info(f"Created assessment action item for vendor user {vendor_user.email} (ID: {vendor_user.id}) for assignment {assignment.id} (type: {assignment.assignment_type})")
+                
+                self.db.commit()
+                logger.info(f"Successfully created {len(vendor_users)} action item(s) for assignment {assignment.id}")
+            else:
+                logger.warning(f"No vendor users found for assignment {assignment.id}. Action items were not created. Vendor may need to be associated with a user account.")
             self.db.refresh(assignment)
             
             # Audit log

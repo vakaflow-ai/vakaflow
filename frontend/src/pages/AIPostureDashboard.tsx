@@ -3,12 +3,13 @@ import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
   BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
-  ResponsiveContainer, LineChart, Line, ScatterChart, Scatter, ZAxis
+  LineChart, Line, ScatterChart, Scatter, ZAxis
 } from 'recharts'
 import { analyticsApi } from '../lib/analytics'
 import { authApi } from '../lib/auth'
 import Layout from '../components/Layout'
 import DashboardWidget from '../components/DashboardWidget'
+import ChartContainer from '../components/ChartContainer'
 import { TrendingUp, BarChart3, PieChart as PieChartIcon, Activity, Shield, AlertTriangle } from 'lucide-react'
 
 const COLORS = {
@@ -254,7 +255,7 @@ export default function AIPostureDashboard() {
             collapsible={true}
             filterable={true}
           >
-            <ResponsiveContainer width="100%" height={350}>
+            <ChartContainer height={350}>
               <BarChart data={modelUsageData} margin={{ top: 5, right: 30, left: 20, bottom: 120 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
                 <XAxis
@@ -271,7 +272,7 @@ export default function AIPostureDashboard() {
                 <Tooltip />
                 <Bar dataKey="count" fill="#3b82f6" radius={[4, 4, 0, 0]} />
               </BarChart>
-            </ResponsiveContainer>
+            </ChartContainer>
           </DashboardWidget>
 
           {/* Risk Distribution */}
@@ -282,7 +283,7 @@ export default function AIPostureDashboard() {
             collapsible={true}
             filterable={true}
           >
-            <ResponsiveContainer width="100%" height={300}>
+            <ChartContainer height={300}>
               <PieChart>
                 <Pie
                   data={riskDistributionData}
@@ -306,7 +307,7 @@ export default function AIPostureDashboard() {
                   wrapperStyle={{ fontSize: '12px', fontWeight: 500 }}
                 />
               </PieChart>
-            </ResponsiveContainer>
+            </ChartContainer>
           </DashboardWidget>
         </div>
 
@@ -320,7 +321,7 @@ export default function AIPostureDashboard() {
             collapsible={true}
             filterable={true}
           >
-            <ResponsiveContainer width="100%" height={300}>
+            <ChartContainer height={300}>
               <PieChart>
                 <Pie
                   data={complianceDistributionData}
@@ -344,7 +345,7 @@ export default function AIPostureDashboard() {
                   wrapperStyle={{ fontSize: '12px', fontWeight: 500 }}
                 />
               </PieChart>
-            </ResponsiveContainer>
+            </ChartContainer>
           </DashboardWidget>
 
           {/* Deployment Distribution */}
@@ -355,7 +356,7 @@ export default function AIPostureDashboard() {
             collapsible={true}
             filterable={true}
           >
-            <ResponsiveContainer width="100%" height={300}>
+            <ChartContainer height={300}>
               <BarChart data={deploymentData} margin={{ top: 5, right: 30, left: 20, bottom: 60 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
                 <XAxis 
@@ -370,7 +371,7 @@ export default function AIPostureDashboard() {
                 <Tooltip />
                 <Bar dataKey="value" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
               </BarChart>
-            </ResponsiveContainer>
+            </ChartContainer>
           </DashboardWidget>
         </div>
 
@@ -384,7 +385,7 @@ export default function AIPostureDashboard() {
             collapsible={true}
             filterable={true}
           >
-            <ResponsiveContainer width="100%" height={300}>
+            <ChartContainer height={300}>
               <BarChart data={riskByModelData} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f0f0f0" />
                 <XAxis type="number" domain={[0, 10]} tick={{ fontSize: 10, fill: '#666' }} stroke="#e0e0e0" />
@@ -404,7 +405,7 @@ export default function AIPostureDashboard() {
                   })}
                 </Bar>
               </BarChart>
-            </ResponsiveContainer>
+            </ChartContainer>
           </DashboardWidget>
 
           {/* Compliance by Model */}
@@ -415,7 +416,7 @@ export default function AIPostureDashboard() {
             collapsible={true}
             filterable={true}
           >
-            <ResponsiveContainer width="100%" height={300}>
+            <ChartContainer height={300}>
               <BarChart data={complianceByModelData} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f0f0f0" />
                 <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 10, fill: '#666' }} stroke="#e0e0e0" />
@@ -435,7 +436,7 @@ export default function AIPostureDashboard() {
                   })}
                 </Bar>
               </BarChart>
-            </ResponsiveContainer>
+            </ChartContainer>
           </DashboardWidget>
         </div>
 
@@ -451,7 +452,7 @@ export default function AIPostureDashboard() {
           <p className="text-sm text-gray-500 mb-6 font-medium">
             Risk vs Compliance scatter plot for agents with data sharing
           </p>
-          <ResponsiveContainer width="100%" height={400}>
+          <ChartContainer height={400}>
             <ScatterChart margin={{ top: 20, right: 30, bottom: 60, left: 60 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
               <XAxis
@@ -508,7 +509,7 @@ export default function AIPostureDashboard() {
                 })}
               </Scatter>
             </ScatterChart>
-          </ResponsiveContainer>
+          </ChartContainer>
         </DashboardWidget>
 
         {/* Posture Trends */}
@@ -520,7 +521,7 @@ export default function AIPostureDashboard() {
           filterable={true}
           className="mb-6"
         >
-          <ResponsiveContainer width="100%" height={300}>
+          <ChartContainer height={300}>
             <LineChart data={posture.posture_trends || []} margin={{ top: 5, right: 30, left: 20, bottom: 60 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
               <XAxis
@@ -556,7 +557,7 @@ export default function AIPostureDashboard() {
                 activeDot={{ r: 6, strokeWidth: 0 }}
               />
             </LineChart>
-          </ResponsiveContainer>
+          </ChartContainer>
         </DashboardWidget>
 
         {/* High Risk Agents and Data Sharing */}
@@ -714,7 +715,7 @@ export default function AIPostureDashboard() {
               {posture.cost_analytics?.cost_trends && posture.cost_analytics.cost_trends.length > 0 && (
                 <div className="mt-4">
                   <h3 className="text-sm font-medium text-gray-500 tracking-tight mb-4">Cost Trends (Last 30 Days)</h3>
-                  <ResponsiveContainer width="100%" height={200}>
+                  <ChartContainer height={200}>
                     <LineChart data={posture.cost_analytics.cost_trends} margin={{ top: 5, right: 30, left: 20, bottom: 60 }}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
                       <XAxis
@@ -741,7 +742,7 @@ export default function AIPostureDashboard() {
                         activeDot={{ r: 5 }}
                       />
                     </LineChart>
-                  </ResponsiveContainer>
+                  </ChartContainer>
                 </div>
               )}
             </div>
@@ -806,7 +807,7 @@ export default function AIPostureDashboard() {
               {posture.prompt_usage?.usage_trends && posture.prompt_usage.usage_trends.length > 0 && (
                 <div className="mt-4">
                   <h3 className="text-sm font-medium text-gray-500 tracking-tight mb-4">Usage Trends (Last 30 Days)</h3>
-                  <ResponsiveContainer width="100%" height={200}>
+                  <ChartContainer height={200}>
                     <LineChart data={posture.prompt_usage.usage_trends} margin={{ top: 5, right: 30, left: 20, bottom: 60 }}>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
                       <XAxis
@@ -843,7 +844,7 @@ export default function AIPostureDashboard() {
                         dot={{ r: 3, fill: '#8b5cf6', strokeWidth: 0 }}
                       />
                     </LineChart>
-                  </ResponsiveContainer>
+                  </ChartContainer>
                 </div>
               )}
             </div>
@@ -931,7 +932,7 @@ export default function AIPostureDashboard() {
             filterable={true}
             className="mb-6"
           >
-            <ResponsiveContainer width="100%" height={300}>
+            <ChartContainer height={300}>
               <BarChart
                 data={Object.entries(posture.cost_analytics?.cost_by_agent || {})
                   .map(([name, data]: [string, any]) => ({
@@ -958,7 +959,7 @@ export default function AIPostureDashboard() {
                 <Legend wrapperStyle={{ fontSize: '11px', fontWeight: 500 }} />
                 <Bar dataKey="cost" fill="#ef4444" name="Cost ($)" radius={[4, 4, 0, 0]} />
               </BarChart>
-            </ResponsiveContainer>
+            </ChartContainer>
           </DashboardWidget>
         )}
       </div>

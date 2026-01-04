@@ -31,16 +31,25 @@ export default function MyActions() {
     authApi.getCurrentUser().then(setUser).catch(() => navigate('/login'))
   }, [navigate])
 
+  // Fetch inbox data for the active tab
   const { data: inboxData, isLoading } = useQuery({
     queryKey: ['actions-inbox', activeTab],
     queryFn: () => actionsApi.getInbox(activeTab),
     enabled: !!user?.tenant_id,
   })
 
+  // Fetch counts separately to get accurate totals across all tabs
+  const { data: countsData } = useQuery({
+    queryKey: ['actions-inbox-counts'],
+    queryFn: () => actionsApi.getCounts(),
+    enabled: !!user?.tenant_id,
+  })
+
   const items = inboxData?.items || []
-  const pendingCount = items.filter(i => i.status === 'pending').length
-  const completedCount = items.filter(i => i.status === 'completed').length
-  const overdueCount = items.filter(i => i.status === 'overdue').length
+  // Use counts from API response if available, otherwise fallback to inboxData counts, then to filtered items
+  const pendingCount = countsData?.pending ?? inboxData?.pending_count ?? items.filter(i => i.status === 'pending').length
+  const completedCount = countsData?.completed ?? inboxData?.completed_count ?? items.filter(i => i.status === 'completed').length
+  const overdueCount = countsData?.overdue ?? inboxData?.overdue_count ?? items.filter(i => i.status === 'overdue').length
 
   const filteredItems = items.filter(item => {
     if (!searchQuery) return true
@@ -151,11 +160,11 @@ export default function MyActions() {
               items={filteredItems}
               isLoading={isLoading}
               onItemClick={(item) => {
-                // Navigate based on action type
-                if (item.type === 'approval' || item.source_type === 'assessment_approval') {
-                  // For approvers: navigate to approver review page
-                  if (item.source_id) {
-                    navigate(`/assessments/approver/${item.source_id}`)
+                // Use generic approver route with source_type and source_id from business process
+                if (item.type === 'approval' || item.source_type === 'assessment_approval' || item.source_type === 'assessment_review') {
+                  // For approvers: navigate to generic approver page
+                  if (item.source_type && item.source_id) {
+                    navigate(`/approver/${item.source_type}/${item.source_id}`)
                   } else if (item.action_url) {
                     navigate(item.action_url)
                   }

@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+import { LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts'
+import ChartContainer from '../components/ChartContainer'
 import { vendorsApi, VendorDashboard as VendorDashboardData } from '../lib/vendors'
 import { authApi } from '../lib/auth'
 import Layout from '../components/Layout'
@@ -321,7 +322,7 @@ export default function VendorDashboard() {
               </div>
             </div>
             <div className="h-[340px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
+              <ChartContainer height="100%">
                 <LineChart data={dashboard.submission_trends || []}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                   <XAxis 
@@ -351,7 +352,7 @@ export default function VendorDashboard() {
                     name="Assets" 
                   />
                 </LineChart>
-              </ResponsiveContainer>
+              </ChartContainer>
             </div>
           </div>
 
@@ -366,7 +367,7 @@ export default function VendorDashboard() {
               </div>
             </div>
             <div className="h-[340px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
+              <ChartContainer height="100%">
                 <PieChart>
                   <Pie
                     data={statusData}
@@ -396,10 +397,10 @@ export default function VendorDashboard() {
                     height={40} 
                     iconType="circle" 
                     iconSize={10} 
-                    wrapperStyle={{ fontSize: '11px', fontWeight: 700, paddingTop: '30px', letterSpacing: '0.05em' }} 
+                    wrapperStyle={{ fontSize: 11, fontWeight: 700, paddingTop: '30px', letterSpacing: 0.05 }} 
                   />
                 </PieChart>
-              </ResponsiveContainer>
+              </ChartContainer>
             </div>
           </div>
         </div>

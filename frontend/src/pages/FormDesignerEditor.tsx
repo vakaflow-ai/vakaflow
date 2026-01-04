@@ -2529,8 +2529,8 @@ export default function FormDesignerEditor() {
 
                 {/* Fields Panel - Floating/Sticky */}
                 {isFieldsPanelExpanded && (
-                <MaterialCard elevation={2} className="p-6">
-                  <div className="flex items-center justify-between mb-4">
+                <MaterialCard elevation={2} className="p-6 flex flex-col" style={{ maxHeight: 'calc(100vh - 200px)' }}>
+                  <div className="flex items-center justify-between mb-4 flex-shrink-0">
                     <h3 className="text-sm font-semibold text-gray-900 tracking-tight flex items-center gap-2">
                       <Layers className="w-4 h-4 text-primary-500" />
                       Fields
@@ -2545,6 +2545,7 @@ export default function FormDesignerEditor() {
               </div>
 
                   {/* Fields Panel Content */}
+                  <div className="flex-1 overflow-hidden flex flex-col min-h-0">
                   {(() => {
                     // Get unique sources and categories (sorted for stable order)
                     const uniqueSources = Array.from(new Set((availableFieldsList || []).map(f => f.source).filter(Boolean)))
@@ -2697,9 +2698,9 @@ export default function FormDesignerEditor() {
                     }
                     
                     return (
-                      <div className="space-y-3">
+                      <div className="flex flex-col h-full min-h-0 space-y-3">
                         {/* Search */}
-                        <div className="relative">
+                        <div className="relative flex-shrink-0">
                           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
                           <input
                             type="text"
@@ -2711,7 +2712,7 @@ export default function FormDesignerEditor() {
                         </div>
                         
                         {/* Filters */}
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-2 gap-2 flex-shrink-0">
                           <select
                             value={fieldSourceFilter}
                             onChange={(e) => setFieldSourceFilter(e.target.value)}
@@ -2735,7 +2736,7 @@ export default function FormDesignerEditor() {
                         </div>
                         
                         {/* Section Selector */}
-                        <div>
+                        <div className="flex-shrink-0">
                           <label className="block text-xs font-medium text-gray-700 mb-1">Add to Section</label>
                           <select
                             value={activeSectionId || ''}
@@ -2752,7 +2753,7 @@ export default function FormDesignerEditor() {
                         </div>
                         
                         {/* Fields List */}
-                        <div className="max-h-[400px] overflow-y-auto space-y-2">
+                        <div className="flex-1 overflow-y-auto space-y-2 min-h-0 pr-1">
                           {/* Entity Groups */}
                           {Object.entries(entityGroups)
                             .sort(([nameA, fieldsA], [nameB, fieldsB]) => {
@@ -2890,6 +2891,7 @@ export default function FormDesignerEditor() {
                       </div>
                     )
                   })()}
+                  </div>
                 </MaterialCard>
                 )}
               </div>

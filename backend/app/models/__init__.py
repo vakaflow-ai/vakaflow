@@ -64,6 +64,19 @@ from app.models.security_incident import (
     IncidentSeverity,
     IncidentActionType
 )
+from app.models.supplier_master import (
+    SupplierAgreement,
+    SupplierCVE,
+    SupplierInvestigation,
+    SupplierComplianceIssue,
+    SupplierDepartmentRelationship,
+    SupplierOffering,
+    AgreementType,
+    AgreementStatus,
+    CVEStatus,
+    InvestigationStatus,
+    ComplianceIssueStatus
+)
 
 __all__ = [
     "User",
@@ -134,4 +147,15 @@ __all__ = [
     "IncidentActionType",
     "CustomFieldCatalog",
     "Form",
+    "SupplierAgreement",
+    "SupplierCVE",
+    "SupplierInvestigation",
+    "SupplierComplianceIssue",
+    "SupplierDepartmentRelationship",
+    "SupplierOffering",
+    "AgreementType",
+    "AgreementStatus",
+    "CVEStatus",
+    "InvestigationStatus",
+    "ComplianceIssueStatus",
 ]

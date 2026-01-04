@@ -198,7 +198,7 @@ async def serve_upload_file(file_path: str, request: Request):
 
 
 # Include routers
-from app.api.v1 import auth, agents, knowledge, reviews, tenants, onboarding, compliance, audit, analytics, messages, approvals, offboarding, adoption, integrations, webhooks, recommendations, export, mfa, sso, oauth2, integration_config, predictive, marketplace, cross_tenant, fine_tuning, metrics, logs, tickets, vendors, users, submission_requirements, assessments, agent_connections, frameworks, workflow_config, workflow_actions, workflow_stage_settings, workflow_orchestration, reminders, vendor_invitations, otp, smtp_settings, sso_settings, scim, api_gateway, api_token_management, integration_help, user_sync, platform_config, cluster_nodes, agentic_agents, studio, external_agents, presentation, actions, question_library, assessment_rules, business_rules, role_permissions, role_configurations, security_incidents, custom_fields, entity_fields
+from app.api.v1 import auth, agents, knowledge, reviews, tenants, onboarding, compliance, audit, analytics, messages, approvals, offboarding, adoption, integrations, webhooks, recommendations, export, mfa, sso, oauth2, integration_config, predictive, marketplace, cross_tenant, fine_tuning, metrics, logs, tickets, vendors, users, submission_requirements, assessments, agent_connections, frameworks, workflow_config, workflow_actions, workflow_stage_settings, workflow_orchestration, reminders, vendor_invitations, otp, smtp_settings, sso_settings, scim, api_gateway, api_token_management, integration_help, user_sync, platform_config, cluster_nodes, agentic_agents, studio, external_agents, presentation, actions, question_library, assessment_rules, business_rules, role_permissions, role_configurations, security_incidents, custom_fields, entity_fields, suppliers_master
 
 # Import form_layouts with error handling
 try:
@@ -288,6 +288,7 @@ app.include_router(role_configurations.router, prefix="/api/v1")  # Role Configu
 app.include_router(security_incidents.router, prefix="/api/v1")  # Security Incidents & CVE Tracking (feature-gated)
 app.include_router(custom_fields.router, prefix="/api/v1")  # Entity and Fields Catalog
 app.include_router(entity_fields.router, prefix="/api/v1")  # Entity Field Registry & Permissions
+app.include_router(suppliers_master.router, prefix="/api/v1")  # Suppliers Master View
 if form_layouts:
     app.include_router(form_layouts.router, prefix="/api/v1")  # Form layouts and field access control
     logger.info("Form layouts router registered successfully")

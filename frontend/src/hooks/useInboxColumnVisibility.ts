@@ -17,6 +17,7 @@ export interface InboxColumnVisibilityConfig {
   poc: boolean
   customer: boolean
   workflowTicketId: boolean
+  workflowStage: boolean
   vendor: boolean
   agent: boolean
   description: boolean
@@ -33,6 +34,7 @@ const DEFAULT_COLUMNS: InboxColumnVisibilityConfig = {
   dueDate: true,
   poc: true,
   customer: false, // Hidden by default for non-vendor users
+  workflowStage: true, // Show workflow stage by default
   vendor: false,
   agent: false,
   description: false,

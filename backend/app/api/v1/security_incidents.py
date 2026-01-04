@@ -2,7 +2,7 @@
 API endpoints for Security Incident and CVE management
 Feature-gated: Requires 'cve_tracking' feature
 """
-from fastapi import APIRouter, Depends, HTTPException, status, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Request, BackgroundTasks
 from sqlalchemy.orm import Session
 from typing import List, Optional, Dict, Any
 from uuid import UUID
@@ -387,30 +387,71 @@ async def update_monitoring_config(
 async def scan_cves(
     days_back: int = Query(7, ge=1, le=30),
     current_user: User = Depends(require_cve_feature),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    background_tasks: BackgroundTasks = BackgroundTasks()
 ):
-    """Manually trigger CVE scan (admin only)"""
+    """Manually trigger CVE scan (admin only) - runs in background to prevent timeouts"""
     try:
         # Check if user is admin
         if current_user.role.value not in ["tenant_admin", "platform_admin"]:
             raise HTTPException(status_code=403, detail="Admin access required")
+        
+        # Store tenant_id and user_id for background task
+        tenant_id_str = str(current_user.tenant_id)
+        user_id = current_user.id
+        
+        # Move heavy work to background task
+        background_tasks.add_task(
+            _perform_cve_scan_background,
+            tenant_id_str=tenant_id_str,
+            days_back=days_back,
+            user_id=user_id
+        )
+        
+        # Return immediately
+        return {
+            "status": "started",
+            "message": f"CVE scan started in background for {days_back} days. Results will be processed asynchronously.",
+            "days_back": days_back
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error starting CVE scan: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
+async def _perform_cve_scan_background(
+    tenant_id_str: str,
+    days_back: int,
+    user_id: UUID
+):
+    """Background task to perform CVE scan - prevents request timeouts"""
+    from app.core.database import SessionLocal
+    from app.services.security_automation_service import SecurityAutomationService
+    from datetime import timedelta
+    
+    db = SessionLocal()
+    try:
+        logger.info(f"Starting background CVE scan for tenant {tenant_id_str}, days_back={days_back}")
         
         scanner = CVEScannerService(db)
         matcher = VendorMatchingService(db)
         
         # Get config
         service = SecurityIncidentService(db)
-        config = service.get_monitoring_config(str(current_user.tenant_id))
+        config = service.get_monitoring_config(tenant_id_str)
         
         # Scan for CVEs
         incidents = scanner.scan_new_cves(
-            tenant_id=str(current_user.tenant_id),
+            tenant_id=tenant_id_str,
             days_back=days_back,
             config=config
         )
         
+        logger.info(f"Found {len(incidents)} new CVEs in background scan")
+        
         # Match new incidents to vendors and trigger automation
-        from app.services.security_automation_service import SecurityAutomationService
         automation_service = SecurityAutomationService(db)
         
         matched_count = 0
@@ -418,7 +459,7 @@ async def scan_cves(
             try:
                 trackings = matcher.match_incident_to_vendors(
                     incident=incident,
-                    tenant_id=str(current_user.tenant_id),
+                    tenant_id=tenant_id_str,
                     config=config
                 )
                 matched_count += len(trackings)
@@ -437,22 +478,21 @@ async def scan_cves(
                 logger.error(f"Error matching incident {incident.id} to vendors: {str(e)}", exc_info=True)
         
         # Also match existing incidents that don't have vendor trackings yet
-        from datetime import datetime, timedelta
-        
+        from datetime import datetime
         recent_date = datetime.utcnow() - timedelta(days=days_back)
+        tenant_uuid = UUID(tenant_id_str)
         existing_incidents = db.query(SecurityIncident).filter(
             SecurityIncident.incident_type == "cve",
-            SecurityIncident.tenant_id == current_user.tenant_id,
+            SecurityIncident.tenant_id == tenant_uuid,
             SecurityIncident.created_at >= recent_date
         ).all()
         
         # Get incidents that don't have vendor trackings
         incidents_without_trackings = []
-        tenant_uuid_for_query = current_user.tenant_id if isinstance(current_user.tenant_id, UUID) else UUID(str(current_user.tenant_id))
         for incident in existing_incidents:
             existing_trackings = db.query(VendorSecurityTracking).filter(
                 VendorSecurityTracking.incident_id == incident.id,
-                VendorSecurityTracking.tenant_id == tenant_uuid_for_query
+                VendorSecurityTracking.tenant_id == tenant_uuid
             ).count()
             if existing_trackings == 0:
                 incidents_without_trackings.append(incident)
@@ -463,7 +503,7 @@ async def scan_cves(
             try:
                 trackings = matcher.match_incident_to_vendors(
                     incident=incident,
-                    tenant_id=str(current_user.tenant_id),
+                    tenant_id=tenant_id_str,
                     config=config
                 )
                 existing_matched_count += len(trackings)
@@ -483,18 +523,16 @@ async def scan_cves(
         
         total_matched = matched_count + existing_matched_count
         
-        return {
-            "scanned": len(incidents),
-            "matched_vendors": total_matched,
-            "new_cves": len(incidents),
-            "existing_matched": existing_matched_count,
-            "message": f"Scan completed: {len(incidents)} new CVEs found, {total_matched} vendor matches ({existing_matched_count} from existing CVEs)"
-        }
-    except HTTPException:
-        raise
+        logger.info(
+            f"Background CVE scan completed for tenant {tenant_id_str}: "
+            f"{len(incidents)} new CVEs, {total_matched} vendor matches "
+            f"({existing_matched_count} from existing CVEs)"
+        )
+        
     except Exception as e:
-        logger.error(f"Error in CVE scan: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+        logger.error(f"Error in background CVE scan for tenant {tenant_id_str}: {str(e)}", exc_info=True)
+    finally:
+        db.close()
 
 
 @router.post("/{incident_id}/actions", response_model=SecurityIncidentResponse)
