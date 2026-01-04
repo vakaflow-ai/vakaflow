@@ -322,7 +322,7 @@ export default function VendorDashboard() {
               </div>
             </div>
             <div className="h-[340px] w-full">
-              <ChartContainer height="100%">
+              <ChartContainer height={300}>
                 <LineChart data={dashboard.submission_trends || []}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                   <XAxis 
@@ -367,7 +367,7 @@ export default function VendorDashboard() {
               </div>
             </div>
             <div className="h-[340px] w-full">
-              <ChartContainer height="100%">
+              <ChartContainer height={300}>
                 <PieChart>
                   <Pie
                     data={statusData}

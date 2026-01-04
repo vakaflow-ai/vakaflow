@@ -113,10 +113,17 @@ const AssessmentSubmission: React.FC = () => {
     setIsSaving(true)
     try {
       // Save final responses and trigger workflow
-      await assessmentsApi.saveResponses(assignmentId, responses)
+      const response = await assessmentsApi.saveResponses(assignmentId, responses, false)
       
-      // Trigger approval workflow after successful submission
-      await assessmentsApi.triggerApprovalWorkflow(assignmentId)
+      // Show success message with ticket number
+      if (response.workflow_ticket_id) {
+        alert(`Assessment submitted successfully! Ticket Number: ${response.workflow_ticket_id}`)
+      } else {
+        alert('Assessment submitted successfully!')
+      }
+      
+      // Note: Workflow is automatically triggered by the backend on submission
+      // No need to call triggerApprovalWorkflow separately
       
       // Navigate to success page
       navigate(`/assessments/assignment/${assignmentId}/submitted`)

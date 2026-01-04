@@ -228,7 +228,8 @@ async def list_suppliers_master(
     """List all suppliers with comprehensive master view data"""
     try:
         # Check permissions
-        if current_user.role.value not in ["tenant_admin", "business_reviewer", "platform_admin"]:
+        user_role = current_user.role.value if hasattr(current_user.role, 'value') else str(current_user.role)
+        if user_role not in ["tenant_admin", "business_reviewer", "platform_admin"]:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Insufficient permissions to view suppliers master"

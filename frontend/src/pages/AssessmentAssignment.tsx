@@ -104,9 +104,13 @@ export default function AssessmentAssignmentPage() {
   })
 
   const submitMutation = useMutation({
-    mutationFn: (data: any) => assessmentsApi.saveResponses(id!, data),
-    onSuccess: () => {
-      showToast.success('Assessment submitted successfully')
+    mutationFn: (data: any) => assessmentsApi.saveResponses(id!, data, false),
+    onSuccess: (response) => {
+      // Display success message with ticket number if available
+      const message = response.workflow_ticket_id 
+        ? `Assessment submitted successfully! Ticket Number: ${response.workflow_ticket_id}`
+        : 'Assessment submitted successfully'
+      showToast.success(message)
       queryClient.invalidateQueries({ queryKey: ['assessment-assignment', id] })
     },
     onError: (err: any) => {

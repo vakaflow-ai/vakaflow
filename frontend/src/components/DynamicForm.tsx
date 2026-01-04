@@ -18,6 +18,7 @@ interface DynamicFormProps {
   showValidation?: boolean
   onValidationChange?: (isValid: boolean, errors: Record<string, string>) => void
   assignmentId?: string // Assignment ID for assessment workflows
+  onForwardQuestion?: (questionId: string) => void // Callback for forwarding a specific question
 }
 
 export default function DynamicForm({
@@ -32,6 +33,7 @@ export default function DynamicForm({
   showValidation = true,
   onValidationChange,
   assignmentId,
+  onForwardQuestion, // Callback for forwarding a specific question
 }: DynamicFormProps) {
   const [user, setUser] = useState<any>(null)
   const [userRole, setUserRole] = useState<string>('')
@@ -87,8 +89,16 @@ export default function DynamicForm({
   // Check if field should be visible based on dependencies
   // This function must be defined before useMemo to avoid hook order issues
   const isFieldVisibleForSection = (fieldName: string, layout: any, formData: any, fieldAccessMap: Map<string, FieldAccessForRole>): boolean => {
-    // Special fields like assessment_response_grid don't require field access
-    if (fieldName === 'assessment_response_grid') {
+    // Special fields that don't require field access configuration
+    // These are workflow-specific fields that should be visible based on context
+    const specialFields = [
+      'assessment_response_grid',  // Assessment questions and responses grid
+      'approval_notes',            // Approver notes/comments for approval
+      'rejection_reason',          // Reason for rejection
+      'review_notes'              // General review notes
+    ]
+    
+    if (specialFields.includes(fieldName)) {
       // Check field dependencies if any
       if (layout?.field_dependencies && layout.field_dependencies[fieldName]) {
         const dependency = layout.field_dependencies[fieldName]
@@ -120,6 +130,37 @@ export default function DynamicForm({
           default:
             return true
         }
+      }
+      // For assessment review/decision fields, make them visible when:
+      // 1. Workflow stage is "pending_approval" (approver review stage)
+      // 2. Assignment status is "completed" (vendor has submitted)
+      // 3. This is an assessment workflow (has assignmentId or assignment_id)
+      // 4. Request type is assessment_workflow
+      if (['approval_notes', 'rejection_reason', 'review_notes'].includes(fieldName)) {
+        // Check if this is an assessment workflow
+        const hasAssignmentId = !!(formData?.assignmentId || formData?.assignment_id || assignmentId)
+        const isAssessmentRequestType = requestType === 'assessment_workflow'
+        
+        // Always visible for assessment workflows when we have an assignment
+        if (hasAssignmentId || isAssessmentRequestType) {
+          // Check workflow stage - these fields should be visible in pending_approval stage
+          if (workflowStage === 'pending_approval') {
+            return true
+          }
+          
+          // Also check assignment status - visible when vendor has submitted (completed)
+          const assignmentStatus = formData?.status || formData?.assignment_status
+          if (assignmentStatus === 'completed' || assignmentStatus === 'pending_approval') {
+            return true
+          }
+          
+          // If we have an assignment ID or it's an assessment workflow, show these fields
+          // This ensures approvers can always see these fields when reviewing assessments
+          return true
+        }
+        
+        // Default: not visible if not an assessment workflow
+        return false
       }
       return true // Always visible if no dependencies
     }
@@ -184,31 +225,16 @@ export default function DynamicForm({
       return true
     })
 
-    console.log('DynamicForm - Sections after deduplication:', {
-      originalCount: layout.sections.length,
-      uniqueCount: uniqueSections.length,
-      sectionIds: uniqueSections.map(s => s.id)
-    })
 
     return uniqueSections
       .sort((a, b) => (a.order || 0) - (b.order || 0))
       .map((section, sectionIndex) => {
         const sectionFields = section.fields.filter((fieldName) => {
-          const visible = isFieldVisibleForSection(fieldName, layout, formData, fieldAccessMap)
-          console.log(`DynamicForm - Field visibility check: ${fieldName} = ${visible}`)
-          return visible
+          return isFieldVisibleForSection(fieldName, layout, formData, fieldAccessMap)
         })
 
-        console.log('DynamicForm - Section processing:', {
-          sectionId: section.id,
-          sectionTitle: section.title,
-          allFields: section.fields,
-          visibleFields: sectionFields,
-          willRender: sectionFields.length > 0
-        })
 
         if (sectionFields.length === 0) {
-          console.log(`DynamicForm - Skipping section ${section.id} (${section.title}) - no visible fields`)
           return null // Skip empty sections
         }
 
@@ -352,8 +378,16 @@ export default function DynamicForm({
 
   // Check if field should be visible based on dependencies
   const isFieldVisible = (fieldName: string): boolean => {
-    // Special fields like assessment_response_grid don't require field access
-    if (fieldName === 'assessment_response_grid') {
+    // Special fields that don't require field access configuration
+    // These are workflow-specific fields that should be visible based on context
+    const specialFields = [
+      'assessment_response_grid',  // Assessment questions and responses grid
+      'approval_notes',            // Approver notes/comments for approval
+      'rejection_reason',          // Reason for rejection
+      'review_notes'              // General review notes
+    ]
+    
+    if (specialFields.includes(fieldName)) {
       // Check field dependencies if any
       if (layout.field_dependencies && layout.field_dependencies[fieldName]) {
         const dependency = layout.field_dependencies[fieldName]
@@ -385,6 +419,37 @@ export default function DynamicForm({
           default:
             return true
         }
+      }
+      // For assessment review/decision fields, make them visible when:
+      // 1. Workflow stage is "pending_approval" (approver review stage)
+      // 2. Assignment status is "completed" (vendor has submitted)
+      // 3. This is an assessment workflow (has assignmentId or assignment_id)
+      // 4. Request type is assessment_workflow
+      if (['approval_notes', 'rejection_reason', 'review_notes'].includes(fieldName)) {
+        // Check if this is an assessment workflow
+        const hasAssignmentId = !!(formData?.assignmentId || formData?.assignment_id || assignmentId)
+        const isAssessmentRequestType = requestType === 'assessment_workflow'
+        
+        // Always visible for assessment workflows when we have an assignment
+        if (hasAssignmentId || isAssessmentRequestType) {
+          // Check workflow stage - these fields should be visible in pending_approval stage
+          if (workflowStage === 'pending_approval') {
+            return true
+          }
+          
+          // Also check assignment status - visible when vendor has submitted (completed)
+          const assignmentStatus = formData?.status || formData?.assignment_status
+          if (assignmentStatus === 'completed' || assignmentStatus === 'pending_approval') {
+            return true
+          }
+          
+          // If we have an assignment ID or it's an assessment workflow, show these fields
+          // This ensures approvers can always see these fields when reviewing assessments
+          return true
+        }
+        
+        // Default: not visible if not an assessment workflow
+        return false
       }
       return true // Always visible if no dependencies
     }
@@ -453,14 +518,6 @@ export default function DynamicForm({
       const responses = formData.responses || {}
       const questionReviews = formData.questionReviews || {}
       
-      console.log('DynamicForm - Rendering assessment_response_grid:', {
-        assignmentId: assignmentId || formData.assignment_id,
-        questionsCount: Array.isArray(questions) ? questions.length : 0,
-        responsesCount: Object.keys(responses).length,
-        questionReviewsCount: Object.keys(questionReviews).length,
-        formDataKeys: Object.keys(formData)
-      })
-      
       return (
         <div key={`${sectionId}-${fieldName}`} className="enterprise-form-field">
           <label className="enterprise-label mb-3">
@@ -474,6 +531,7 @@ export default function DynamicForm({
             readOnly={readOnly}
             showReviewStatus={requestType === 'approver' || requestType === 'assessment_workflow'}
             showQuestionActions={!readOnly && (requestType === 'approver' || requestType === 'assessment_workflow')} // Show actions for approvers when not read-only
+            onForwardQuestion={onForwardQuestion} // Pass forward callback for question-level forwarding
           />
         </div>
       )
@@ -700,16 +758,6 @@ export default function DynamicForm({
     }
   }
 
-  console.log('DynamicForm - Layout loaded:', {
-    hasLayout: !!layout,
-    sectionsCount: layout?.sections?.length || 0,
-    sections: layout?.sections?.map(s => ({
-      id: s.id,
-      title: s.title,
-      fields: s.fields,
-      order: s.order
-    })) || []
-  })
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">

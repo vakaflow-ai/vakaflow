@@ -672,6 +672,7 @@ class AssessmentService:
         
         # Generate workflow ticket ID when assignment is created (not just on completion)
         # This ensures ticket IDs are available for pending assignments in the inbox
+        # Generate human-readable workflow ticket ID (e.g., ASMT-2026-017)
         workflow_ticket_id = None
         try:
             from app.core.ticket_id_generator import generate_assessment_ticket_id
@@ -688,7 +689,7 @@ class AssessmentService:
             assigned_by=assigned_by,
             assigned_at=datetime.utcnow(),
             status=status,
-            workflow_ticket_id=workflow_ticket_id,  # Set ticket ID at creation
+            workflow_ticket_id=workflow_ticket_id,  # Human-readable ticket ID (e.g., ASMT-2026-017)
             **assignment_dict
         )
         
@@ -707,29 +708,53 @@ class AssessmentService:
             vendor_users = []
             if assignment.vendor_id:
                 vendor = self.db.query(Vendor).filter(Vendor.id == assignment.vendor_id).first()
-                if vendor and vendor.contact_email:
-                    # Find users with matching email (vendor users)
-                    vendor_users = self.db.query(User).filter(
-                        User.tenant_id == tenant_id,
-                        User.email == vendor.contact_email,
-                        User.is_active == True
-                    ).all()
-                    logger.info(f"Found {len(vendor_users)} vendor user(s) with email matching vendor contact_email {vendor.contact_email} for assignment {assignment.id}")
-                    # If no exact match, try to find vendor users associated with this vendor
-                    if not vendor_users:
-                        # Try to find vendor users by matching vendor_id through some association
-                        # For now, find any active vendor users in the tenant as fallback
+                if vendor:
+                    logger.info(f"🔍 Looking for vendor users for vendor {vendor.id} ({vendor.name}), contact_email: {vendor.contact_email}, tenant_id: {tenant_id}")
+                    
+                    if vendor.contact_email:
+                        # Strategy 1: Find users with exact email match (case-insensitive)
                         vendor_users = self.db.query(User).filter(
                             User.tenant_id == tenant_id,
-                            User.role == UserRole.VENDOR_USER,
+                            User.email.ilike(vendor.contact_email.lower()),
                             User.is_active == True
-                        ).limit(1).all()
+                        ).all()
+                        logger.info(f"Strategy 1 (exact email match): Found {len(vendor_users)} vendor user(s) with email matching vendor contact_email {vendor.contact_email}")
                         if vendor_users:
-                            logger.warning(f"No vendor user found with email {vendor.contact_email} for assignment {assignment.id}. Using fallback vendor user {vendor_users[0].email} (ID: {vendor_users[0].id})")
-                        else:
-                            logger.warning(f"No vendor users found in tenant {tenant_id} for assignment {assignment.id}. Action items will not be created.")
+                            for vu in vendor_users:
+                                logger.info(f"  - Vendor user: {vu.email} (ID: {vu.id}), role: {vu.role.value if hasattr(vu.role, 'value') else vu.role}")
+                        
+                        # Strategy 2: If no exact match, try case-insensitive partial match
+                        if not vendor_users:
+                            vendor_users = self.db.query(User).filter(
+                                User.tenant_id == tenant_id,
+                                User.email.ilike(f"%{vendor.contact_email.lower()}%"),
+                                User.is_active == True
+                            ).all()
+                            if vendor_users:
+                                logger.info(f"Strategy 2 (partial email match): Found {len(vendor_users)} vendor user(s) with partial email match for {vendor.contact_email}")
+                                for vu in vendor_users:
+                                    logger.info(f"  - Vendor user: {vu.email} (ID: {vu.id}), role: {vu.role.value if hasattr(vu.role, 'value') else vu.role}")
+                        
+                        # Strategy 3: If still no match, find any active vendor users in the tenant
+                        if not vendor_users:
+                            all_vendor_users = self.db.query(User).filter(
+                                User.tenant_id == tenant_id,
+                                User.role == UserRole.VENDOR_USER,
+                                User.is_active == True
+                            ).all()
+                            logger.info(f"Strategy 3 (any vendor user): Found {len(all_vendor_users)} total vendor user(s) in tenant {tenant_id}")
+                            for vu in all_vendor_users:
+                                logger.info(f"  - Vendor user: {vu.email} (ID: {vu.id})")
+                            
+                            if all_vendor_users:
+                                vendor_users = all_vendor_users
+                                logger.warning(f"⚠️ No vendor user found with email matching {vendor.contact_email} for assignment {assignment.id}. Will assign to all {len(vendor_users)} vendor user(s) in tenant.")
+                            else:
+                                logger.error(f"❌ No vendor users found in tenant {tenant_id} for assignment {assignment.id}. Action items will NOT be created. Vendor email: {vendor.contact_email}. Please create a vendor user account with email matching {vendor.contact_email} or any vendor user in tenant {tenant_id}.")
+                    else:
+                        logger.warning(f"Vendor {assignment.vendor_id} ({vendor.name}) has no contact_email for assignment {assignment.id}. Cannot create action items.")
                 else:
-                    logger.warning(f"Vendor {assignment.vendor_id} has no contact_email for assignment {assignment.id}. Cannot create action items.")
+                    logger.error(f"❌ Vendor {assignment.vendor_id} not found in database for assignment {assignment.id}")
             else:
                 logger.info(f"Assignment {assignment.id} has no vendor_id. Skipping action item creation (may be agent-only assignment).")
             
@@ -739,11 +764,25 @@ class AssessmentService:
             
             # Create action items for vendor users
             if vendor_users:
+                action_items_created = 0
                 for vendor_user in vendor_users:
+                    # Check if action item already exists to avoid duplicates
+                    existing_action = self.db.query(ActionItem).filter(
+                        ActionItem.source_type == "assessment_assignment",
+                        ActionItem.source_id == assignment.id,
+                        ActionItem.assigned_to == vendor_user.id,
+                        ActionItem.status.in_([ActionItemStatus.PENDING.value, ActionItemStatus.IN_PROGRESS.value])
+                    ).first()
+                    
+                    if existing_action:
+                        logger.info(f"Action item already exists for vendor user {vendor_user.email} (ID: {vendor_user.id}) for assignment {assignment.id}. Skipping duplicate creation.")
+                        continue
+                    
                     action_item = ActionItem(
                         tenant_id=tenant_id,
                         assigned_to=vendor_user.id,
                         assigned_by=assigned_by,
+                        assigned_at=datetime.utcnow(),  # Explicitly set to current UTC time
                         action_type=ActionItemType.ASSESSMENT.value,
                         title=f"Complete Assessment: {assessment_name}",
                         description=f"Assessment has been assigned to you. Please complete all questions by the due date." + (f" Due: {assignment.due_date.strftime('%Y-%m-%d')}" if assignment.due_date else ""),
@@ -762,16 +801,25 @@ class AssessmentService:
                             "agent_id": str(assignment.agent_id) if assignment.agent_id else None,
                             "assignment_type": assignment.assignment_type,
                             "workflow_type": "assessment_assignment",
-                            "workflow_ticket_id": assignment.workflow_ticket_id  # Include ticket ID in metadata
+                            "workflow_ticket_id": assignment.workflow_ticket_id  # Human-readable ticket ID (e.g., ASMT-2026-017)
                         }
                     )
                     self.db.add(action_item)
-                    logger.info(f"Created assessment action item for vendor user {vendor_user.email} (ID: {vendor_user.id}) for assignment {assignment.id} (type: {assignment.assignment_type})")
+                    action_items_created += 1
+                    logger.info(f"✅ Created assessment action item for vendor user {vendor_user.email} (ID: {vendor_user.id}) for assignment {assignment.id} (type: {assignment.assignment_type})")
                 
-                self.db.commit()
-                logger.info(f"Successfully created {len(vendor_users)} action item(s) for assignment {assignment.id}")
+                if action_items_created > 0:
+                    try:
+                        self.db.commit()
+                        logger.info(f"✅ Successfully created {action_items_created} action item(s) for assignment {assignment.id}")
+                    except Exception as commit_error:
+                        logger.error(f"❌ Failed to commit action items for assignment {assignment.id}: {commit_error}", exc_info=True)
+                        self.db.rollback()
+                        raise
+                else:
+                    logger.info(f"No new action items created for assignment {assignment.id} (all already exist)")
             else:
-                logger.warning(f"No vendor users found for assignment {assignment.id}. Action items were not created. Vendor may need to be associated with a user account.")
+                logger.error(f"❌ No vendor users found for assignment {assignment.id}. Action items were NOT created. Vendor may need to be associated with a user account. Vendor ID: {assignment.vendor_id}, Vendor email: {vendor.contact_email if assignment.vendor_id and vendor else 'N/A'}")
             self.db.refresh(assignment)
             
             # Audit log

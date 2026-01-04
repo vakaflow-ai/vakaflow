@@ -293,12 +293,30 @@ export const assessmentsApi = {
     return response.data.responses || {}
   },
 
-  saveResponses: async (assignmentId: string, responses: Record<string, any>, isDraft: boolean = false): Promise<void> => {
-    await api.post(`/assessments/assignments/${assignmentId}/responses?is_draft=${isDraft}`, responses)
+  saveResponses: async (assignmentId: string, responses: Record<string, any>, isDraft: boolean = false): Promise<{
+    assignment_id: string
+    workflow_ticket_id?: string
+    status: string
+    workflow_triggered: boolean
+    message: string
+  }> => {
+    const response = await api.post(`/assessments/assignments/${assignmentId}/responses?is_draft=${isDraft}`, responses)
+    return response.data
   },
 
   saveResponsesDraft: async (assignmentId: string, responses: Record<string, any>): Promise<void> => {
     await api.post(`/assessments/assignments/${assignmentId}/responses/draft`, responses)
+  },
+
+  getApprovalStatus: async (assignmentId: string): Promise<{
+    has_workflow: boolean
+    current_step: number | null
+    step_name: string | null
+    total_steps: number
+    status?: string
+  }> => {
+    const response = await api.get(`/assessments/assignments/${assignmentId}/approval-status`)
+    return response.data
   },
 
   getAssignmentStatus: async (assignmentId: string): Promise<{

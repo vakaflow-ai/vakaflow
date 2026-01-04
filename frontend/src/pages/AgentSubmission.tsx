@@ -1882,7 +1882,7 @@ Please try:
               <label className="text-xs font-medium text-gray-700 mb-1 block">Text Explanation</label>
               <textarea
                 id={`${fieldId}_text`}
-                className="w-full px-3 py-2 border border-slate-300 rounded focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
+                className="w-full px-2 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition-all text-xs"
                 rows={4}
                 value={responseValue.text || ''}
                 onChange={(e) => {
@@ -1906,7 +1906,7 @@ Please try:
               <input
                 type="file"
                 id={`${fieldId}_file`}
-                className="w-full px-3 py-2 border border-slate-300 rounded focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition-all text-sm"
+                className="w-full px-2 py-1.5 border border-slate-300 rounded focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition-all text-xs"
                 multiple
                 accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif,.txt"
                 onChange={(e) => {
@@ -1926,7 +1926,7 @@ Please try:
               {responseValue.files && responseValue.files.length > 0 && (
                 <div className="mt-2 space-y-1">
                   {responseValue.files.map((file: any, idx: number) => (
-                    <div key={idx} className="flex items-center justify-between bg-slate-50 p-2 rounded text-xs">
+                    <div key={idx} className="flex items-center justify-between bg-slate-50 p-1.5 rounded text-xs">
                       <span>{file.name || file.file?.name}</span>
                       <button
                         type="button"
@@ -1952,7 +1952,7 @@ Please try:
           {allowedTypes.includes('url') && (
             <div>
               <label className="text-xs font-medium text-gray-700 mb-1 block">External Link (Google Drive, SharePoint, etc.)</label>
-              <div className="flex gap-2">
+              <div className="flex gap-1.5">
                 <input
                   type="url"
                   id={`${fieldId}_url`}
@@ -1972,7 +1972,7 @@ Please try:
               {responseValue.links && responseValue.links.length > 0 && (
                 <div className="mt-2 space-y-1">
                   {responseValue.links.map((link: string, idx: number) => (
-                    <div key={idx} className="flex items-center justify-between bg-slate-50 p-2 rounded text-xs">
+                    <div key={idx} className="flex items-center justify-between bg-slate-50 p-1.5 rounded text-xs">
                       <a href={link} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline truncate">
                         {link}
                       </a>
@@ -2085,7 +2085,7 @@ Please try:
                   }}
                   className="w-4 h-4"
                 />
-                <span className="text-sm">{opt.label || opt.value}</span>
+                <span className="text-xs">{opt.label || opt.value}</span>
               </label>
             ))}
           </div>
@@ -2170,7 +2170,7 @@ Please try:
         console.error('Invalid fieldName passed to renderFieldFromLayout:', fieldName)
         return (
           <div key={`invalid-${fieldIndex}`} className="space-y-2 p-2 bg-yellow-50 border border-yellow-200 rounded">
-            <p className="text-sm text-yellow-600">Invalid field name: {String(fieldName)}</p>
+            <p className="text-xs text-yellow-600">Invalid field name: {String(fieldName)}</p>
           </div>
         )
       }
@@ -2209,12 +2209,12 @@ Please try:
         case 'file_upload':
           return (
             <div key={`${fieldName}-${fieldIndex}`} className="space-y-2">
-              <label className="text-sm font-medium mb-1 block">
+              <label className="text-xs font-medium mb-0.5 block">
                 {customField.label}
                 {isRequired && <span className="text-red-600 ml-1">*</span>}
               </label>
               {customField.description && (
-                <p className="text-xs text-gray-500 mb-1">{customField.description}</p>
+                <p className="text-xs text-gray-500 mb-0.5">{customField.description}</p>
               )}
               <input
                 type="file"
@@ -2227,7 +2227,7 @@ Please try:
                     }))
                   }
                 }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
+                className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
                 accept={customField.accepted_file_types || '*'}
                 required={isRequired}
               />
@@ -2241,14 +2241,14 @@ Please try:
         case 'external_link':
           return (
             <div key={`${fieldName}-${fieldIndex}`} className="space-y-2">
-              <label className="text-sm font-medium mb-1 block">
+              <label className="text-xs font-medium mb-0.5 block">
                 {customField.label}
                 {isRequired && <span className="text-red-600 ml-1">*</span>}
               </label>
               {customField.description && (
-                <p className="text-xs text-gray-500 mb-1">{customField.description}</p>
+                <p className="text-xs text-gray-500 mb-0.5">{customField.description}</p>
               )}
-              <div className="flex gap-2">
+              <div className="flex gap-1.5">
                 <input
                   type="url"
                   value={(formData as any)[fieldName] || ''}
@@ -2262,7 +2262,7 @@ Please try:
                     href={(formData as any)[fieldName]}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm whitespace-nowrap"
+                    className="px-2 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 text-xs whitespace-nowrap"
                   >
                     {customField.link_text || 'Open Link'}
                   </a>
@@ -2273,16 +2273,16 @@ Please try:
         case 'textarea':
           return (
             <div key={`${fieldName}-${fieldIndex}`} className="space-y-2">
-              <label className="text-sm font-medium mb-1 block">
+              <label className="text-xs font-medium mb-0.5 block">
                 {customField.label}
                 {isRequired && <span className="text-red-600 ml-1">*</span>}
               </label>
               {customField.description && (
-                <p className="text-xs text-gray-500 mb-1">{customField.description}</p>
+                <p className="text-xs text-gray-500 mb-0.5">{customField.description}</p>
               )}
               {isReadOnly ? (
                 <div 
-                  className="compact-input min-h-[200px] p-3 bg-gray-50 border border-gray-200 rounded"
+                  className="compact-input min-h-[150px] p-2 bg-gray-50 border border-gray-200 rounded text-xs"
                   dangerouslySetInnerHTML={{ __html: fieldValue || '' }}
                 />
               ) : (
@@ -2329,12 +2329,12 @@ Please try:
             const selectedValues = Array.isArray((formData as any)[fieldName]) ? (formData as any)[fieldName] : []
             return (
               <div key={`${fieldName}-${fieldIndex}`} className="space-y-2">
-                <label className="text-sm font-medium mb-1 block">
+                <label className="text-xs font-medium mb-0.5 block">
                   {customField.label}
                   {isRequired && <span className="text-red-600 ml-1">*</span>}
                 </label>
                 {customField.description && (
-                  <p className="text-xs text-gray-500 mb-1">{customField.description}</p>
+                  <p className="text-xs text-gray-500 mb-0.5">{customField.description}</p>
                 )}
                 <div className="space-y-2">
                   {selectOptions.map((opt) => (
@@ -2360,17 +2360,17 @@ Please try:
           } else {
             return (
               <div key={`${fieldName}-${fieldIndex}`} className="space-y-2">
-                <label className="text-sm font-medium mb-1 block">
+                <label className="text-xs font-medium mb-0.5 block">
                   {customField.label}
                   {isRequired && <span className="text-red-600 ml-1">*</span>}
                 </label>
                 {customField.description && (
-                  <p className="text-xs text-gray-500 mb-1">{customField.description}</p>
+                  <p className="text-xs text-gray-500 mb-0.5">{customField.description}</p>
                 )}
                 <select
                   value={(formData as any)[fieldName] || ''}
                   onChange={(e) => setFormData((prev: any) => ({ ...prev, [fieldName]: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
+                  className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
                   required={isRequired}
                   disabled={isReadOnly}
                 >
@@ -2387,18 +2387,18 @@ Please try:
         case 'number':
           return (
             <div key={`${fieldName}-${fieldIndex}`} className="space-y-2">
-              <label className="text-sm font-medium mb-1 block">
+              <label className="text-xs font-medium mb-0.5 block">
                 {customField.label}
                 {isRequired && <span className="text-red-600 ml-1">*</span>}
               </label>
               {customField.description && (
-                <p className="text-xs text-gray-500 mb-1">{customField.description}</p>
+                <p className="text-xs text-gray-500 mb-0.5">{customField.description}</p>
               )}
               <input
                 type="number"
                 value={(formData as any)[fieldName] || ''}
                 onChange={(e) => setFormData((prev: any) => ({ ...prev, [fieldName]: e.target.value ? Number(e.target.value) : '' }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
+                className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
                 placeholder={customField.placeholder}
                 required={isRequired}
                 disabled={isReadOnly}
@@ -2408,18 +2408,18 @@ Please try:
         case 'date':
           return (
             <div key={`${fieldName}-${fieldIndex}`} className="space-y-2">
-              <label className="text-sm font-medium mb-1 block">
+              <label className="text-xs font-medium mb-0.5 block">
                 {customField.label}
                 {isRequired && <span className="text-red-600 ml-1">*</span>}
               </label>
               {customField.description && (
-                <p className="text-xs text-gray-500 mb-1">{customField.description}</p>
+                <p className="text-xs text-gray-500 mb-0.5">{customField.description}</p>
               )}
               <input
                 type="date"
                 value={(formData as any)[fieldName] || ''}
                 onChange={(e) => setFormData((prev: any) => ({ ...prev, [fieldName]: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
+                className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
                 required={isRequired}
                 disabled={isReadOnly}
               />
@@ -2428,18 +2428,18 @@ Please try:
         case 'email':
           return (
             <div key={`${fieldName}-${fieldIndex}`} className="space-y-2">
-              <label className="text-sm font-medium mb-1 block">
+              <label className="text-xs font-medium mb-0.5 block">
                 {customField.label}
                 {isRequired && <span className="text-red-600 ml-1">*</span>}
               </label>
               {customField.description && (
-                <p className="text-xs text-gray-500 mb-1">{customField.description}</p>
+                <p className="text-xs text-gray-500 mb-0.5">{customField.description}</p>
               )}
               <input
                 type="email"
                 value={(formData as any)[fieldName] || ''}
                 onChange={(e) => setFormData((prev: any) => ({ ...prev, [fieldName]: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
+                className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
                 placeholder={customField.placeholder}
                 required={isRequired}
                 disabled={isReadOnly}
@@ -2449,18 +2449,18 @@ Please try:
         case 'url':
           return (
             <div key={`${fieldName}-${fieldIndex}`} className="space-y-2">
-              <label className="text-sm font-medium mb-1 block">
+              <label className="text-xs font-medium mb-0.5 block">
                 {customField.label}
                 {isRequired && <span className="text-red-600 ml-1">*</span>}
               </label>
               {customField.description && (
-                <p className="text-xs text-gray-500 mb-1">{customField.description}</p>
+                <p className="text-xs text-gray-500 mb-0.5">{customField.description}</p>
               )}
               <input
                 type="url"
                 value={(formData as any)[fieldName] || ''}
                 onChange={(e) => setFormData((prev: any) => ({ ...prev, [fieldName]: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
+                className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
                 placeholder={customField.placeholder || 'https://...'}
                 required={isRequired}
                 disabled={isReadOnly}
@@ -2471,12 +2471,12 @@ Please try:
           // JSON field - render as structured key-value input
           return (
             <div key={`${fieldName}-${fieldIndex}`} className="space-y-2">
-              <label className="text-sm font-medium mb-1 block">
+              <label className="text-xs font-medium mb-0.5 block">
                 {customField.label}
                 {isRequired && <span className="text-red-600 ml-1">*</span>}
               </label>
               {customField.description && (
-                <p className="text-xs text-gray-500 mb-1">{customField.description}</p>
+                <p className="text-xs text-gray-500 mb-0.5">{customField.description}</p>
               )}
               <JsonFieldInput
                 value={fieldValue}
@@ -2497,16 +2497,16 @@ Please try:
           // Rich text field - render with ReactQuill editor
           return (
             <div key={`${fieldName}-${fieldIndex}`} className="space-y-2">
-              <label className="text-sm font-medium mb-1 block">
+              <label className="text-xs font-medium mb-0.5 block">
                 {customField.label}
                 {isRequired && <span className="text-red-600 ml-1">*</span>}
               </label>
               {customField.description && (
-                <p className="text-xs text-gray-500 mb-1">{customField.description}</p>
+                <p className="text-xs text-gray-500 mb-0.5">{customField.description}</p>
               )}
               {isReadOnly ? (
                 <div 
-                  className="compact-input min-h-[200px] p-3 bg-gray-50 border border-gray-200 rounded"
+                  className="compact-input min-h-[150px] p-2 bg-gray-50 border border-gray-200 rounded text-xs"
                   dangerouslySetInnerHTML={{ __html: fieldValue || '' }}
                 />
               ) : (
@@ -2540,12 +2540,12 @@ Please try:
           const diagramFieldConfig = (customField as any).field_config || {}
           return (
             <div key={`${fieldName}-${fieldIndex}`} className="space-y-2">
-              <label className="text-sm font-medium mb-1 block">
+              <label className="text-xs font-medium mb-0.5 block">
                 {customField.label}
                 {isRequired && <span className="text-red-600 ml-1">*</span>}
               </label>
               {customField.description && (
-                <p className="text-xs text-gray-500 mb-1">{customField.description}</p>
+                <p className="text-xs text-gray-500 mb-0.5">{customField.description}</p>
               )}
               <DiagramFieldInput
                 value={(formData as any)[fieldName]}
@@ -2566,18 +2566,18 @@ Please try:
         default:
           return (
             <div key={`${fieldName}-${fieldIndex}`} className="space-y-2">
-              <label className="text-sm font-medium mb-1 block">
+              <label className="text-xs font-medium mb-0.5 block">
                 {customField.label}
                 {customField.is_required && <span className="text-red-600 ml-1">*</span>}
               </label>
               {customField.description && (
-                <p className="text-xs text-gray-500 mb-1">{customField.description}</p>
+                <p className="text-xs text-gray-500 mb-0.5">{customField.description}</p>
               )}
               <input
                 type="text"
                 value={(formData as any)[fieldName] || ''}
                 onChange={(e) => setFormData((prev: any) => ({ ...prev, [fieldName]: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
+                className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
                 placeholder={customField.placeholder}
                 required={customField.is_required}
               />
@@ -2607,7 +2607,7 @@ Please try:
         const diagramFieldConfig = fieldConfig as any || {}
         return (
           <div key={`${fieldName}-${fieldIndex}`} className={`space-y-2 ${isReadOnly ? 'opacity-75' : ''}`}>
-            <label className="text-sm font-medium text-gray-900 mb-1 block">
+            <label className="text-xs font-medium text-gray-900 mb-0.5 block">
               {availableFieldLabel}
               {isRequired && <span className="text-red-600 ml-1">*</span>}
             </label>
@@ -2678,7 +2678,7 @@ Please try:
         return (
               <div key={`${fieldName}-${fieldIndex}`} className="space-y-2">
             <div className="flex items-center justify-between mb-2">
-              <label className="text-sm font-medium mb-1 block">
+              <label className="text-xs font-medium mb-0.5 block">
                 {availableFieldLabel}
               </label>
               {!isEditing && (
@@ -2692,7 +2692,7 @@ Please try:
               )}
             </div>
             {availableField.description && (
-              <p className="text-xs text-gray-500 mb-3">{availableField.description}</p>
+                <p className="text-xs text-gray-500 mb-1.5">{availableField.description}</p>
             )}
             {isEditing ? (
               <div className="space-y-4 border border-gray-200 rounded-lg p-4">
@@ -2703,7 +2703,7 @@ Please try:
                   className="w-full min-h-[300px] p-3 border rounded font-mono text-sm"
                   style={{ fontFamily: 'monospace' }}
                 />
-                <div className="flex gap-2">
+                <div className="flex gap-1.5">
                   <button
                     type="button"
                     onClick={handleSave}
@@ -2741,7 +2741,7 @@ Please try:
                 {displayDiagram ? (
                   <>
                     <MermaidDiagram diagram={displayDiagram} id={`mermaid-diagram-${fieldName}`} />
-                    <div className="flex gap-2">
+                    <div className="flex gap-1.5">
                       <button
                         type="button"
                         onClick={handleStartEdit}
@@ -2858,7 +2858,7 @@ Please try:
       if (fieldType === 'select' && fieldOptions.length > 0 && !apiFieldConfig.depends_on) {
         return (
           <div key={`${fieldName}-${fieldIndex}`} className={`space-y-2 ${isReadOnly ? 'opacity-75' : ''}`}>
-            <label className="text-sm font-medium text-gray-900 mb-1 block">
+            <label className="text-xs font-medium text-gray-900 mb-0.5 block">
               {availableFieldLabel}
               {isRequired && <span className="text-red-600 ml-1">*</span>}
             </label>
@@ -2918,12 +2918,12 @@ Please try:
         const selectedValues = Array.isArray(fieldValue) ? fieldValue : (fieldValue ? [fieldValue] : [])
         return (
           <div key={`${fieldName}-${fieldIndex}`} className={`space-y-2 ${isReadOnly ? 'opacity-75' : ''}`}>
-            <label className="text-sm font-medium text-gray-900 mb-1 block">
+            <label className="text-xs font-medium text-gray-900 mb-0.5 block">
               {availableFieldLabel}
               {isRequired && <span className="text-red-600 ml-1">*</span>}
             </label>
             {availableField.description && (
-              <p className="text-xs text-gray-500 mb-3">{availableField.description}</p>
+                <p className="text-xs text-gray-500 mb-1.5">{availableField.description}</p>
             )}
             <div className="grid grid-cols-2 gap-3 border border-gray-200 rounded-lg p-4">
               {fieldOptions.map((opt: any) => {
@@ -2979,7 +2979,7 @@ Please try:
         if (!dependsOnValue) {
           return (
             <div key={`${fieldName}-${fieldIndex}`} className={`space-y-2 ${isReadOnly ? 'opacity-75' : ''}`}>
-              <label className="text-sm font-medium text-gray-900 mb-1 block">
+              <label className="text-xs font-medium text-gray-900 mb-0.5 block">
                 {availableFieldLabel}
                 {isRequired && <span className="text-red-600 ml-1">*</span>}
               </label>
@@ -3001,7 +3001,7 @@ Please try:
                 {isRequired && <span className="text-red-600 ml-1">*</span>}
               </label>
               {availableField.description && (
-                <p className="text-xs text-gray-500 mb-2">{availableField.description}</p>
+                <p className="text-xs text-gray-500 mb-1">{availableField.description}</p>
               )}
               <input
                 type="text"
@@ -3023,7 +3023,7 @@ Please try:
         if (dependentOptions.length > 0) {
           return (
             <div key={`${fieldName}-${fieldIndex}`} className={`space-y-2 ${isReadOnly ? 'opacity-75' : ''}`}>
-              <label className="text-sm font-medium text-gray-900 mb-1 block">
+              <label className="text-xs font-medium text-gray-900 mb-0.5 block">
                 {availableFieldLabel}
                 {isRequired && <span className="text-red-600 ml-1">*</span>}
               </label>
@@ -3037,7 +3037,7 @@ Please try:
                     setFormData((prev: any) => ({ ...prev, [fieldName]: e.target.value }))
                   }
                 }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
+                className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
                 disabled={isReadOnly}
                 required={isRequired}
               >
@@ -3080,7 +3080,7 @@ Please try:
                 {isRequired && <span className="text-red-600 ml-1">*</span>}
               </label>
               {availableField.description && (
-                <p className="text-xs text-gray-500 mb-2">{availableField.description}</p>
+                <p className="text-xs text-gray-500 mb-1">{availableField.description}</p>
               )}
               <input
                 type="text"
@@ -3110,7 +3110,7 @@ Please try:
         if (!dependsOnValue) {
           return (
             <div key={`${fieldName}-${fieldIndex}`} className={`space-y-2 ${isReadOnly ? 'opacity-75' : ''}`}>
-              <label className="text-sm font-medium text-gray-900 mb-1 block">
+              <label className="text-xs font-medium text-gray-900 mb-0.5 block">
                 {availableFieldLabel}
                 {isRequired && <span className="text-red-600 ml-1">*</span>}
               </label>
@@ -3127,7 +3127,7 @@ Please try:
         if (dependentOptions.length > 0) {
           return (
             <div key={`${fieldName}-${fieldIndex}`} className={`space-y-2 ${isReadOnly ? 'opacity-75' : ''}`}>
-              <label className="text-sm font-medium text-gray-900 mb-1 block">
+              <label className="text-xs font-medium text-gray-900 mb-0.5 block">
                 {availableFieldLabel}
                 {isRequired && <span className="text-red-600 ml-1">*</span>}
               </label>
@@ -3141,7 +3141,7 @@ Please try:
                     setFormData((prev: any) => ({ ...prev, [fieldName]: e.target.value }))
                   }
                 }}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
+                className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
                 disabled={isReadOnly}
                 required={isRequired}
               >
@@ -3166,7 +3166,7 @@ Please try:
                 {isRequired && <span className="text-red-600 ml-1">*</span>}
               </label>
               {availableField.description && (
-                <p className="text-xs text-gray-500 mb-2">{availableField.description}</p>
+                <p className="text-xs text-gray-500 mb-1">{availableField.description}</p>
               )}
               <input
                 type="text"
@@ -3190,7 +3190,7 @@ Please try:
       if (fieldType === 'json' && fieldOptions.length === 0) {
         return (
           <div key={`${fieldName}-${fieldIndex}`} className={`space-y-2 ${isReadOnly ? 'opacity-75' : ''}`}>
-            <label className="text-sm font-medium text-gray-900 mb-1 block">
+            <label className="text-xs font-medium text-gray-900 mb-0.5 block">
               {availableFieldLabel}
               {isRequired && <span className="text-red-600 ml-1">*</span>}
             </label>
@@ -3219,7 +3219,7 @@ Please try:
         case 'textarea':
           return (
             <div key={`${fieldName}-${fieldIndex}`} className={`space-y-2 ${isReadOnly ? 'opacity-75' : ''}`}>
-              <label className="text-sm font-medium text-gray-900 mb-1 block">
+              <label className="text-xs font-medium text-gray-900 mb-0.5 block">
                 {availableFieldLabel}
                 {isRequired && <span className="text-red-600 ml-1">*</span>}
               </label>
@@ -3228,7 +3228,7 @@ Please try:
               )}
               {isReadOnly ? (
                 <div 
-                  className="compact-input min-h-[200px] p-3 bg-gray-50 border border-gray-200 rounded"
+                  className="compact-input min-h-[150px] p-2 bg-gray-50 border border-gray-200 rounded text-xs"
                   dangerouslySetInnerHTML={{ __html: fieldValue || '' }}
                 />
               ) : (
@@ -3262,7 +3262,7 @@ Please try:
           // Select/multi_select without options - render as text input
           return (
             <div key={`${fieldName}-${fieldIndex}`} className={`space-y-2 ${isReadOnly ? 'opacity-75' : ''}`}>
-              <label className="text-sm font-medium text-gray-900 mb-1 block">
+              <label className="text-xs font-medium text-gray-900 mb-0.5 block">
                 {availableFieldLabel}
                 {isRequired && <span className="text-red-600 ml-1">*</span>}
               </label>
@@ -3273,7 +3273,7 @@ Please try:
                 type="text"
                 value={fieldValue || ''}
                 onChange={(e) => !isReadOnly && setFormData((prev: any) => ({ ...prev, [fieldName]: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
+                className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
                 placeholder={fieldConfig.placeholder || `Enter ${availableFieldLabel.toLowerCase()}...`}
                 disabled={isReadOnly}
               />
@@ -3282,7 +3282,7 @@ Please try:
         default:
           return (
             <div key={`${fieldName}-${fieldIndex}`} className={`space-y-2 ${isReadOnly ? 'opacity-75' : ''}`}>
-              <label className="text-sm font-medium text-gray-900 mb-1 block">
+              <label className="text-xs font-medium text-gray-900 mb-0.5 block">
                 {availableFieldLabel}
               </label>
               {availableField.description && (
@@ -3292,7 +3292,7 @@ Please try:
                 type="text"
                 value={fieldValue || ''}
                 onChange={(e) => !isReadOnly && setFormData((prev: any) => ({ ...prev, [fieldName]: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
+                className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
                 placeholder={availableField.placeholder || `Enter ${availableFieldLabel.toLowerCase()}...`}
                 disabled={isReadOnly}
               />
@@ -3924,10 +3924,10 @@ Please try:
               <span className="text-sm">Shares Biometric Data</span>
             </label>
             <div className="mt-4 pt-4 border-t border-gray-200">
-              <label className="text-sm font-medium mb-1 block">Data Retention Period</label>
+              <label className="text-xs font-medium mb-0.5 block">Data Retention Period</label>
               <input
                 type="text"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
+                className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
                 value={scope.data_retention_period || ''}
                 onChange={(e) => setFormData({
                   ...formData,
@@ -3940,7 +3940,7 @@ Please try:
               />
             </div>
             <div className="mt-4">
-              <label className="text-sm font-medium mb-1 block">Data Processing Location</label>
+              <label className="text-xs font-medium mb-0.5 block">Data Processing Location</label>
               <div className="grid grid-cols-2 gap-3 mt-2">
                 {WORLD_REGIONS.map((region) => (
                   <label key={region} className="flex items-center gap-2 cursor-pointer">
@@ -4121,7 +4121,7 @@ Please try:
           <p className="text-xs text-gray-500 mb-3">Release notes and compatibility information</p>
           <div className="space-y-4 border border-gray-200 rounded-lg p-4">
             <div>
-              <label className="text-sm font-medium mb-1 block">Release Notes</label>
+              <label className="text-xs font-medium mb-0.5 block">Release Notes</label>
               <textarea
                 className="compact-input min-h-[100px]"
                 value={versionInfo.release_notes || ''}
@@ -4133,7 +4133,7 @@ Please try:
               />
             </div>
             <div>
-              <label className="text-sm font-medium mb-1 block">Changelog</label>
+              <label className="text-xs font-medium mb-0.5 block">Changelog</label>
               <textarea
                 className="compact-input min-h-[100px]"
                 value={versionInfo.changelog || ''}
@@ -4145,10 +4145,10 @@ Please try:
               />
             </div>
             <div>
-              <label className="text-sm font-medium mb-1 block">Compatibility</label>
+              <label className="text-xs font-medium mb-0.5 block">Compatibility</label>
               <input
                 type="text"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
+                className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
                 value={versionInfo.compatibility || ''}
                 onChange={(e) => setFormData({
                   ...formData,
@@ -4158,7 +4158,7 @@ Please try:
               />
             </div>
             <div>
-              <label className="text-sm font-medium mb-1 block">Known Issues</label>
+              <label className="text-xs font-medium mb-0.5 block">Known Issues</label>
               <textarea
                 className="compact-input min-h-[80px]"
                 value={versionInfo.known_issues || ''}
@@ -4205,7 +4205,7 @@ Please try:
                 className="w-full min-h-[300px] p-3 border rounded font-mono text-sm"
                 style={{ fontFamily: 'monospace' }}
               />
-              <div className="flex gap-2">
+              <div className="flex gap-1.5">
                 <button
                   onClick={handleSave}
                   className="compact-button-primary"
@@ -4280,9 +4280,9 @@ Please try:
             </div>
 
             <div>
-              <label className="text-sm font-medium mb-1 block">LLM Vendor *</label>
+              <label className="text-xs font-medium mb-0.5 block">LLM Vendor *</label>
               <select
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
+                className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
                 value={formData.llm_vendor}
                 onChange={(e) => {
                   const newVendor = e.target.value
@@ -4330,7 +4330,7 @@ Please try:
             </div>
 
             <div>
-              <label className="text-sm font-medium mb-1 block">LLM Model *</label>
+              <label className="text-xs font-medium mb-0.5 block">LLM Model *</label>
               {!formData.llm_vendor ? (
                 <div className="border border-gray-200 rounded-lg p-4 text-center text-sm text-muted-foreground">
                   Please select an LLM vendor first
@@ -4344,7 +4344,7 @@ Please try:
                   </p>
                   <input
                     type="text"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
+                    className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
                     value={formData.llm_model_custom}
                     onChange={(e) => setFormData({ ...formData, llm_model_custom: e.target.value })}
                     placeholder="e.g., custom-llm-v2, internal-model-1.0, vendor-specific-model"
@@ -4353,7 +4353,7 @@ Please try:
               ) : (
                 <>
                   <select
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
+                    className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
                     value={formData.llm_model || ''}
                     onChange={(e) => {
                       setFormData({ ...formData, llm_model: e.target.value })
@@ -4385,9 +4385,9 @@ Please try:
             </div>
 
             <div>
-              <label className="text-sm font-medium mb-1 block">Deployment Type *</label>
+              <label className="text-xs font-medium mb-0.5 block">Deployment Type *</label>
               <select
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
+                className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
                 value={formData.deployment_type}
                 onChange={(e) => setFormData({ ...formData, deployment_type: e.target.value })}
               >
@@ -4467,10 +4467,10 @@ Please try:
                   <span className="text-sm">Shares Biometric Data</span>
                 </label>
                 <div className="mt-4">
-                  <label className="text-sm font-medium mb-1 block">Data Retention Period</label>
+                  <label className="text-xs font-medium mb-0.5 block">Data Retention Period</label>
                   <input
                     type="text"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
+                    className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
                     value={formData.data_sharing_scope.data_retention_period}
                     onChange={(e) => setFormData({
                       ...formData,
@@ -4483,7 +4483,7 @@ Please try:
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium mb-1 block">Data Processing Location</label>
+                  <label className="text-xs font-medium mb-0.5 block">Data Processing Location</label>
                   <div className="grid grid-cols-2 gap-3 border border-gray-200 rounded-lg p-4">
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input
@@ -4631,7 +4631,7 @@ Please try:
             </div>
 
             <div>
-              <label className="text-sm font-medium mb-1 block">Data Usage Purpose</label>
+              <label className="text-xs font-medium mb-0.5 block">Data Usage Purpose</label>
               <textarea
                 className="compact-input min-h-[120px]"
                 value={formData.data_usage_purpose}
@@ -4894,10 +4894,10 @@ Please try:
               <div className="space-y-4">
                 <div className="compact-card space-y-4">
                   <div>
-                    <label className="text-sm font-medium mb-1 block">Entity/Connection Name *</label>
+                    <label className="text-xs font-medium mb-0.5 block">Entity/Connection Name *</label>
                     <input
                       type="text"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
+                      className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
                       value={connectionInput.name}
                       onChange={(e) => {
                         setConnectionInput({ ...connectionInput, name: e.target.value })
@@ -4918,10 +4918,10 @@ Please try:
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="text-sm font-medium mb-1 block">From *</label>
+                      <label className="text-xs font-medium mb-0.5 block">From *</label>
                       <input
                         type="text"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
+                        className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
                         value={connectionInput.source_system || 'Agent'}
                         onChange={(e) => {
                           setConnectionInput({ ...connectionInput, source_system: e.target.value || 'Agent' })
@@ -4937,10 +4937,10 @@ Please try:
                       />
                     </div>
                     <div>
-                      <label className="text-sm font-medium mb-1 block">To (Entity) *</label>
+                      <label className="text-xs font-medium mb-0.5 block">To (Entity) *</label>
                       <input
                         type="text"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
+                        className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
                         value={connectionInput.destination_system || connectionInput.app_name || connectionInput.name || ''}
                         onChange={(e) => {
                           const dest = e.target.value
@@ -4975,9 +4975,9 @@ Please try:
                   </div>
                   <div className="flex items-center gap-4">
                     <div className="flex-1">
-                      <label className="text-sm font-medium mb-1 block">Connection Type *</label>
+                      <label className="text-xs font-medium mb-0.5 block">Connection Type *</label>
                       <select
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
+                        className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
                         value={connectionInput.protocol || ''}
                         onChange={(e) => {
                           setConnectionInput({ ...connectionInput, protocol: e.target.value })
@@ -5014,9 +5014,9 @@ Please try:
                       </select>
                     </div>
                     <div className="flex-1">
-                      <label className="text-sm font-medium mb-1 block">Data Flow *</label>
+                      <label className="text-xs font-medium mb-0.5 block">Data Flow *</label>
                       <select
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
+                        className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
                         value={connectionInput.data_flow_direction}
                         onChange={(e) => {
                           setConnectionInput({ ...connectionInput, data_flow_direction: e.target.value as any })
@@ -5070,7 +5070,7 @@ Please try:
                       </button>
                     </div>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-1.5">
                     <button
                       type="button"
                       onClick={() => {
@@ -5340,7 +5340,7 @@ Please try:
         return (
           <div className="space-y-4">
             <div>
-              <label className="text-sm font-medium mb-1 block">Release Notes</label>
+              <label className="text-xs font-medium mb-0.5 block">Release Notes</label>
               <textarea
                 className="compact-input min-h-[100px]"
                 value={formData.version_info.release_notes}
@@ -5352,7 +5352,7 @@ Please try:
               />
             </div>
             <div>
-              <label className="text-sm font-medium mb-1 block">Changelog</label>
+              <label className="text-xs font-medium mb-0.5 block">Changelog</label>
               <textarea
                 className="compact-input min-h-[100px]"
                 value={formData.version_info.changelog}
@@ -5364,10 +5364,10 @@ Please try:
               />
             </div>
             <div>
-              <label className="text-sm font-medium mb-1 block">Compatibility</label>
+              <label className="text-xs font-medium mb-0.5 block">Compatibility</label>
               <input
                 type="text"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
+                className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:cursor-not-allowed"
                 value={formData.version_info.compatibility}
                 onChange={(e) => setFormData({
                   ...formData,
@@ -5377,7 +5377,7 @@ Please try:
               />
             </div>
             <div>
-              <label className="text-sm font-medium mb-1 block">Known Issues</label>
+              <label className="text-xs font-medium mb-0.5 block">Known Issues</label>
               <textarea
                 className="compact-input min-h-[80px]"
                 value={formData.version_info.known_issues}
@@ -5716,9 +5716,9 @@ Please try:
   return (
     <Layout user={user}>
       <div className="max-w-5xl mx-auto">
-        <div className="mb-6">
-          <h1 className="text-lg font-medium">{agentId ? 'Edit Agent Submission' : 'Submit New Agent'}</h1>
-          <p className="text-sm text-muted-foreground mt-1">
+            <div className="mb-4">
+          <h1 className="text-base font-medium">{agentId ? 'Edit Agent Submission' : 'Submit New Agent'}</h1>
+          <p className="text-xs text-muted-foreground mt-0.5">
             {agentId ? 'Continue editing your agent submission' : 'Complete all steps to submit your agent for review'}
           </p>
           {formLayout && (

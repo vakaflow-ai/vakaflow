@@ -1191,11 +1191,21 @@ class AssessmentAssignmentResponse(BaseModel):
     started_at: Optional[str]
     completed_at: Optional[str]
     due_date: Optional[str]
+    workflow_ticket_id: Optional[str] = None
     created_at: str
     updated_at: str
     
     class Config:
         from_attributes = True
+
+
+class AssessmentSubmissionResponse(BaseModel):
+    """Response model for assessment submission"""
+    assignment_id: str
+    workflow_ticket_id: Optional[str]
+    status: str
+    workflow_triggered: bool
+    message: str
 
 
 @router.get("/{assessment_id}/assignments", response_model=List[AssessmentAssignmentResponse])
@@ -1308,7 +1318,7 @@ async def create_assignment(
             schedule_id=schedule_id
         )
         
-        # Generate workflow ticket ID when assignment is created (not just on completion)
+        # Generate human-readable workflow ticket ID when assignment is created
         # This ensures ticket IDs are available for pending assignments in the inbox
         if not assignment.workflow_ticket_id:
             try:
@@ -1317,7 +1327,7 @@ async def create_assignment(
                 logger.info(f"✅ Generated workflow ticket ID {assignment.workflow_ticket_id} for assignment {assignment.id} at creation")
             except Exception as e:
                 logger.warning(f"Failed to generate workflow ticket ID for assignment {assignment.id} at creation: {e}. Will retry on completion.")
-                # Continue without ticket ID - it will be generated on completion as fallback
+                # Continue without ticket ID - it will be generated on completion as fallback - it will be set from the action item ID
         
         # Create action item for vendor users when assignment is created via API
         # Note: Action items are also created in the service layer, but we keep this here
@@ -1361,6 +1371,7 @@ async def create_assignment(
                     tenant_id=effective_tenant_id,
                     assigned_to=vendor_user.id,
                     assigned_by=current_user.id,
+                    assigned_at=datetime.utcnow(),  # Explicitly set to current UTC time
                     action_type=ActionItemType.ASSESSMENT.value,
                     title=f"Complete Assessment: {assessment.name}",
                     description=f"Assessment has been assigned to you. Please complete all questions by the due date." + (f" Due: {assignment.due_date.strftime('%Y-%m-%d')}" if assignment.due_date else ""),
@@ -1595,7 +1606,7 @@ async def get_assignment_questions(
     return result
 
 
-@router.post("/assignments/{assignment_id}/responses", status_code=status.HTTP_204_NO_CONTENT)
+@router.post("/assignments/{assignment_id}/responses", response_model=AssessmentSubmissionResponse)
 async def save_assessment_responses(
     assignment_id: UUID,
     responses: Dict[str, Any],  # {question_id: {value, comment, documents} or simple value}
@@ -1886,7 +1897,7 @@ async def save_assessment_responses(
                 assignment.completed_at = datetime.utcnow()
                 logger.info(f"✅ Set completed_at timestamp for assignment {assignment_id}")
             
-            # Generate workflow ticket ID if not already set (human-friendly ticket number)
+            # Generate human-readable workflow ticket ID (e.g., ASMT-2026-017)
             if not assignment.workflow_ticket_id:
                 try:
                     assignment.workflow_ticket_id = _generate_assessment_ticket_id(db, assignment.tenant_id)
@@ -2113,9 +2124,42 @@ async def save_assessment_responses(
         for item in review_items_after:
             logger.info(f"  - Action item {item.id}: assigned_to={item.assigned_to}, status={item.status.value if hasattr(item.status, 'value') else item.status}, type={item.action_type.value if hasattr(item.action_type, 'value') else item.action_type}")
         
-        # Refresh assignment to ensure status is persisted
+        # Refresh assignment to ensure status is persisted and get latest ticket ID
         db.refresh(assignment)
-        logger.info(f"Assignment {assignment_id} status after commit: {assignment.status}")
+        logger.info(f"Assignment {assignment_id} status after commit: {assignment.status}, ticket_id: {assignment.workflow_ticket_id}")
+        
+        # Update action items' metadata with the human-readable ticket ID
+        if assignment.workflow_ticket_id:
+            from app.models.action_item import ActionItem, ActionItemType
+            action_items_to_update = db.query(ActionItem).filter(
+                ActionItem.source_id == assignment_id,
+                ActionItem.source_type == "assessment_approval",
+                ActionItem.action_type == ActionItemType.APPROVAL
+            ).all()
+            
+            for action_item in action_items_to_update:
+                # Update metadata to include workflow_ticket_id (human-readable ticket ID)
+                if not action_item.item_metadata:
+                    action_item.item_metadata = {}
+                if not action_item.item_metadata.get("workflow_ticket_id"):
+                    action_item.item_metadata["workflow_ticket_id"] = assignment.workflow_ticket_id
+                    logger.info(f"Updated action item {action_item.id} metadata with workflow_ticket_id {assignment.workflow_ticket_id}")
+            
+            if action_items_to_update:
+                db.commit()
+                logger.info(f"Updated {len(action_items_to_update)} action items with workflow_ticket_id {assignment.workflow_ticket_id}")
+        
+        # Determine if workflow was triggered
+        workflow_triggered = approval_items_after_commit > 0
+        
+        # Return response with human-readable ticket ID and workflow status
+        return AssessmentSubmissionResponse(
+            assignment_id=str(assignment_id),
+            workflow_ticket_id=assignment.workflow_ticket_id,
+            status=assignment.status,
+            workflow_triggered=workflow_triggered,
+            message=f"Assessment submitted successfully" + (f" with ticket {assignment.workflow_ticket_id}" if assignment.workflow_ticket_id else "")
+        )
     except Exception as e:
         db.rollback()
         logger.error(f"Error saving assessment responses: {e}", exc_info=True)
@@ -2433,7 +2477,7 @@ async def _assign_human_reviewers(
             Review Assessment: {review_url}
             """
             
-            await email_service.send_email(
+            sent, _ = await email_service.send_email(
                 assigned_reviewer.email,
                 subject,
                 html_body,
@@ -2674,7 +2718,7 @@ async def _trigger_resubmission_workflow(
             Please address the feedback and resubmit the assessment for approval.
             """
 
-            await email_service.send_email(submitter.email, subject, html_body, text_body)
+            sent, _ = await email_service.send_email(submitter.email, subject, html_body, text_body)
         except Exception as e:
             logger.error(f"Failed to send resubmission notification email to {submitter.email}: {e}", exc_info=True)
 
@@ -2687,8 +2731,9 @@ async def _trigger_assessment_approval_workflow(
     db: Session,
     background_tasks: Optional[BackgroundTasks] = None
 ):
-    """Trigger assessment approval workflow by creating inbox item for approvers"""
+    """Trigger assessment approval workflow using workflow configuration steps"""
     from app.models.action_item import ActionItem, ActionItemType, ActionItemStatus, ActionItemPriority
+    from app.models.approval import ApprovalInstance, ApprovalStep, ApprovalStatus
     from app.services.email_service import EmailService
     from app.models.vendor import Vendor
     from app.models.agent import Agent
@@ -2699,6 +2744,133 @@ async def _trigger_assessment_approval_workflow(
     if not assessment:
         logger.warning(f"Assessment {assignment.assessment_id} not found for assignment {assignment.id}")
         return
+
+    # Get workflow configuration for assessment workflow
+    from app.services.workflow_orchestration import WorkflowOrchestrationService
+    from app.models.workflow_config import WorkflowConfiguration
+    
+    orchestration = WorkflowOrchestrationService(db, assignment.tenant_id)
+    
+    # Get assessment data for workflow matching
+    assessment_data = {
+        "id": str(assessment.id),
+        "name": assessment.name,
+        "assessment_type": assessment.assessment_type,
+        "status": assessment.status
+    }
+    
+    # Get workflow configuration for assessment_workflow request type
+    workflow_config = orchestration.get_workflow_for_entity(
+        entity_type="assessment_assignments",
+        entity_data=assessment_data,
+        request_type="assessment_workflow"
+    )
+    
+    # If no specific workflow found, try to get default workflow
+    if not workflow_config:
+        workflow_config = db.query(WorkflowConfiguration).filter(
+            WorkflowConfiguration.tenant_id == assignment.tenant_id,
+            WorkflowConfiguration.is_default == True,
+            WorkflowConfiguration.status == "active"
+        ).first()
+    
+    # Get workflow steps from configuration
+    workflow_steps = []
+    if workflow_config and workflow_config.workflow_steps:
+        steps = workflow_config.workflow_steps
+        # Handle JSON string if needed
+        if isinstance(steps, str):
+            import json
+            try:
+                steps = json.loads(steps)
+            except json.JSONDecodeError:
+                logger.error(f"Failed to parse workflow_steps JSON: {steps}")
+                steps = []
+        
+        if isinstance(steps, list):
+            workflow_steps = sorted(steps, key=lambda x: x.get("step_number", 999))
+            logger.info(f"Found workflow config {workflow_config.id} with {len(workflow_steps)} steps for assignment {assignment.id}")
+        else:
+            logger.warning(f"Workflow steps is not a list: {type(steps)}, value: {steps}")
+    else:
+        logger.warning(f"No workflow configuration found for assessment assignment {assignment.id}. Using default 2-step workflow.")
+        # Fallback to default 2-step workflow if no config found
+        workflow_steps = [
+            {
+                "step_number": 1,
+                "step_type": "approval",
+                "step_name": "Assessment Review",
+                "assigned_role": "approver",
+                "required": True,
+                "can_skip": False,
+                "auto_assign": True
+            },
+            {
+                "step_number": 2,
+                "step_type": "approval",
+                "step_name": "Final Approval",
+                "assigned_role": "approver",
+                "required": True,
+                "can_skip": False,
+                "auto_assign": True
+            }
+        ]
+    
+    # Create or get ApprovalInstance for this assignment
+    approval_instance = db.query(ApprovalInstance).filter(
+        ApprovalInstance.assignment_id == assignment.id
+    ).first()
+    
+    if not approval_instance:
+        # Determine first step number
+        first_step_number = workflow_steps[0].get("step_number", 1) if workflow_steps else 1
+        
+        # Create new approval instance
+        approval_instance = ApprovalInstance(
+            assignment_id=assignment.id,
+            current_step=first_step_number,  # Start at first step from workflow config
+            status=ApprovalStatus.IN_PROGRESS.value,
+            started_at=datetime.utcnow()
+        )
+        db.add(approval_instance)
+        db.flush()
+        logger.info(f"Created ApprovalInstance {approval_instance.id} for assignment {assignment.id}, starting at Step {first_step_number}")
+        
+        # Create ApprovalStep records from workflow configuration
+        for step_config in workflow_steps:
+            step = ApprovalStep(
+                instance_id=approval_instance.id,
+                step_number=step_config.get("step_number", 0),
+                step_type=step_config.get("step_type", "approval"),
+                step_name=step_config.get("step_name", f"Step {step_config.get('step_number', 0)}"),
+                status="pending",
+                assigned_role=step_config.get("assigned_role", "approver")
+            )
+            db.add(step)
+        
+        db.flush()
+        logger.info(f"Created {len(workflow_steps)} ApprovalSteps from workflow config for assignment {assignment.id}")
+    else:
+        logger.info(f"ApprovalInstance {approval_instance.id} already exists for assignment {assignment.id}, current_step={approval_instance.current_step}")
+        # Get existing steps
+        existing_steps = db.query(ApprovalStep).filter(
+            ApprovalStep.instance_id == approval_instance.id
+        ).order_by(ApprovalStep.step_number).all()
+        
+        if not existing_steps and workflow_steps:
+            # Create steps if they don't exist
+            for step_config in workflow_steps:
+                step = ApprovalStep(
+                    instance_id=approval_instance.id,
+                    step_number=step_config.get("step_number", 0),
+                    step_type=step_config.get("step_type", "approval"),
+                    step_name=step_config.get("step_name", f"Step {step_config.get('step_number', 0)}"),
+                    status="pending",
+                    assigned_role=step_config.get("assigned_role", "approver")
+                )
+                db.add(step)
+            db.flush()
+            logger.info(f"Created missing ApprovalSteps from workflow config for assignment {assignment.id}")
 
     # Determine approvers - assessment owner, team members, or role-based approvers
     approvers = []
@@ -2837,7 +3009,16 @@ async def _trigger_assessment_approval_workflow(
             continue
 
         # Create action item for assessment approval
-        # Include workflow ticket ID in title and description for easy identification
+        # Include human-readable workflow ticket ID in title and description
+        # CRITICAL: Only create approval items when assignment status is "completed" (vendor has submitted)
+        if assignment.status != 'completed':
+            logger.warning(
+                f"Cannot create approval action item for assignment {assignment.id}: "
+                f"assignment status is '{assignment.status}', expected 'completed'. "
+                f"Vendor must complete the assessment first."
+            )
+            continue
+        
         ticket_id_display = f" [{assignment.workflow_ticket_id}]" if assignment.workflow_ticket_id else ""
         action_item = ActionItem(
             tenant_id=assignment.tenant_id,
@@ -2865,7 +3046,10 @@ async def _trigger_assessment_approval_workflow(
                 "submitted_at": assignment.completed_at.isoformat() if assignment.completed_at else datetime.utcnow().isoformat(),
                 "workflow_type": "assessment_approval",
                 "approval_required": True,
-                "workflow_ticket_id": assignment.workflow_ticket_id  # Include ticket ID in metadata
+                "vendor_completed": True,  # Flag: Vendor has completed the assessment
+                "ready_for_approval": True,  # Flag: Assessment is ready for approver review
+                "assignment_status": "completed",  # Explicit assignment status when action item is created
+                "workflow_ticket_id": assignment.workflow_ticket_id  # Human-readable ticket ID (e.g., ASMT-2026-017)
             }
         )
         db.add(action_item)
@@ -2878,8 +3062,10 @@ async def _trigger_assessment_approval_workflow(
         db.flush()
         logger.info(f"Flushed {action_items_created} approval action items to database for assignment {assignment.id}")
         
-        # Log action item IDs after flush (they're now assigned)
+        # Workflow item = Action Item = Ticket (same entity)
+        # Set each action item's ID as its own ticket ID, and update assignment with first action item ID
         action_item_ids = []
+        first_action_item_id = None
         for approver in unique_approvers:
             if approver.id == submitted_by.id:
                 continue
@@ -2892,7 +3078,15 @@ async def _trigger_assessment_approval_workflow(
                 ActionItem.action_type == ActionItemType.APPROVAL.value
             ).order_by(ActionItem.created_at.desc()).first()
             if action_item:
-                action_item_ids.append(str(action_item.id))
+                action_item_id_str = str(action_item.id)
+                action_item_ids.append(action_item_id_str)
+                
+                # Ensure action item metadata has the human-readable workflow_ticket_id from assignment
+                if not action_item.item_metadata:
+                    action_item.item_metadata = {}
+                if assignment.workflow_ticket_id and not action_item.item_metadata.get("workflow_ticket_id"):
+                    action_item.item_metadata["workflow_ticket_id"] = assignment.workflow_ticket_id
+                    logger.info(f"Set action item {action_item.id} metadata workflow_ticket_id to {assignment.workflow_ticket_id}")
                 logger.debug(f"Created action item {action_item.id} for approver {approver.id} ({approver.email})")
         
         if action_item_ids:
@@ -3000,10 +3194,10 @@ def _send_approval_email_sync(
                 asyncio.create_task(email_service.send_email(to_email, subject, html_body, text_body))
             else:
                 # If loop exists but not running, run the coroutine
-                loop.run_until_complete(email_service.send_email(to_email, subject, html_body, text_body))
+                sent, _ = loop.run_until_complete(email_service.send_email(to_email, subject, html_body, text_body))
         except RuntimeError:
             # No event loop, create one
-            asyncio.run(email_service.send_email(to_email, subject, html_body, text_body))
+            sent, _ = asyncio.run(email_service.send_email(to_email, subject, html_body, text_body))
         logger.info(f"Sent approval notification email to {to_email}")
     except Exception as e:
         logger.error(f"Failed to send approval notification email to {to_email}: {e}", exc_info=True)
@@ -3187,7 +3381,7 @@ async def _notify_reviewers_on_submission(
             Review Assessment: {assessment_url}
             """
 
-            await email_service.send_email(reviewer.email, subject, html_body, text_body)
+            sent, _ = await email_service.send_email(reviewer.email, subject, html_body, text_body)
             logger.info(f"Sent email notification to reviewer {reviewer.id} ({reviewer.email}) for assignment {assignment.id}")
         except Exception as e:
             logger.error(f"Failed to send email to {reviewer.email}: {e}", exc_info=True)
@@ -4114,7 +4308,7 @@ async def assign_question_owner(
                 View and Complete: {assignment_url}
                 """
             
-            await email_service.send_email(
+            sent, _ = await email_service.send_email(
                 owner_user.email,
                 subject,
                 html_body,
@@ -4255,6 +4449,66 @@ async def get_assessment_review(
         "assigned_at": review.assigned_at.isoformat() if review.assigned_at else None,
         "ai_review_completed_at": review.ai_review_completed_at.isoformat() if review.ai_review_completed_at else None,
         "created_at": review.created_at.isoformat()
+    }
+
+
+@router.get("/assignments/{assignment_id}/approval-status", response_model=Dict[str, Any])
+async def get_assignment_approval_status(
+    assignment_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get approval instance and current step for an assessment assignment"""
+    from app.core.tenant_utils import get_effective_tenant_id
+    from app.models.approval import ApprovalInstance, ApprovalStep
+    
+    effective_tenant_id = get_effective_tenant_id(current_user, db)
+    if not effective_tenant_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Tenant access required"
+        )
+    
+    assignment = db.query(AssessmentAssignment).filter(
+        AssessmentAssignment.id == assignment_id,
+        AssessmentAssignment.tenant_id == effective_tenant_id
+    ).first()
+    
+    if not assignment:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Assignment not found"
+        )
+    
+    approval_instance = db.query(ApprovalInstance).filter(
+        ApprovalInstance.assignment_id == assignment_id
+    ).first()
+    
+    if not approval_instance:
+        return {
+            "has_workflow": False,
+            "current_step": None,
+            "step_name": None,
+            "total_steps": 0
+        }
+    
+    # Get current step
+    current_step_record = db.query(ApprovalStep).filter(
+        ApprovalStep.instance_id == approval_instance.id,
+        ApprovalStep.step_number == approval_instance.current_step
+    ).first()
+    
+    # Get total steps
+    total_steps = db.query(ApprovalStep).filter(
+        ApprovalStep.instance_id == approval_instance.id
+    ).count()
+    
+    return {
+        "has_workflow": True,
+        "current_step": approval_instance.current_step,
+        "step_name": current_step_record.step_name if current_step_record else None,
+        "total_steps": total_steps,
+        "status": approval_instance.status
     }
 
 
@@ -5562,6 +5816,128 @@ async def submit_final_decision(
 
     new_decision = mapped[decision]
 
+    # Check if workflow-based approval (using ApprovalInstance/ApprovalStep)
+    from app.models.approval import ApprovalInstance, ApprovalStep
+    approval_instance = db.query(ApprovalInstance).filter(
+        ApprovalInstance.assignment_id == assignment_id
+    ).first()
+    
+    is_workflow_based = approval_instance is not None
+    is_final_step = False
+    
+    if is_workflow_based:
+        # Get current step
+        current_step = db.query(ApprovalStep).filter(
+            ApprovalStep.instance_id == approval_instance.id,
+            ApprovalStep.step_number == approval_instance.current_step,
+            ApprovalStep.status.in_(["pending", "in_progress"])
+        ).first()
+        
+        if current_step:
+            # Mark current step as completed
+            current_step.status = "completed"
+            current_step.completed_by = current_user.id
+            current_step.completed_at = datetime.utcnow()
+            current_step.notes = comment
+            
+            # Get workflow configuration to find next step
+            from app.services.workflow_orchestration import WorkflowOrchestrationService
+            from app.models.workflow_config import WorkflowConfiguration
+            
+            orchestration = WorkflowOrchestrationService(db, effective_tenant_id)
+            assessment_data = {
+                "id": str(assignment.assessment_id),
+                "name": assignment.assessment_id,  # Will be fetched if needed
+            }
+            
+            workflow_config = orchestration.get_workflow_for_entity(
+                entity_type="assessment_assignments",
+                entity_data=assessment_data,
+                request_type="assessment_workflow"
+            )
+            
+            if not workflow_config:
+                workflow_config = db.query(WorkflowConfiguration).filter(
+                    WorkflowConfiguration.tenant_id == effective_tenant_id,
+                    WorkflowConfiguration.is_default == True,
+                    WorkflowConfiguration.status == "active"
+                ).first()
+            
+            # Get workflow steps
+            workflow_steps = []
+            if workflow_config and workflow_config.workflow_steps:
+                steps = workflow_config.workflow_steps
+                if isinstance(steps, str):
+                    import json
+                    try:
+                        steps = json.loads(steps)
+                    except json.JSONDecodeError:
+                        steps = []
+                if isinstance(steps, list):
+                    workflow_steps = sorted(steps, key=lambda x: x.get("step_number", 999))
+            
+            # Find next step
+            next_step_config = None
+            for step_config in workflow_steps:
+                if step_config.get("step_number", 0) > approval_instance.current_step:
+                    next_step_config = step_config
+                    break
+            
+            if next_step_config and decision == "accepted":
+                # Move to next step
+                next_step_number = next_step_config.get("step_number")
+                approval_instance.current_step = next_step_number
+                approval_instance.status = ApprovalStatus.IN_PROGRESS.value
+                
+                # Get or create next ApprovalStep
+                next_step = db.query(ApprovalStep).filter(
+                    ApprovalStep.instance_id == approval_instance.id,
+                    ApprovalStep.step_number == next_step_number
+                ).first()
+                
+                if next_step:
+                    next_step.status = "pending"
+                    # Auto-assign if configured
+                    if next_step_config.get("auto_assign", False):
+                        assigned_role = next_step_config.get("assigned_role")
+                        if assigned_role:
+                            role_mapping = {
+                                "security_reviewer": UserRole.SECURITY_REVIEWER,
+                                "compliance_reviewer": UserRole.COMPLIANCE_REVIEWER,
+                                "technical_reviewer": UserRole.TECHNICAL_REVIEWER,
+                                "business_reviewer": UserRole.BUSINESS_REVIEWER,
+                                "approver": UserRole.APPROVER,
+                                "tenant_admin": UserRole.TENANT_ADMIN,
+                            }
+                            role_enum = role_mapping.get(assigned_role)
+                            if role_enum:
+                                assignee = db.query(User).filter(
+                                    User.tenant_id == effective_tenant_id,
+                                    User.role == role_enum,
+                                    User.is_active.is_(True)
+                                ).first()
+                                if assignee:
+                                    next_step.assigned_to = assignee.id
+                
+                logger.info(f"Progressed workflow to step {next_step_number} for assignment {assignment_id}")
+            else:
+                # This was the last step or decision is denied/need_info
+                is_final_step = True
+                if decision == "accepted":
+                    approval_instance.status = ApprovalStatus.APPROVED.value
+                    approval_instance.approved_by = current_user.id
+                    approval_instance.approval_notes = comment
+                    approval_instance.completed_at = datetime.utcnow()
+                elif decision == "denied":
+                    approval_instance.status = ApprovalStatus.REJECTED.value
+                    approval_instance.completed_at = datetime.utcnow()
+        else:
+            logger.warning(f"No current step found for approval_instance {approval_instance.id}, treating as final step")
+            is_final_step = True
+    else:
+        # No workflow instance - treat as single-step approval
+        is_final_step = True
+
     # Update review
     review.human_decision = new_decision
     review.human_review_completed_at = datetime.utcnow()
@@ -5573,9 +5949,9 @@ async def submit_final_decision(
     # Log workflow history before status change
     from app.models.assessment_workflow_history import AssessmentWorkflowHistory, WorkflowActionType
     
-    # Update assignment status based on decision
+    # Update assignment status based on decision (only if final step)
     new_assignment_status = assignment.status
-    if decision == "accepted":
+    if decision == "accepted" and is_final_step:
         new_assignment_status = "approved"
         assignment.status = "approved"  # Update assignment status immediately
         assignment.completed_at = datetime.utcnow()

@@ -1469,7 +1469,7 @@ async def get_vendor_status(
         if current_user.tenant_id:
             subscription = db.query(VendorSubscription).filter(
                 VendorSubscription.vendor_id == vendor.id,
-                VendorSubscription.tenant_id == effective_tenant_id
+                VendorSubscription.tenant_id == current_user.tenant_id
             ).first()
             if subscription:
                 result["subscribed"] = True

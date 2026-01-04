@@ -46,10 +46,11 @@ export default function MyActions() {
   })
 
   const items = inboxData?.items || []
-  // Use counts from API response if available, otherwise fallback to inboxData counts, then to filtered items
-  const pendingCount = countsData?.pending ?? inboxData?.pending_count ?? items.filter(i => i.status === 'pending').length
-  const completedCount = countsData?.completed ?? inboxData?.completed_count ?? items.filter(i => i.status === 'completed').length
-  const overdueCount = countsData?.overdue ?? inboxData?.overdue_count ?? items.filter(i => i.status === 'overdue').length
+  // Always use counts from API response - these are calculated from ALL items, not filtered
+  // The counts endpoint returns accurate counts, and inboxData also includes accurate counts
+  const pendingCount = countsData?.pending ?? inboxData?.pending_count ?? 0
+  const completedCount = countsData?.completed ?? inboxData?.completed_count ?? 0
+  const overdueCount = countsData?.overdue ?? inboxData?.overdue_count ?? 0
 
   const filteredItems = items.filter(item => {
     if (!searchQuery) return true

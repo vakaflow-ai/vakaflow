@@ -215,7 +215,7 @@ async def test_smtp_settings(
         test_email_service.from_name = test_config.get("from_name", "VAKA Platform")
         
         # Send test email to the configured email address
-        test_result = await test_email_service.send_email(
+        test_result, error_msg = await test_email_service.send_email(
             to_email=test_config["smtp_user"],  # Send test email to the SMTP user
             subject="SMTP Configuration Test",
             html_body="""

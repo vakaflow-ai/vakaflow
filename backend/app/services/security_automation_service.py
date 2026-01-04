@@ -244,7 +244,7 @@ View Details: {incident.source_url or 'N/A'}
                                         logger.warning("Cannot send email synchronously from async context. Email will be sent asynchronously.")
                                         # Schedule the coroutine (fire and forget)
                                         loop.create_task(
-                                            self.email_service.send_email(
+                                            sent, _ = self.email_service.send_email(
                                                 to_email=recipient["email"],
                                                 subject=subject,
                                                 html_body=html_message,
@@ -254,7 +254,7 @@ View Details: {incident.source_url or 'N/A'}
                                     except RuntimeError:
                                         # No event loop running, we can use asyncio.run()
                                         asyncio.run(
-                                            self.email_service.send_email(
+                                            sent, _ = self.email_service.send_email(
                                                 to_email=recipient["email"],
                                                 subject=subject,
                                                 html_body=html_message,

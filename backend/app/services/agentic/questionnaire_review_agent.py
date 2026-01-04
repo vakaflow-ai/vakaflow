@@ -713,7 +713,7 @@ class QuestionnaireReviewAgent(BaseAgenticAgent):
             View Assessment: {assignment_url}
             """
             
-            await email_service.send_email(
+            sent, _ = await email_service.send_email(
                 vendor.contact_email,
                 subject,
                 html_body,

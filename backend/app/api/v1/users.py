@@ -785,7 +785,7 @@ async def import_users_csv(
                     tenant = db.query(Tenant).filter(Tenant.id == tenant_id).first()
                     tenant_name = tenant.name if tenant else "Organization"
                     
-                    await email_service.send_email(
+                    sent, _ = await email_service.send_email(
                         to_email=email,
                         subject=f"Welcome to {tenant_name} - Account Created",
                         html_body=f"""

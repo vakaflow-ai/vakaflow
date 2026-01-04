@@ -94,7 +94,7 @@ class AgenticActionService:
         for recipient in recipients:
             try:
                 logger.info(f"Attempting to send email to {recipient} with subject: {subject}")
-                sent = await self.email_service.send_email(
+                sent, error_msg = await self.email_service.send_email(
                     to_email=recipient,
                     subject=subject,
                     html_body=html_body,
@@ -102,10 +102,15 @@ class AgenticActionService:
                 )
                 if sent:
                     logger.info(f"Successfully sent email to {recipient}")
+                    results.append({
+                        "recipient": recipient,
+                        "sent": True
+                    })
                 else:
-                    # Email service returned False - check if SMTP is configured
-                    error_msg = "Email service returned False. Please check SMTP configuration in /integrations page."
-                    logger.warning(f"Email service returned False for {recipient}: {error_msg}")
+                    # Email service returned False with error message
+                    if not error_msg:
+                        error_msg = "Email sending failed. Please check SMTP configuration in /integrations page."
+                    logger.warning(f"Email sending failed for {recipient}: {error_msg}")
                     results.append({
                         "recipient": recipient,
                         "sent": False,

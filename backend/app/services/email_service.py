@@ -4,7 +4,7 @@ Email notification service
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Tuple
 import logging
 import os
 
@@ -116,7 +116,7 @@ class EmailService:
         text_body: Optional[str] = None,
         cc: Optional[List[str]] = None,
         bcc: Optional[List[str]] = None
-    ) -> bool:
+    ) -> Tuple[bool, Optional[str]]:
         """
         Send an email
         
@@ -129,7 +129,7 @@ class EmailService:
             bcc: BCC recipients (optional)
         
         Returns:
-            True if sent successfully, False otherwise
+            Tuple of (success: bool, error_message: Optional[str])
         """
         try:
             # Create message
@@ -161,12 +161,24 @@ class EmailService:
             server.quit()
             
             logger.info(f"Email sent to {to_email}: {subject}")
-            return True
+            return True, None
             
         except Exception as e:
-            logger.error(f"Failed to send email to {to_email}: {e}", exc_info=True)
+            error_msg = str(e)
+            logger.error(f"Failed to send email to {to_email}: {error_msg}", exc_info=True)
             logger.error(f"SMTP Config - Host: {self.smtp_host}, Port: {self.smtp_port}, User: {self.smtp_user}, TLS: {self.smtp_use_tls}")
-            return False
+            
+            # Provide more specific error messages
+            if "authentication" in error_msg.lower() or "login" in error_msg.lower() or "535" in error_msg:
+                error_msg = f"SMTP authentication failed: {error_msg}. Please verify SMTP username and password in /integrations page."
+            elif "connection" in error_msg.lower() or "timeout" in error_msg.lower() or "refused" in error_msg.lower():
+                error_msg = f"SMTP connection failed: {error_msg}. Please check SMTP host and port in /integrations page."
+            elif "tls" in error_msg.lower() or "ssl" in error_msg.lower():
+                error_msg = f"SMTP TLS/SSL error: {error_msg}. Please check SMTP TLS settings in /integrations page."
+            else:
+                error_msg = f"Email sending failed: {error_msg}. Please check SMTP configuration in /integrations page."
+            
+            return False, error_msg
     
     async def send_agent_status_notification(
         self,
@@ -202,7 +214,8 @@ class EmailService:
         View Agent: {os.getenv('FRONTEND_URL', 'http://localhost:3000')}/agents/{agent_id}
         """
         
-        return await self.send_email(to_email, subject, html_body, text_body)
+        sent, _ = await self.send_email(to_email, subject, html_body, text_body)
+        return sent
     
     async def send_review_assignment_notification(
         self,
@@ -235,7 +248,8 @@ class EmailService:
         Start Review: {os.getenv('FRONTEND_URL', 'http://localhost:3000')}/reviews?agent_id={agent_id}
         """
         
-        return await self.send_email(to_email, subject, html_body, text_body)
+        sent, _ = await self.send_email(to_email, subject, html_body, text_body)
+        return sent
     
     async def send_approval_request_notification(
         self,
@@ -267,7 +281,8 @@ class EmailService:
         Review for Approval: {os.getenv('FRONTEND_URL', 'http://localhost:3000')}/approvals?agent_id={agent_id}
         """
         
-        return await self.send_email(to_email, subject, html_body, text_body)
+        sent, _ = await self.send_email(to_email, subject, html_body, text_body)
+        return sent
     
     async def send_vendor_invitation(
         self,
@@ -377,7 +392,8 @@ class EmailService:
         This invitation will expire in 7 days. If you did not expect this invitation, you can safely ignore this email.
         """
         
-        return await self.send_email(to_email, subject, html_body, text_body)
+        sent, _ = await self.send_email(to_email, subject, html_body, text_body)
+        return sent
     
     async def send_otp_email(
         self,
@@ -445,7 +461,8 @@ class EmailService:
             This code will expire in 10 minutes.
             """
         
-        return await self.send_email(to_email, subject, html_body, text_body)
+        sent, _ = await self.send_email(to_email, subject, html_body, text_body)
+        return sent
 
 
 # Global email service instance

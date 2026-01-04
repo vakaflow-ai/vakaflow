@@ -112,7 +112,7 @@ async def create_invitation(
             tenant_name = tenant.name if tenant else "Organization"
             
             # Send notification email
-            notification_sent = await email_service.send_email(
+            notification_sent, _ = await email_service.send_email(
                 to_email=invitation_data.email.lower(),
                 subject=f"New Agent Submission Request from {tenant_name}",
                 html_body=f"""

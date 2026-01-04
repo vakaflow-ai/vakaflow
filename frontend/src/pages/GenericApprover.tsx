@@ -1,41 +1,39 @@
 import React, { useEffect, useState, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { MaterialButton, MaterialInput, MaterialCard, MaterialChip } from '../components/material'
-import { actionsApi, ActionItem } from '../lib/actions'
+import { MaterialCard, MaterialChip } from '../components/material'
+import { actionsApi } from '../lib/actions'
 import { assessmentsApi } from '../lib/assessments'
 import { authApi } from '../lib/auth'
-import { formLayoutsApi } from '../lib/formLayouts'
 import { workflowOrchestrationApi, ViewStructure } from '../lib/workflowOrchestration'
-import { agentsApi, Agent } from '../lib/agents'
-import { vendorsApi, VendorWithDetails } from '../lib/vendors'
+import { agentsApi } from '../lib/agents'
+import { vendorsApi } from '../lib/vendors'
+import { usersApi, User as UserType } from '../lib/users'
 import Layout from '../components/Layout'
 import DynamicForm from '../components/DynamicForm'
 import { showToast } from '../utils/toast'
 import {
   FileText,
-  CheckCircle2,
   AlertCircle,
   Loader2,
   ArrowLeft,
   Eye,
   History,
-  Send,
-  User,
-  MessageSquare,
-  Clock,
+  User as UserIcon,
   AlertTriangle,
   CheckCircle,
   XCircle,
   HelpCircle,
-  Users,
   X,
   Workflow,
   Building2,
   Shield,
   FileCheck,
   Network,
-  BarChart3
+  BarChart3,
+  Forward,
+  Search,
+  Clock
 } from 'lucide-react'
 
 interface GenericApproverPageProps {}
@@ -62,6 +60,11 @@ export default function GenericApproverPage({}: GenericApproverPageProps) {
   const queryClient = useQueryClient()
   const [user, setUser] = useState<any>(null)
   const [activeTab, setActiveTab] = useState<string>('overview') // Default to 'overview' tab
+  const [showForwardDialog, setShowForwardDialog] = useState(false)
+  const [forwardQuestionIds, setForwardQuestionIds] = useState<string[]>([]) // Empty array = forward entire assessment
+  const [forwardUserSearch, setForwardUserSearch] = useState('')
+  const [forwardUserId, setForwardUserId] = useState('')
+  const [forwardComment, setForwardComment] = useState('')
 
   useEffect(() => {
     authApi.getCurrentUser()
@@ -190,7 +193,6 @@ export default function GenericApproverPage({}: GenericApproverPageProps) {
       const seenIds = new Set<string>()
       const uniqueTabs = viewStructure.tabs.filter((tab) => {
         if (seenIds.has(tab.id)) {
-          console.warn(`GenericApprover - Duplicate tab ID detected: ${tab.id}, skipping duplicate`)
           return false
         }
         seenIds.add(tab.id)
@@ -254,6 +256,13 @@ export default function GenericApproverPage({}: GenericApproverPageProps) {
     enabled: !!actionItem && isAssessmentType && !!actionItem.source_id,
   })
 
+  // Fetch approval status to get current step
+  const { data: approvalStatus } = useQuery({
+    queryKey: ['approval-status', actionItem?.source_id],
+    queryFn: () => assessmentsApi.getApprovalStatus(actionItem!.source_id),
+    enabled: !!actionItem && isAssessmentType && !!actionItem.source_id,
+  })
+
   // Note: DynamicForm fetches its own layout, so we don't need to fetch it here
 
   // Map assessment responses to form data format
@@ -297,13 +306,6 @@ export default function GenericApproverPage({}: GenericApproverPageProps) {
       }
     }
     
-    console.log('GenericApprover - formData prepared:', {
-      questionsCount: safeQuestions.length,
-      responsesCount: Object.keys(safeResponses).length,
-      questionReviewsCount: Object.keys(data.questionReviews).length,
-      assignmentId: data.assignment_id,
-      hasAssignment: !!assignment
-    })
     
     return data
   }, [responses, questions, assignment, isAssessmentType, questionReviewsData, actionItem])
@@ -348,6 +350,69 @@ export default function GenericApproverPage({}: GenericApproverPageProps) {
       showToast.error(err?.response?.data?.detail || err.message || 'Failed to review question')
     }
   })
+
+  // Fetch users for forwarding
+  const { data: forwardableUsers = [], isLoading: forwardUsersLoading } = useQuery<UserType[]>({
+    queryKey: ['forwardable-users', user?.tenant_id, forwardUserSearch],
+    queryFn: () => usersApi.list(user?.tenant_id),
+    enabled: !!user && showForwardDialog,
+    select: (users) => {
+      // Filter by search term and exclude current user
+      return users.filter(u => 
+        u.id !== user?.id && 
+        u.is_active &&
+        (!forwardUserSearch || 
+          u.name?.toLowerCase().includes(forwardUserSearch.toLowerCase()) ||
+          u.email?.toLowerCase().includes(forwardUserSearch.toLowerCase()))
+      )
+    }
+  })
+
+  // Forward mutation
+  const forwardMutation = useMutation({
+    mutationFn: ({ questionIds, forwardToUserId, comment }: {
+      questionIds?: string[]
+      forwardToUserId: string
+      comment?: string
+    }) => assessmentsApi.forwardQuestions(
+      actionItem!.source_id,
+      forwardToUserId,
+      questionIds,
+      comment
+    ),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ['action-item', sourceType, sourceId] })
+      queryClient.invalidateQueries({ queryKey: ['assessment-assignment-approver', actionItem?.source_id] })
+      queryClient.invalidateQueries({ queryKey: ['workflow-history-approver', actionItem?.source_id] })
+      showToast.success(result.message || 'Assessment forwarded successfully')
+      setShowForwardDialog(false)
+      setForwardUserId('')
+      setForwardComment('')
+      setForwardQuestionIds([])
+    },
+    onError: (err: any) => {
+      showToast.error(err?.response?.data?.detail || err.message || 'Failed to forward assessment')
+    }
+  })
+
+  // Handle forward button click
+  const handleForwardClick = (questionIds?: string[]) => {
+    setForwardQuestionIds(questionIds || [])
+    setShowForwardDialog(true)
+  }
+
+  // Handle forward submit
+  const handleForwardSubmit = () => {
+    if (!forwardUserId) {
+      showToast.error('Please select a user to forward to')
+      return
+    }
+    forwardMutation.mutate({
+      questionIds: forwardQuestionIds.length > 0 ? forwardQuestionIds : undefined,
+      forwardToUserId: forwardUserId,
+      comment: forwardComment || undefined
+    })
+  }
 
   const isApprover = user && ['approver', 'tenant_admin', 'platform_admin'].includes(user.role)
 
@@ -422,6 +487,13 @@ export default function GenericApproverPage({}: GenericApproverPageProps) {
           {/* Right Side Floating Action Buttons */}
           <div className="fixed right-6 top-1/2 -translate-y-1/2 z-50 flex flex-col gap-3">
             <button
+              onClick={() => handleForwardClick()} // Forward entire assessment
+              className="p-3 rounded-full shadow-lg bg-blue-600 text-white border-2 border-blue-700 hover:bg-blue-700 hover:border-blue-800 transition-all"
+              title="Forward Assessment"
+            >
+              <Forward className="w-5 h-5" />
+            </button>
+            <button
               onClick={() => setActiveTab('history')}
               className="p-3 rounded-full shadow-lg bg-white text-gray-700 border-2 border-gray-300 hover:bg-gray-50 hover:border-gray-400 transition-all"
               title="View History & Audit"
@@ -463,9 +535,9 @@ export default function GenericApproverPage({}: GenericApproverPageProps) {
                       <h1 className="text-2xl font-semibold text-gray-900">
                         {actionItem?.title || 'Assessment Approval'}
                       </h1>
-                      {assignment?.workflow_ticket_id && (
-                        <MaterialChip label={assignment.workflow_ticket_id} color="primary" size="medium" className="!px-3 !py-1">
-                          <span className="font-mono font-semibold">{assignment.workflow_ticket_id}</span>
+                      {(assignment?.workflow_ticket_id || actionItem?.metadata?.workflow_ticket_id) && (
+                        <MaterialChip label={assignment?.workflow_ticket_id || actionItem?.metadata?.workflow_ticket_id} color="primary" size="medium" className="!px-3 !py-1">
+                          <span className="font-mono font-semibold">{assignment?.workflow_ticket_id || actionItem?.metadata?.workflow_ticket_id}</span>
                         </MaterialChip>
                       )}
                     </div>
@@ -473,9 +545,9 @@ export default function GenericApproverPage({}: GenericApproverPageProps) {
                       <div>
                         <span className="font-medium">Source Type:</span> {actionItem?.source_type || 'assessment_approval'}
                       </div>
-                      {assignment?.workflow_ticket_id && (
+                      {(assignment?.workflow_ticket_id || actionItem?.metadata?.workflow_ticket_id) && (
                         <div>
-                          <span className="font-medium">Workflow Ticket:</span> <span className="font-mono">{assignment.workflow_ticket_id}</span>
+                          <span className="font-medium">Workflow Ticket:</span> <span className="font-mono">{assignment?.workflow_ticket_id || actionItem?.metadata?.workflow_ticket_id}</span>
                         </div>
                       )}
                       <div>
@@ -536,7 +608,7 @@ export default function GenericApproverPage({}: GenericApproverPageProps) {
                   switch (tabId) {
                     case 'overview': return <Eye className="w-4 h-4" />
                     case 'entity_visualization': return <Network className="w-4 h-4" />
-                    case 'agent_details': return <User className="w-4 h-4" />
+                    case 'agent_details': return <UserIcon className="w-4 h-4" />
                     case 'organization_info': return <Building2 className="w-4 h-4" />
                     case 'compliance': return <Shield className="w-4 h-4" />
                     case 'requirement': return <FileCheck className="w-4 h-4" />
@@ -576,13 +648,6 @@ export default function GenericApproverPage({}: GenericApproverPageProps) {
                 // Find the section that matches the active tab
                 const activeSection = viewStructure?.sections?.find(s => s.id === activeTab)
                 
-                console.log('GenericApprover - Tab content rendering:', {
-                  activeTab,
-                  hasViewStructure: !!viewStructure,
-                  sectionsCount: viewStructure?.sections?.length || 0,
-                  sectionIds: viewStructure?.sections?.map(s => s.id) || [],
-                  activeSection: activeSection ? { id: activeSection.id, title: activeSection.title, fieldsCount: activeSection.fields?.length || 0 } : null
-                })
                 
                 // If we have a section from viewStructure, render it dynamically
                 if (activeSection) {
@@ -600,6 +665,7 @@ export default function GenericApproverPage({}: GenericApproverPageProps) {
                         onChange={() => {}}
                         readOnly={false}
                         assignmentId={actionItem?.source_id}
+                        onForwardQuestion={(questionId) => handleForwardClick([questionId])} // Forward specific question
                       />
                     </div>
                   )
@@ -620,6 +686,7 @@ export default function GenericApproverPage({}: GenericApproverPageProps) {
                         onChange={() => {}}
                         readOnly={false}
                         assignmentId={actionItem?.source_id}
+                        onForwardQuestion={(questionId) => handleForwardClick([questionId])} // Forward specific question
                       />
                     </div>
                   )
@@ -721,7 +788,11 @@ export default function GenericApproverPage({}: GenericApproverPageProps) {
                       </div>
                       <div>
                         <div className="text-xs text-gray-500 mb-1">Current Step</div>
-                        <div className="text-sm font-medium text-gray-900">Step 1</div>
+                        <div className="text-sm font-medium text-gray-900">
+                          {approvalStatus?.has_workflow && approvalStatus.current_step
+                            ? `Step ${approvalStatus.current_step}${approvalStatus.total_steps > 0 ? ` of ${approvalStatus.total_steps}` : ''}${approvalStatus.step_name ? `: ${approvalStatus.step_name}` : ''}`
+                            : 'Step 1'}
+                        </div>
                       </div>
                       <div>
                         <div className="text-xs text-gray-500 mb-1">Type</div>
@@ -752,6 +823,95 @@ export default function GenericApproverPage({}: GenericApproverPageProps) {
                     </div>
                   )}
                 </MaterialCard>
+
+                {/* Final Decision Card - Only show when assignment is completed and all questions reviewed */}
+                {assignment && assignment.status === 'completed' && questionCounts.pending === 0 && questionCounts.total > 0 && (
+                  <MaterialCard elevation={2} className="bg-white border-2 border-blue-200 p-5 shadow-sm">
+                    <div className="flex items-center gap-2 mb-4">
+                      <CheckCircle className="w-5 h-5 text-blue-600" />
+                      <div className="text-base font-bold text-gray-900">Final Decision</div>
+                    </div>
+                    <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                      <div className="text-sm font-semibold text-green-900 mb-1">All Questions Reviewed</div>
+                      <div className="text-xs text-green-700">
+                        {questionCounts.completed} of {questionCounts.total} questions reviewed. Ready to submit final decision.
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <button
+                        onClick={() => {
+                          const comment = prompt('Optional comment for acceptance:') || undefined
+                          submitDecisionMutation.mutate({ decision: 'accepted', comment })
+                        }}
+                        disabled={submitDecisionMutation.isPending}
+                        className="w-full px-3 py-1.5 bg-green-600 text-white text-xs font-medium rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-1.5"
+                      >
+                        <CheckCircle className="w-3.5 h-3.5" />
+                        {submitDecisionMutation.isPending ? 'Submitting...' : 'Accept'}
+                      </button>
+                      <button
+                        onClick={() => {
+                          const comment = prompt('Reason for denial (required):')
+                          if (comment) {
+                            submitDecisionMutation.mutate({ decision: 'denied', comment })
+                          }
+                        }}
+                        disabled={submitDecisionMutation.isPending}
+                        className="w-full px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-1.5"
+                      >
+                        <XCircle className="w-3.5 h-3.5" />
+                        {submitDecisionMutation.isPending ? 'Submitting...' : 'Deny'}
+                      </button>
+                      <button
+                        onClick={() => {
+                          const comment = prompt('What information is needed?')
+                          if (comment) {
+                            submitDecisionMutation.mutate({ decision: 'need_info', comment })
+                          }
+                        }}
+                        disabled={submitDecisionMutation.isPending}
+                        className="w-full px-3 py-1.5 bg-yellow-600 text-white text-xs font-medium rounded-md hover:bg-yellow-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-1.5"
+                      >
+                        <HelpCircle className="w-3.5 h-3.5" />
+                        {submitDecisionMutation.isPending ? 'Submitting...' : 'Need Info'}
+                      </button>
+                    </div>
+                  </MaterialCard>
+                )}
+                
+                {/* Forward Assessment Card */}
+                {assignment && assignment.status === 'completed' && (
+                  <MaterialCard elevation={2} className="bg-white border border-gray-200 p-4 shadow-sm">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Forward className="w-4 h-4 text-blue-600" />
+                      <div className="text-sm font-semibold text-gray-900">Forward</div>
+                    </div>
+                    <button
+                      onClick={() => handleForwardClick()} // Forward entire assessment
+                      disabled={forwardMutation.isPending}
+                      className="w-full px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-1.5"
+                    >
+                      <Forward className="w-3.5 h-3.5" />
+                      {forwardMutation.isPending ? 'Forwarding...' : 'Forward'}
+                    </button>
+                    <p className="text-xs text-gray-500 mt-1.5 text-center">
+                      Forward to team member or user
+                    </p>
+                  </MaterialCard>
+                )}
+
+                {/* Show status message if already processed */}
+                {assignment && (assignment.status === 'approved' || assignment.status === 'rejected') && (
+                  <MaterialCard elevation={2} className="bg-white border-2 border-gray-200 p-5 shadow-sm">
+                    <div className="flex items-center gap-2 mb-2">
+                      <CheckCircle className={`w-5 h-5 ${assignment.status === 'approved' ? 'text-green-600' : 'text-red-600'}`} />
+                      <div className="text-base font-bold text-gray-900">Assessment {assignment.status === 'approved' ? 'Accepted' : 'Denied'}</div>
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      This assessment has been {assignment.status === 'approved' ? 'accepted' : 'denied'} and is closed.
+                    </div>
+                  </MaterialCard>
+                )}
 
                 {/* History Card (Compact) */}
                 <MaterialCard elevation={2} className="bg-white border border-gray-200 p-5 shadow-sm">
@@ -803,6 +963,127 @@ export default function GenericApproverPage({}: GenericApproverPageProps) {
             </div>
           </div>
         </div>
+
+        {/* Forward Dialog */}
+        {showForwardDialog && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg shadow-xl max-w-sm w-full mx-4 max-h-[85vh] overflow-y-auto">
+              <div className="p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="text-sm font-semibold text-gray-900">
+                    {forwardQuestionIds.length > 0 
+                      ? `Forward ${forwardQuestionIds.length} Question${forwardQuestionIds.length > 1 ? 's' : ''}`
+                      : 'Forward Assessment'}
+                  </h2>
+                  <button
+                    onClick={() => {
+                      setShowForwardDialog(false)
+                      setForwardUserId('')
+                      setForwardComment('')
+                      setForwardQuestionIds([])
+                      setForwardUserSearch('')
+                    }}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <div className="space-y-3">
+                  {/* User Search */}
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                      Search User or Team Member
+                    </label>
+                    <div className="relative">
+                      <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                      <input
+                        type="text"
+                        value={forwardUserSearch}
+                        onChange={(e) => setForwardUserSearch(e.target.value)}
+                        placeholder="Search by name or email..."
+                        className="w-full pl-9 pr-3 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                  </div>
+
+                  {/* User List */}
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                      Select User
+                    </label>
+                    <div className="border border-gray-300 rounded-md max-h-40 overflow-y-auto">
+                      {forwardUsersLoading ? (
+                        <div className="p-3 text-center">
+                          <Loader2 className="w-4 h-4 animate-spin text-gray-400 mx-auto" />
+                        </div>
+                      ) : forwardableUsers.length === 0 ? (
+                        <div className="p-3 text-center text-gray-500 text-xs">
+                          {forwardUserSearch ? 'No users found' : 'Start typing to search for users'}
+                        </div>
+                      ) : (
+                        <div className="divide-y divide-gray-200">
+                          {forwardableUsers.map((u) => (
+                            <button
+                              key={u.id}
+                              onClick={() => setForwardUserId(u.id)}
+                              className={`w-full px-3 py-2 text-left hover:bg-gray-50 transition-colors ${
+                                forwardUserId === u.id ? 'bg-blue-50 border-l-4 border-blue-600' : ''
+                              }`}
+                            >
+                              <div className="font-medium text-sm text-gray-900">{u.name || 'No name'}</div>
+                              <div className="text-xs text-gray-500">{u.email}</div>
+                              {u.role && (
+                                <div className="text-xs text-gray-400 mt-0.5 capitalize">{u.role.replace('_', ' ')}</div>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Comment */}
+                  <div>
+                    <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                      Comment (Optional)
+                    </label>
+                    <textarea
+                      value={forwardComment}
+                      onChange={(e) => setForwardComment(e.target.value)}
+                      placeholder="Add a comment for the forwarded user..."
+                      rows={2}
+                      className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex gap-2 pt-2">
+                    <button
+                      onClick={() => {
+                        setShowForwardDialog(false)
+                        setForwardUserId('')
+                        setForwardComment('')
+                        setForwardQuestionIds([])
+                        setForwardUserSearch('')
+                      }}
+                      className="flex-1 px-3 py-1.5 text-xs font-medium border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleForwardSubmit}
+                      disabled={!forwardUserId || forwardMutation.isPending}
+                      className="flex-1 px-3 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {forwardMutation.isPending ? 'Forwarding...' : 'Forward'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </Layout>
     )
   }

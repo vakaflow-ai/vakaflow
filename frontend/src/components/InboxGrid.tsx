@@ -54,17 +54,28 @@ function getAgentName(item: ActionItem): string {
   return 'N/A'
 }
 
-// Helper function to format date
+// Helper function to format date with proper timezone handling
 function formatDate(dateString?: string): string {
   if (!dateString) return 'N/A'
   try {
+    // Parse the date string - handles ISO format from backend (UTC)
     const date = new Date(dateString)
-    return date.toLocaleDateString('en-US', { 
+    
+    // Check if date is valid
+    if (isNaN(date.getTime())) {
+      return 'N/A'
+    }
+    
+    // Use toLocaleString to convert UTC to user's local timezone
+    // This ensures dates from backend (stored in UTC) are displayed in user's timezone
+    // Omitting timeZone uses the browser's local timezone automatically
+    return date.toLocaleString('en-US', { 
       year: 'numeric', 
       month: 'short', 
       day: 'numeric',
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
+      hour12: true
     })
   } catch {
     return 'N/A'
@@ -402,7 +413,7 @@ function renderCell(item: ActionItem, columnKey: keyof InboxColumnVisibilityConf
       )
     
     case 'workflowTicketId':
-      // Check multiple possible sources for ticket ID
+      // Display human-readable workflow ticket ID (e.g., ASMT-2026-017)
       const ticketId = item.metadata?.workflow_ticket_id || 
                        item.metadata?.ticket_number || 
                        item.metadata?.request_ticket_id ||

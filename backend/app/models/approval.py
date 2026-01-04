@@ -42,11 +42,12 @@ class ApprovalWorkflow(Base):
 
 
 class ApprovalInstance(Base):
-    """Approval instance for an agent"""
+    """Approval instance for an agent or assessment assignment"""
     __tablename__ = "approval_instances"
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    agent_id = Column(UUID(as_uuid=True), ForeignKey("agents.id"), nullable=False, index=True)
+    agent_id = Column(UUID(as_uuid=True), ForeignKey("agents.id"), nullable=True, index=True)  # Made nullable for assessments
+    assignment_id = Column(UUID(as_uuid=True), nullable=True, index=True)  # For assessment assignments
     workflow_id = Column(UUID(as_uuid=True), ForeignKey("approval_workflows.id"), nullable=True)
     
     # Status tracking

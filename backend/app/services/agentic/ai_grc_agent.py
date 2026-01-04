@@ -308,7 +308,16 @@ class AiGrcAgent(BaseAgenticAgent):
                     )
                     assessment_assignment_id = str(assignment.id)
                     questionnaire_sent = True
-                    logger.info(f"Created TPRM assessment assignment {assignment.id} for vendor {vendor_id}")
+                    logger.info(f"✅ Created TPRM assessment assignment {assignment.id} for vendor {vendor_id}")
+                    
+                    # Ensure assignment and action items are committed
+                    # Note: create_assignment() commits internally, but we ensure it here too
+                    try:
+                        self.db.commit()
+                        logger.info(f"✅ Committed TPRM assessment assignment {assignment.id} and action items")
+                    except Exception as commit_error:
+                        logger.warning(f"⚠️ Commit warning for assignment {assignment.id} (may already be committed): {commit_error}")
+                        # Don't fail if already committed by create_assignment
                     
                     # Send email notification to vendor using integration system
                     email_sent = False

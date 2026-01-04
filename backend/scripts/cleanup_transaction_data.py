@@ -35,7 +35,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, func
-from app.db.session import SessionLocal
+from app.core.database import SessionLocal
 from app.models.audit import AuditLog
 from app.models.assessment_workflow_history import AssessmentWorkflowHistory
 from app.models.message import Message

@@ -2518,6 +2518,7 @@ async def get_active_layout_for_stage(
     form_from_mapping = None
     workflow_group = None
     action_name = None  # Initialize outside try block so it's accessible everywhere
+    mapping = None  # Initialize outside try block to avoid UnboundLocalError
     
     # FIRST: Check process mapping (WorkflowLayoutGroup/FormType) to find form mapped to this workflow
     # Forms are workflow-agnostic and connected via process mapping
@@ -2596,9 +2597,7 @@ async def get_active_layout_for_stage(
         else:
             logger.info(f"  ⚠️ Could not determine action_name from workflow_stage={workflow_stage}, layout_type={layout_type}")
         
-        # Initialize mapping to None to avoid UnboundLocalError
-        mapping = None
-        
+        # Find mapping from workflow_group (mapping is already initialized above)
         if workflow_group and workflow_group.stage_mappings and action_name:
             # Find the mapped form in stage_mappings
             # Try exact match first, then case-insensitive match
@@ -2615,6 +2614,8 @@ async def get_active_layout_for_stage(
             
         if mapping:
             if mapping and mapping.get('layout_id'):
+                form_id = None
+                form_from_mapping = None
                 try:
                     form_id = UUID(mapping['layout_id'])
                     logger.info(f"Looking for form with id: {form_id}, tenant_id: {effective_tenant_id}")
@@ -2636,8 +2637,8 @@ async def get_active_layout_for_stage(
                     logger.error(f"Exception loading form: {e}", exc_info=True)
                     form_from_mapping = None
                     
-                    # If form not found in Forms entity, try FormLayout
-                    if not form_from_mapping:
+                    # If form not found in Forms entity, try FormLayout (only if form_id was successfully created)
+                    if not form_from_mapping and form_id:
                         layout = db.query(FormLayout).filter(
                             FormLayout.id == form_id,
                             FormLayout.tenant_id == effective_tenant_id,
@@ -2650,6 +2651,7 @@ async def get_active_layout_for_stage(
         workflow_group = None
         form_from_mapping = None
         layout = None
+        mapping = None  # Ensure mapping is reset in exception handler
     
     # If no form found from process mapping, try FormLayout (seeded layouts)
     if not layout and not form_from_mapping:

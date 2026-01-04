@@ -11,6 +11,8 @@ interface CommentDialogProps {
   placeholder?: string
   required?: boolean
   actionLabel?: string
+  initialValue?: string
+  onValueChange?: (value: string) => void
 }
 
 export default function CommentDialog({
@@ -21,10 +23,20 @@ export default function CommentDialog({
   label = 'Comment',
   placeholder = 'Enter your comment...',
   required = false,
-  actionLabel = 'Submit'
+  actionLabel = 'Submit',
+  initialValue = '',
+  onValueChange
 }: CommentDialogProps) {
-  const [comment, setComment] = useState('')
+  const [comment, setComment] = useState(initialValue)
   const [error, setError] = useState('')
+
+  const handleCommentChange = (value: string) => {
+    setComment(value)
+    if (error) setError('')
+    if (onValueChange) {
+      onValueChange(value)
+    }
+  }
 
   const handleSubmit = () => {
     if (required && !comment.trim()) {
@@ -44,10 +56,10 @@ export default function CommentDialog({
 
   useEffect(() => {
     if (isOpen) {
-      setComment('')
+      setComment(initialValue || '')
       setError('')
     }
-  }, [isOpen])
+  }, [isOpen, initialValue])
 
   useEffect(() => {
     if (!isOpen) return
@@ -92,10 +104,7 @@ export default function CommentDialog({
               label={label}
               multiline={true}
               value={comment}
-              onChange={(e) => {
-                setComment(e.target.value)
-                if (error) setError('')
-              }}
+              onChange={(e) => handleCommentChange(e.target.value)}
               placeholder={placeholder}
               error={!!error}
               helperText={error || (required ? 'This field is required' : 'Optional')}

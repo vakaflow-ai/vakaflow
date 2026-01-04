@@ -45,6 +45,12 @@ interface ProcessStep {
   position?: { x: number; y: number }
   size?: { width: number; height: number }
   connections?: string[]
+  // View, Action, and Audience configuration
+  view_id?: string | null
+  view_name?: string | null
+  action?: string | null
+  audience_roles?: string[] // Array of role values (e.g., ['tenant_admin', 'approver'])
+  audience_user_ids?: string[] // Optional: specific user IDs
 }
 
 interface BusinessProcess {
@@ -102,6 +108,7 @@ interface ProcessEditorPageProps {
   entities: Array<{ entity_name: string; entity_label: string; category: string }>
   departments: Array<{ value: string; label: string }>
   masterDataLists: MasterDataList[]
+  userRoles: Array<{ value: string; label: string }>
 }
 
 function ProcessEditorPage({
@@ -116,6 +123,7 @@ function ProcessEditorPage({
   entities,
   departments,
   masterDataLists,
+  userRoles,
 }: ProcessEditorPageProps) {
   const [currentStep, setCurrentStep] = useState<'config' | 'flow'>('config')
   const [selectedStep, setSelectedStep] = useState<string | null>(null)
@@ -132,6 +140,7 @@ function ProcessEditorPage({
   const [resizingStep, setResizingStep] = useState<string | null>(null)
   const [resizeStart, setResizeStart] = useState<{ x: number; y: number; width: number; height: number } | null>(null)
   const [hoveredConnection, setHoveredConnection] = useState<{ from: string; to: string } | null>(null)
+  const [draggedToolboxItem, setDraggedToolboxItem] = useState<{ type: 'start' | 'end' | 'action' | 'decision', offset: { x: number; y: number } } | null>(null)
 
   const onUpdateStep = (stepId: string, updates: Partial<ProcessStep>) => {
     setProcess({
@@ -332,7 +341,12 @@ function ProcessEditorPage({
               <div className={`relative flex-shrink-0 border-r border-gray-200 transition-all duration-300 ${toolboxExpanded ? 'w-64' : 'w-12'} overflow-visible`}>
                 <div className={`h-full ${toolboxExpanded ? 'px-4' : 'px-2'}`}>
                   <div className="flex items-center justify-between mb-3 h-8 relative">
-                    {toolboxExpanded && <h5 className="font-semibold text-gray-900">Toolbox</h5>}
+                    {toolboxExpanded && (
+                      <div>
+                        <h5 className="font-semibold text-gray-900">Toolbox</h5>
+                        <p className="text-xs text-gray-500">Drag items to canvas</p>
+                      </div>
+                    )}
                     <button
                       onClick={() => setToolboxExpanded(!toolboxExpanded)}
                       className={`absolute ${toolboxExpanded ? '-right-3' : 'right-2'} top-0 z-10 w-6 h-6 rounded-full bg-white border border-gray-300 shadow-sm flex items-center justify-center hover:bg-gray-50 transition-colors`}
@@ -347,92 +361,94 @@ function ProcessEditorPage({
                   </div>
                   {toolboxExpanded && (
                   <div className="space-y-2">
-                  <button
-                    onClick={() => {
+                  <div
+                    draggable
+                    onDragStart={(e) => {
                       const hasStart = process.steps.some(s => s.step_type === 'start')
-                      if (!hasStart) {
-                        const newStep: ProcessStep = {
-                          id: `step-${Date.now()}`,
-                          step_number: process.steps.length + 1,
-                          name: 'Start',
-                          step_type: 'start',
-                          position: { x: 100, y: 100 },
-                          size: { width: 96, height: 96 },
-                          connections: [],
-                        }
-                        setProcess({ ...process, steps: [...process.steps, newStep] })
-                      } else {
+                      if (hasStart) {
+                        e.preventDefault()
                         showToast.error('Flow can only have one Start node')
+                        return
                       }
+                      const rect = e.currentTarget.getBoundingClientRect()
+                      setDraggedToolboxItem({
+                        type: 'start',
+                        offset: {
+                          x: e.clientX - rect.left,
+                          y: e.clientY - rect.top
+                        }
+                      })
+                      e.dataTransfer.effectAllowed = 'copy'
                     }}
-                    className="w-full px-3 py-2 bg-green-50 border-2 border-green-300 rounded-lg text-green-700 hover:bg-green-100 transition-colors text-left flex items-center gap-2"
+                    onDragEnd={() => setDraggedToolboxItem(null)}
+                    className="w-full px-3 py-2 bg-green-50 border-2 border-green-300 rounded-lg text-green-700 hover:bg-green-100 transition-colors text-left flex items-center gap-2 cursor-grab active:cursor-grabbing"
                   >
                     <div className="w-3 h-3 rounded-full bg-green-600"></div>
                     <span className="font-medium">Start</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                        const newStep: ProcessStep = {
-                          id: `step-${Date.now()}`,
-                          step_number: process.steps.length + 1,
-                          name: `Step ${process.steps.length + 1}`,
-                          step_type: 'action',
-                          position: { x: 200 + (process.steps.length % 3) * 250, y: 150 + Math.floor(process.steps.length / 3) * 150 },
-                          size: { width: 192, height: 96 },
-                          connections: [],
+                  </div>
+                  <div
+                    draggable
+                    onDragStart={(e) => {
+                      const rect = e.currentTarget.getBoundingClientRect()
+                      setDraggedToolboxItem({
+                        type: 'action',
+                        offset: {
+                          x: e.clientX - rect.left,
+                          y: e.clientY - rect.top
                         }
-                      setProcess({ ...process, steps: [...process.steps, newStep] })
+                      })
+                      e.dataTransfer.effectAllowed = 'copy'
                     }}
-                    className="w-full px-3 py-2 bg-blue-50 border-2 border-blue-300 rounded-lg text-blue-700 hover:bg-blue-100 transition-colors text-left flex items-center gap-2"
+                    onDragEnd={() => setDraggedToolboxItem(null)}
+                    className="w-full px-3 py-2 bg-blue-50 border-2 border-blue-300 rounded-lg text-blue-700 hover:bg-blue-100 transition-colors text-left flex items-center gap-2 cursor-grab active:cursor-grabbing"
                   >
                     <Settings className="w-4 h-4" />
                     <span className="font-medium">Step</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                        const newStep: ProcessStep = {
-                          id: `step-${Date.now()}`,
-                          step_number: process.steps.length + 1,
-                          name: 'Decision',
-                          step_type: 'decision',
-                          position: { x: 200 + (process.steps.length % 3) * 250, y: 150 + Math.floor(process.steps.length / 3) * 150 },
-                          size: { width: 128, height: 128 },
-                          connections: [],
-                          branches: [
-                            { id: `branch-${Date.now()}-1`, condition_label: 'Yes', condition_value: true, next_step_id: null },
-                            { id: `branch-${Date.now()}-2`, condition_label: 'No', condition_value: false, next_step_id: null },
-                          ],
+                  </div>
+                  <div
+                    draggable
+                    onDragStart={(e) => {
+                      const rect = e.currentTarget.getBoundingClientRect()
+                      setDraggedToolboxItem({
+                        type: 'decision',
+                        offset: {
+                          x: e.clientX - rect.left,
+                          y: e.clientY - rect.top
                         }
-                      setProcess({ ...process, steps: [...process.steps, newStep] })
+                      })
+                      e.dataTransfer.effectAllowed = 'copy'
                     }}
-                    className="w-full px-3 py-2 bg-purple-50 border-2 border-purple-300 rounded-lg text-purple-700 hover:bg-purple-100 transition-colors text-left flex items-center gap-2"
+                    onDragEnd={() => setDraggedToolboxItem(null)}
+                    className="w-full px-3 py-2 bg-purple-50 border-2 border-purple-300 rounded-lg text-purple-700 hover:bg-purple-100 transition-colors text-left flex items-center gap-2 cursor-grab active:cursor-grabbing"
                   >
                     <GitBranch className="w-4 h-4" />
                     <span className="font-medium">Decision</span>
-                  </button>
-                  <button
-                    onClick={() => {
+                  </div>
+                  <div
+                    draggable
+                    onDragStart={(e) => {
                       const hasEnd = process.steps.some(s => s.step_type === 'end')
-                      if (!hasEnd) {
-                        const newStep: ProcessStep = {
-                          id: `step-${Date.now()}`,
-                          step_number: process.steps.length + 1,
-                          name: 'End',
-                          step_type: 'end',
-                          position: { x: 200 + (process.steps.length % 3) * 250, y: 150 + Math.floor(process.steps.length / 3) * 150 },
-                          size: { width: 96, height: 96 },
-                          connections: [],
-                        }
-                        setProcess({ ...process, steps: [...process.steps, newStep] })
-                      } else {
+                      if (hasEnd) {
+                        e.preventDefault()
                         showToast.error('Flow can only have one End node')
+                        return
                       }
+                      const rect = e.currentTarget.getBoundingClientRect()
+                      setDraggedToolboxItem({
+                        type: 'end',
+                        offset: {
+                          x: e.clientX - rect.left,
+                          y: e.clientY - rect.top
+                        }
+                      })
+                      e.dataTransfer.effectAllowed = 'copy'
                     }}
-                    className="w-full px-3 py-2 bg-red-50 border-2 border-red-300 rounded-lg text-red-700 hover:bg-red-100 transition-colors text-left flex items-center gap-2"
+                    onDragEnd={() => setDraggedToolboxItem(null)}
+                    className="w-full px-3 py-2 bg-red-50 border-2 border-red-300 rounded-lg text-red-700 hover:bg-red-100 transition-colors text-left flex items-center gap-2 cursor-grab active:cursor-grabbing"
                   >
                     <div className="w-3 h-3 rounded-full bg-red-600"></div>
                     <span className="font-medium">End</span>
-                  </button>
+                  </div>
                   </div>
                   )}
                 </div>
@@ -443,7 +459,7 @@ function ProcessEditorPage({
                 <div className="flex items-center justify-between mb-4 px-4">
                   <div>
                     <h4 className="font-semibold text-gray-900">Process Flow Diagram</h4>
-                    <p className="text-sm text-gray-600 mt-1">Drag steps to reposition, click to connect, right-click to configure</p>
+                    <p className="text-sm text-gray-600 mt-1">Drag items from toolbox to canvas, drag steps to reposition, click to connect, right-click to configure</p>
                   </div>
                 </div>
 
@@ -451,6 +467,82 @@ function ProcessEditorPage({
                 <div 
                   className="relative bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg flex-1 overflow-auto mx-4"
                   style={{ minHeight: '600px' }}
+                  onDragOver={(e) => {
+                    e.preventDefault()
+                    e.dataTransfer.dropEffect = 'copy'
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault()
+                    if (draggedToolboxItem) {
+                      const rect = e.currentTarget.getBoundingClientRect()
+                      const x = e.clientX - rect.left - draggedToolboxItem.offset.x
+                      const y = e.clientY - rect.top - draggedToolboxItem.offset.y
+                      
+                      let newStep: ProcessStep
+                      
+                      if (draggedToolboxItem.type === 'start') {
+                        const hasStart = process.steps.some(s => s.step_type === 'start')
+                        if (hasStart) {
+                          showToast.error('Flow can only have one Start node')
+                          setDraggedToolboxItem(null)
+                          return
+                        }
+                        newStep = {
+                          id: `step-${Date.now()}`,
+                          step_number: process.steps.length + 1,
+                          name: 'Start',
+                          step_type: 'start',
+                          position: { x: Math.max(0, x), y: Math.max(0, y) },
+                          size: { width: 96, height: 96 },
+                          connections: [],
+                        }
+                      } else if (draggedToolboxItem.type === 'end') {
+                        const hasEnd = process.steps.some(s => s.step_type === 'end')
+                        if (hasEnd) {
+                          showToast.error('Flow can only have one End node')
+                          setDraggedToolboxItem(null)
+                          return
+                        }
+                        newStep = {
+                          id: `step-${Date.now()}`,
+                          step_number: process.steps.length + 1,
+                          name: 'End',
+                          step_type: 'end',
+                          position: { x: Math.max(0, x), y: Math.max(0, y) },
+                          size: { width: 96, height: 96 },
+                          connections: [],
+                        }
+                      } else if (draggedToolboxItem.type === 'decision') {
+                        newStep = {
+                          id: `step-${Date.now()}`,
+                          step_number: process.steps.length + 1,
+                          name: 'Decision',
+                          step_type: 'decision',
+                          position: { x: Math.max(0, x), y: Math.max(0, y) },
+                          size: { width: 128, height: 128 },
+                          connections: [],
+                          branches: [
+                            { id: `branch-${Date.now()}-1`, condition_label: 'Yes', condition_value: true, next_step_id: null },
+                            { id: `branch-${Date.now()}-2`, condition_label: 'No', condition_value: false, next_step_id: null },
+                          ],
+                        }
+                      } else {
+                        // action step
+                        newStep = {
+                          id: `step-${Date.now()}`,
+                          step_number: process.steps.length + 1,
+                          name: `Step ${process.steps.length + 1}`,
+                          step_type: 'action',
+                          position: { x: Math.max(0, x), y: Math.max(0, y) },
+                          size: { width: 192, height: 96 },
+                          connections: [],
+                        }
+                      }
+                      
+                      setProcess({ ...process, steps: [...process.steps, newStep] })
+                      setDraggedToolboxItem(null)
+                    }
+                  }}
                   onMouseMove={(e) => {
                     if (connectingFrom) {
                       const rect = e.currentTarget.getBoundingClientRect()
@@ -978,6 +1070,7 @@ function ProcessEditorPage({
                           handleUpdateBranch={handleUpdateBranch}
                           handleRemoveBranch={handleRemoveBranch}
                           handleMapBranchToStep={handleMapBranchToStep}
+                          userRoles={userRoles || []}
                         />
                       )}
                     </div>
@@ -1090,11 +1183,52 @@ export default function Entities() {
       const loadedProcesses: BusinessProcess[] = workflowGroups.map((group) => {
         // Extract process definition from stage_mappings._process_definition if it exists
         const processDefinition = (group.stage_mappings as any)?._process_definition
+        
+        // Ensure steps have default positions if not set
+        const steps = (processDefinition?.steps || []).map((step: ProcessStep, index: number) => {
+          // If step doesn't have position, assign default based on index
+          if (!step.position) {
+            const cols = 3
+            const col = index % cols
+            const row = Math.floor(index / cols)
+            step.position = {
+              x: 200 + col * 250,
+              y: 150 + row * 150
+            }
+          }
+          
+          // Ensure default size if not set
+          if (!step.size) {
+            if (step.step_type === 'decision') {
+              step.size = { width: 128, height: 128 }
+            } else if (step.step_type === 'start' || step.step_type === 'end') {
+              step.size = { width: 96, height: 96 }
+            } else {
+              step.size = { width: 192, height: 96 }
+            }
+          }
+          
+          // Ensure connections array exists
+          if (!step.connections) {
+            step.connections = []
+          }
+          
+          // Ensure branches array exists for decision steps
+          if (step.step_type === 'decision' && !step.branches) {
+            step.branches = [
+              { id: `branch-${step.id}-1`, condition_label: 'Yes', condition_value: true, next_step_id: null },
+              { id: `branch-${step.id}-2`, condition_label: 'No', condition_value: false, next_step_id: null },
+            ]
+          }
+          
+          return step
+        })
+        
         return {
           id: group.id,
           name: group.name,
           description: group.description,
-          steps: processDefinition?.steps || [],
+          steps: steps,
           additional_attributes: processDefinition?.additional_attributes || {},
           created_at: group.created_at,
           updated_at: group.updated_at,
@@ -1113,6 +1247,28 @@ export default function Entities() {
   const { data: departments } = useQuery({
     queryKey: ['departments'],
     queryFn: () => masterDataListsApi.get('department'),
+    enabled: !!user,
+  })
+
+  const { data: userRoles } = useQuery({
+    queryKey: ['user-roles'],
+    queryFn: () => masterDataListsApi.getValuesByType('user_role').catch(() => {
+      // Fallback to constant if API fails
+      return [
+        { value: 'tenant_admin', label: 'Tenant Admin' },
+        { value: 'policy_admin', label: 'Policy Admin' },
+        { value: 'integration_admin', label: 'Integration Admin' },
+        { value: 'user_admin', label: 'User Admin' },
+        { value: 'security_reviewer', label: 'Security Reviewer' },
+        { value: 'compliance_reviewer', label: 'Compliance Reviewer' },
+        { value: 'technical_reviewer', label: 'Technical Reviewer' },
+        { value: 'business_reviewer', label: 'Business Reviewer' },
+        { value: 'approver', label: 'Approver' },
+        { value: 'vendor_coordinator', label: 'Vendor Coordinator' },
+        { value: 'vendor_user', label: 'Vendor User' },
+        { value: 'end_user', label: 'End User' },
+      ]
+    }),
     enabled: !!user,
   })
 
@@ -1244,10 +1400,54 @@ export default function Entities() {
 
   // If editing a process, show full-page editor
   if (editingProcess) {
+    // Ensure the process has all required step data when editing
+    // This ensures positions, sizes, connections, and branches are properly loaded
+    const processWithDefaults: BusinessProcess = {
+      ...editingProcess,
+      steps: editingProcess.steps.map((step, index) => {
+        // Ensure position exists - use saved position or assign default based on index
+        if (!step.position) {
+          const cols = 3
+          const col = index % cols
+          const row = Math.floor(index / cols)
+          step.position = {
+            x: 200 + col * 250,
+            y: 150 + row * 150
+          }
+        }
+        
+        // Ensure size exists based on step type
+        if (!step.size) {
+          if (step.step_type === 'decision') {
+            step.size = { width: 128, height: 128 }
+          } else if (step.step_type === 'start' || step.step_type === 'end') {
+            step.size = { width: 96, height: 96 }
+          } else {
+            step.size = { width: 192, height: 96 }
+          }
+        }
+        
+        // Ensure connections array exists
+        if (!step.connections) {
+          step.connections = []
+        }
+        
+        // Ensure branches exist for decision steps
+        if (step.step_type === 'decision' && !step.branches) {
+          step.branches = [
+            { id: `branch-${step.id}-1`, condition_label: 'Yes', condition_value: true, next_step_id: null },
+            { id: `branch-${step.id}-2`, condition_label: 'No', condition_value: false, next_step_id: null },
+          ]
+        }
+        
+        return step
+      })
+    }
+    
     return (
       <Layout user={user}>
         <ProcessEditorPage
-          process={editingProcess}
+          process={processWithDefaults}
           setProcess={setEditingProcess}
           onBack={() => setEditingProcess(null)}
           onSave={handleSaveProcess}
@@ -1258,6 +1458,7 @@ export default function Entities() {
           entities={entities}
           departments={departments?.values || []}
           masterDataLists={masterDataLists || []}
+          userRoles={userRoles || []}
         />
       </Layout>
     )
@@ -1320,6 +1521,7 @@ interface StepConfigurationPanelProps {
   handleUpdateBranch: (stepId: string, branchId: string, updates: Partial<ProcessStepBranch>) => void
   handleRemoveBranch: (stepId: string, branchId: string) => void
   handleMapBranchToStep: (stepId: string, branchId: string, nextStepId: string | null) => void
+  userRoles: Array<{ value: string; label: string }>
 }
 
 function StepConfigurationPanel({
@@ -1338,6 +1540,7 @@ function StepConfigurationPanel({
   handleUpdateBranch,
   handleRemoveBranch,
   handleMapBranchToStep,
+  userRoles,
 }: StepConfigurationPanelProps) {
   const StepIcon = getStepIcon(step.step_type)
   const EntityIcon = getEntityIcon(step.entity_name)
@@ -1605,6 +1808,128 @@ function StepConfigurationPanel({
               <option value="one_time">One-Time</option>
             </select>
           )}
+        </div>
+      )}
+
+      {/* View, Action, and Audience Configuration */}
+      {(step.step_type === 'entity' || step.step_type === 'form' || step.step_type === 'assessment' || step.step_type === 'workflow' || step.step_type === 'action' || step.step_type === 'decision' || step.step_type === 'custom') && (
+        <div className="space-y-4 pt-4 border-t border-gray-200">
+          <h4 className="text-sm font-semibold text-gray-900">Step Access & Actions</h4>
+          
+          {/* View Configuration */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">View</label>
+            <p className="text-xs text-gray-500 mb-2">Form or view to display for this step</p>
+            {step.view_id ? (
+              <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-200">
+                <span className="text-sm font-medium text-green-900">{step.view_name || 'View Selected'}</span>
+                <button
+                  onClick={() => onUpdate({ view_id: null, view_name: null })}
+                  className="text-red-600 hover:text-red-800 text-sm"
+                >
+                  Remove
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <select
+                  value={step.view_id || ''}
+                  onChange={(e) => {
+                    const selectedForm = formLayouts.find(f => f.id === e.target.value)
+                    onUpdate({
+                      view_id: e.target.value || null,
+                      view_name: selectedForm?.name || null
+                    })
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                >
+                  <option value="">Select View/Form</option>
+                  {formLayouts.map(form => (
+                    <option key={form.id} value={form.id}>
+                      {form.name} ({form.request_type || 'N/A'})
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-400">Select a form layout to use as the view for this step</p>
+              </div>
+            )}
+          </div>
+
+          {/* Action Configuration */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Action</label>
+            <p className="text-xs text-gray-500 mb-2">Action that can be performed in this step</p>
+            <select
+              value={step.action || ''}
+              onChange={(e) => onUpdate({ action: e.target.value || null })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+            >
+              <option value="">Select Action</option>
+              <option value="view">View Only</option>
+              <option value="submit">Submit</option>
+              <option value="approve">Approve</option>
+              <option value="reject">Reject</option>
+              <option value="review">Review</option>
+              <option value="edit">Edit</option>
+              <option value="complete">Complete</option>
+              <option value="forward">Forward</option>
+              <option value="comment">Comment</option>
+            </select>
+          </div>
+
+          {/* Audience Configuration */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Audience (Roles)</label>
+            <p className="text-xs text-gray-500 mb-2">Select roles that can access this step</p>
+            <div className="space-y-2 max-h-48 overflow-y-auto border border-gray-200 rounded-lg p-2">
+              {!userRoles || userRoles.length === 0 ? (
+                <p className="text-xs text-gray-400 text-center py-2">No roles available</p>
+              ) : (
+                userRoles.map(role => (
+                  <label key={role.value} className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={step.audience_roles?.includes(role.value) || false}
+                      onChange={(e) => {
+                        const currentRoles = step.audience_roles || []
+                        if (e.target.checked) {
+                          onUpdate({ audience_roles: [...currentRoles, role.value] })
+                        } else {
+                          onUpdate({ audience_roles: currentRoles.filter(r => r !== role.value) })
+                        }
+                      }}
+                      className="rounded"
+                    />
+                    <span className="text-sm text-gray-700">{role.label}</span>
+                  </label>
+                ))
+              )}
+            </div>
+            {step.audience_roles && step.audience_roles.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1">
+                {step.audience_roles.map(roleValue => {
+                  const role = userRoles?.find(r => r.value === roleValue)
+                  return role ? (
+                    <span
+                      key={roleValue}
+                      className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full"
+                    >
+                      {role.label}
+                      <button
+                        onClick={() => {
+                          const currentRoles = step.audience_roles || []
+                          onUpdate({ audience_roles: currentRoles.filter(r => r !== roleValue) })
+                        }}
+                        className="hover:text-blue-900"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ) : null
+                })}
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

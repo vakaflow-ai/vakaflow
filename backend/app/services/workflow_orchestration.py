@@ -802,7 +802,7 @@ class WorkflowOrchestrationService:
         results = []
         for recipient in recipients:
             try:
-                sent = await self.email_service.send_email(
+                sent, _ = await self.email_service.send_email(
                     to_email=recipient["email"],
                     subject=subject,
                     html_body=html_body,
