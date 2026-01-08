@@ -449,8 +449,34 @@ export default function GenericApproverPage({}: GenericApproverPageProps) {
     }
   }, [reviewStats])
 
+  // Helper function to format status labels for approvers
+  // "completed" from vendor's perspective should be shown as "submitted" or "pending approval" to approvers
+  const getStatusLabelForApprover = (status: string | undefined | null): string => {
+    if (!status || typeof status !== 'string') return 'Pending'
+    const statusLower = status.toLowerCase().trim()
+    switch (statusLower) {
+      case 'completed':
+        return 'Submitted' // Vendor has submitted, waiting for approval
+      case 'approved':
+        return 'Approved'
+      case 'rejected':
+        return 'Rejected'
+      case 'needs_revision':
+        return 'Needs Revision'
+      case 'in_progress':
+        return 'In Progress'
+      case 'pending':
+        return 'Pending'
+      default:
+        return String(status).replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())
+    }
+  }
+
   // Render assessment approver view function (defined before use)
   const renderAssessmentApprover = () => {
+    // Check if assignment is completed (approved or rejected) - disable all action buttons
+    const isCompleted = assignment?.status === 'approved' || assignment?.status === 'rejected'
+    
     if (assignmentLoading || questionsLoading || responsesLoading) {
       return (
         <Layout user={user}>
@@ -487,9 +513,18 @@ export default function GenericApproverPage({}: GenericApproverPageProps) {
           {/* Right Side Floating Action Buttons */}
           <div className="fixed right-6 top-1/2 -translate-y-1/2 z-50 flex flex-col gap-3">
             <button
-              onClick={() => handleForwardClick()} // Forward entire assessment
-              className="p-3 rounded-full shadow-lg bg-blue-600 text-white border-2 border-blue-700 hover:bg-blue-700 hover:border-blue-800 transition-all"
-              title="Forward Assessment"
+              onClick={() => {
+                if (!isCompleted) {
+                  handleForwardClick() // Forward entire assessment
+                }
+              }}
+              disabled={isCompleted}
+              className={`p-3 rounded-full shadow-lg border-2 transition-all ${
+                isCompleted 
+                  ? 'bg-gray-300 text-gray-500 border-gray-400 cursor-not-allowed opacity-50' 
+                  : 'bg-blue-600 text-white border-blue-700 hover:bg-blue-700 hover:border-blue-800'
+              }`}
+              title={isCompleted ? "Assessment already completed" : "Forward Assessment"}
             >
               <Forward className="w-5 h-5" />
             </button>
@@ -551,7 +586,7 @@ export default function GenericApproverPage({}: GenericApproverPageProps) {
                         </div>
                       )}
                       <div>
-                        <span className="font-medium">Status:</span> {assignment?.status || actionItem?.status || 'Unknown'}
+                        <span className="font-medium">Status:</span> {getStatusLabelForApprover(assignment?.status)}
                       </div>
                     </div>
                   </div>
@@ -568,9 +603,9 @@ export default function GenericApproverPage({}: GenericApproverPageProps) {
                   <div>
                     <div className="text-xs text-gray-500 mb-1">Status</div>
                     <MaterialChip
-                      label={assignment?.status || 'pending'}
+                      label={getStatusLabelForApprover(assignment?.status)}
                       color={
-                        assignment?.status === 'completed' ? 'primary' :
+                        assignment?.status === 'completed' ? 'primary' : // "Submitted" shown as primary
                         assignment?.status === 'approved' ? 'success' :
                         assignment?.status === 'rejected' ? 'error' :
                         'default'
@@ -578,7 +613,7 @@ export default function GenericApproverPage({}: GenericApproverPageProps) {
                       size="small"
                       className="!px-3 !py-1"
                     >
-                      {assignment?.status || 'pending'}
+                      {getStatusLabelForApprover(assignment?.status)}
                     </MaterialChip>
                   </div>
                   <div>
@@ -666,6 +701,7 @@ export default function GenericApproverPage({}: GenericApproverPageProps) {
                         readOnly={false}
                         assignmentId={actionItem?.source_id}
                         onForwardQuestion={(questionId) => handleForwardClick([questionId])} // Forward specific question
+                        isCompleted={isCompleted} // Pass isCompleted to disable buttons when assignment is completed
                       />
                     </div>
                   )
@@ -687,6 +723,7 @@ export default function GenericApproverPage({}: GenericApproverPageProps) {
                         readOnly={false}
                         assignmentId={actionItem?.source_id}
                         onForwardQuestion={(questionId) => handleForwardClick([questionId])} // Forward specific question
+                        isCompleted={isCompleted} // Pass isCompleted to disable buttons when assignment is completed
                       />
                     </div>
                   )
@@ -779,10 +816,10 @@ export default function GenericApproverPage({}: GenericApproverPageProps) {
                           <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
                             assignment.status === 'approved' ? 'bg-green-100 text-green-800' :
                             assignment.status === 'rejected' || assignment.status === 'denied' ? 'bg-red-100 text-red-800' :
-                            assignment.status === 'completed' ? 'bg-blue-100 text-blue-800' :
+                            assignment.status === 'completed' ? 'bg-blue-100 text-blue-800' : // "Submitted" shown as blue
                             'bg-yellow-100 text-yellow-800'
                           }`}>
-                            {assignment.status === 'completed' ? 'IN REVIEW' : assignment.status?.replace('_', ' ').toUpperCase() || 'PENDING'}
+                            {getStatusLabelForApprover(assignment.status).toUpperCase()}
                           </span>
                         </div>
                       </div>
@@ -843,8 +880,12 @@ export default function GenericApproverPage({}: GenericApproverPageProps) {
                           const comment = prompt('Optional comment for acceptance:') || undefined
                           submitDecisionMutation.mutate({ decision: 'accepted', comment })
                         }}
-                        disabled={submitDecisionMutation.isPending}
-                        className="w-full px-3 py-1.5 bg-green-600 text-white text-xs font-medium rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-1.5"
+                        disabled={isCompleted || submitDecisionMutation.isPending}
+                        className={`w-full px-3 py-1.5 text-white text-xs font-medium rounded-md transition-colors flex items-center justify-center gap-1.5 ${
+                          isCompleted 
+                            ? 'bg-gray-400 cursor-not-allowed' 
+                            : 'bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed'
+                        }`}
                       >
                         <CheckCircle className="w-3.5 h-3.5" />
                         {submitDecisionMutation.isPending ? 'Submitting...' : 'Accept'}
@@ -856,8 +897,12 @@ export default function GenericApproverPage({}: GenericApproverPageProps) {
                             submitDecisionMutation.mutate({ decision: 'denied', comment })
                           }
                         }}
-                        disabled={submitDecisionMutation.isPending}
-                        className="w-full px-3 py-1.5 bg-red-600 text-white text-xs font-medium rounded-md hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-1.5"
+                        disabled={isCompleted || submitDecisionMutation.isPending}
+                        className={`w-full px-3 py-1.5 text-white text-xs font-medium rounded-md transition-colors flex items-center justify-center gap-1.5 ${
+                          isCompleted 
+                            ? 'bg-gray-400 cursor-not-allowed' 
+                            : 'bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed'
+                        }`}
                       >
                         <XCircle className="w-3.5 h-3.5" />
                         {submitDecisionMutation.isPending ? 'Submitting...' : 'Deny'}
@@ -869,8 +914,12 @@ export default function GenericApproverPage({}: GenericApproverPageProps) {
                             submitDecisionMutation.mutate({ decision: 'need_info', comment })
                           }
                         }}
-                        disabled={submitDecisionMutation.isPending}
-                        className="w-full px-3 py-1.5 bg-yellow-600 text-white text-xs font-medium rounded-md hover:bg-yellow-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-1.5"
+                        disabled={isCompleted || submitDecisionMutation.isPending}
+                        className={`w-full px-3 py-1.5 text-white text-xs font-medium rounded-md transition-colors flex items-center justify-center gap-1.5 ${
+                          isCompleted 
+                            ? 'bg-gray-400 cursor-not-allowed' 
+                            : 'bg-yellow-600 hover:bg-yellow-700 disabled:opacity-50 disabled:cursor-not-allowed'
+                        }`}
                       >
                         <HelpCircle className="w-3.5 h-3.5" />
                         {submitDecisionMutation.isPending ? 'Submitting...' : 'Need Info'}
@@ -880,16 +929,24 @@ export default function GenericApproverPage({}: GenericApproverPageProps) {
                 )}
                 
                 {/* Forward Assessment Card */}
-                {assignment && assignment.status === 'completed' && (
+                {assignment && assignment.status === 'completed' && !isCompleted && (
                   <MaterialCard elevation={2} className="bg-white border border-gray-200 p-4 shadow-sm">
                     <div className="flex items-center gap-2 mb-2">
                       <Forward className="w-4 h-4 text-blue-600" />
                       <div className="text-sm font-semibold text-gray-900">Forward</div>
                     </div>
                     <button
-                      onClick={() => handleForwardClick()} // Forward entire assessment
-                      disabled={forwardMutation.isPending}
-                      className="w-full px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-1.5"
+                      onClick={() => {
+                        if (!isCompleted) {
+                          handleForwardClick() // Forward entire assessment
+                        }
+                      }}
+                      disabled={isCompleted || forwardMutation.isPending}
+                      className={`w-full px-3 py-1.5 text-white text-xs font-medium rounded-md transition-colors flex items-center justify-center gap-1.5 ${
+                        isCompleted 
+                          ? 'bg-gray-400 cursor-not-allowed opacity-50' 
+                          : 'bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed'
+                      }`}
                     >
                       <Forward className="w-3.5 h-3.5" />
                       {forwardMutation.isPending ? 'Forwarding...' : 'Forward'}

@@ -1115,7 +1115,7 @@ class ActionItemService:
                         Vendor.contact_email == user_for_completed.email
                     ).all()
                     completed_vendor_ids = [v.id for v in completed_vendors]
-                    
+                
                     try:
                         completed_agents = self.db.query(Agent).join(
                             Vendor, Agent.vendor_id == Vendor.id

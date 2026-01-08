@@ -5843,11 +5843,19 @@ async def submit_final_decision(
             # Get workflow configuration to find next step
             from app.services.workflow_orchestration import WorkflowOrchestrationService
             from app.models.workflow_config import WorkflowConfiguration
+            from app.models.vendor import Vendor
+            from app.models.agent import Agent
+            
+            # Get assessment details for action item metadata
+            assessment = db.query(Assessment).filter(Assessment.id == assignment.assessment_id).first()
+            if not assessment:
+                logger.warning(f"Assessment {assignment.assessment_id} not found when progressing workflow")
             
             orchestration = WorkflowOrchestrationService(db, effective_tenant_id)
             assessment_data = {
                 "id": str(assignment.assessment_id),
-                "name": assignment.assessment_id,  # Will be fetched if needed
+                "name": assessment.name if assessment else str(assignment.assessment_id),
+                "assessment_type": assessment.assessment_type if assessment else None,
             }
             
             workflow_config = orchestration.get_workflow_for_entity(
@@ -5918,6 +5926,106 @@ async def submit_final_decision(
                                 ).first()
                                 if assignee:
                                     next_step.assigned_to = assignee.id
+                                    logger.info(f"Auto-assigned next step {next_step_number} to {assignee.email} ({assigned_role})")
+                    
+                    # Create action items for the next step's assignee(s)
+                    from app.models.action_item import ActionItem, ActionItemType, ActionItemStatus, ActionItemPriority
+                    
+                    # Get all users assigned to this step (could be multiple if role-based)
+                    next_step_assignees = []
+                    if next_step.assigned_to:
+                        # Direct assignment
+                        assignee_user = db.query(User).filter(User.id == next_step.assigned_to).first()
+                        if assignee_user:
+                            next_step_assignees.append(assignee_user)
+                    elif next_step_config.get("assigned_role"):
+                        # Role-based assignment - get all users with this role
+                        assigned_role = next_step_config.get("assigned_role")
+                        role_mapping = {
+                            "security_reviewer": UserRole.SECURITY_REVIEWER,
+                            "compliance_reviewer": UserRole.COMPLIANCE_REVIEWER,
+                            "technical_reviewer": UserRole.TECHNICAL_REVIEWER,
+                            "business_reviewer": UserRole.BUSINESS_REVIEWER,
+                            "approver": UserRole.APPROVER,
+                            "tenant_admin": UserRole.TENANT_ADMIN,
+                        }
+                        role_enum = role_mapping.get(assigned_role)
+                        if role_enum:
+                            role_users = db.query(User).filter(
+                                User.tenant_id == effective_tenant_id,
+                                User.role == role_enum,
+                                User.is_active.is_(True)
+                            ).all()
+                            next_step_assignees.extend(role_users)
+                    
+                    # Create action items for each assignee
+                    for assignee_user in next_step_assignees:
+                        # Check if action item already exists for this step
+                        existing_item = db.query(ActionItem).filter(
+                            ActionItem.source_id == assignment_id,
+                            ActionItem.source_type == "assessment_approval",
+                            ActionItem.action_type == ActionItemType.APPROVAL,
+                            ActionItem.assigned_to == assignee_user.id,
+                            ActionItem.status.in_([ActionItemStatus.PENDING, ActionItemStatus.IN_PROGRESS])
+                        ).first()
+                        
+                        if not existing_item:
+                            # Build action URL
+                            approval_url = f"/approver/assessment_approval/{assignment_id}"
+                            
+                            # Get vendor/agent names for metadata
+                            vendor_name = None
+                            agent_name = None
+                            if assignment.vendor_id:
+                                vendor = db.query(Vendor).filter(Vendor.id == assignment.vendor_id).first()
+                                vendor_name = vendor.name if vendor else None
+                            if assignment.agent_id:
+                                agent = db.query(Agent).filter(Agent.id == assignment.agent_id).first()
+                                agent_name = agent.name if agent else None
+                            
+                            # Create action item for next step
+                            action_item = ActionItem(
+                                tenant_id=effective_tenant_id,
+                                action_type=ActionItemType.APPROVAL,
+                                title=f"Approve Assessment: {assessment.name if assessment else 'Assessment'}",
+                                description=f"Step {next_step_number}: {next_step_config.get('step_name', 'Approval')}",
+                                status=ActionItemStatus.PENDING,
+                                priority=ActionItemPriority.MEDIUM,
+                                assigned_to=assignee_user.id,
+                                assigned_at=datetime.utcnow(),
+                                source_type="assessment_approval",
+                                source_id=assignment_id,
+                                action_url=approval_url,
+                                item_metadata={
+                                    "assessment_id": str(assessment.id) if assessment else None,
+                                    "assessment_name": assessment.name if assessment else None,
+                                    "assessment_type": assessment.assessment_type if assessment else None,
+                                    "assignment_id": str(assignment.id),
+                                    "vendor_id": str(assignment.vendor_id) if assignment.vendor_id else None,
+                                    "agent_id": str(assignment.agent_id) if assignment.agent_id else None,
+                                    "vendor_name": vendor_name,
+                                    "agent_name": agent_name,
+                                    "submitted_by": current_user.name or current_user.email,
+                                    "submitted_at": assignment.completed_at.isoformat() if assignment.completed_at else datetime.utcnow().isoformat(),
+                                    "workflow_type": "assessment_approval",
+                                    "approval_required": True,
+                                    "vendor_completed": True,
+                                    "ready_for_approval": True,
+                                    "assignment_status": "completed",
+                                    "workflow_ticket_id": assignment.workflow_ticket_id,
+                                    "approval_step_number": next_step_number,
+                                    "approval_step_name": next_step_config.get("step_name", "Approval")
+                                }
+                            )
+                            db.add(action_item)
+                            logger.info(f"Created action item for step {next_step_number} assignee {assignee_user.email} (ID: {assignee_user.id}) for assignment {assignment_id}")
+                        else:
+                            logger.info(f"Action item already exists for step {next_step_number} assignee {assignee_user.email} for assignment {assignment_id}")
+                    
+                    # Flush to ensure action items are persisted
+                    if next_step_assignees:
+                        db.flush()
+                        logger.info(f"Flushed action items for step {next_step_number} ({len(next_step_assignees)} assignees) for assignment {assignment_id}")
                 
                 logger.info(f"Progressed workflow to step {next_step_number} for assignment {assignment_id}")
             else:

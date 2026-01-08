@@ -1,10 +1,11 @@
 import { useEffect, useState, useMemo, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 import { authApi } from '../lib/auth'
 import { questionLibraryApi, QuestionLibrary as QuestionLibraryType, AssessmentType } from '../lib/assessments'
 import { masterDataListsApi, MasterDataValue } from '../lib/masterDataLists'
 import Layout from '../components/Layout'
-import { Plus, Edit, Trash2, Search, Filter, X, Save, ToggleLeft, ToggleRight, CheckSquare, Square, Download, Upload } from 'lucide-react'
+import { Plus, Edit, Trash2, Search, Filter, X, Save, ToggleLeft, ToggleRight, CheckSquare, Square, Download, Upload, ChevronDown, Check } from 'lucide-react'
 import * as XLSX from 'xlsx'
 
 // Assessment types are now fetched from master data lists
@@ -49,10 +50,9 @@ interface User {
 
 export default function QuestionLibrary() {
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
   const [user, setUser] = useState<User | null>(null)
   const [showCreateModal, setShowCreateModal] = useState(false)
-  const [showEditModal, setShowEditModal] = useState(false)
-  const [selectedQuestion, setSelectedQuestion] = useState<QuestionLibraryType | null>(null)
   const [filterAssessmentType, setFilterAssessmentType] = useState<string>('')
   const [filterCategory, setFilterCategory] = useState<string>('')
   const [searchQuery, setSearchQuery] = useState<string>('')
@@ -71,7 +71,26 @@ export default function QuestionLibrary() {
     response_type: 'Text',
     is_required: false,
     options: [] as Array<{ value: string; label: string }>,
+    type_of_control: 'multi_select', // New field: Type of Control
   })
+  const [assessmentTypeSearchOpen, setAssessmentTypeSearchOpen] = useState(false)
+  const [assessmentTypeSearchTerm, setAssessmentTypeSearchTerm] = useState('')
+  const assessmentTypeDropdownRef = useRef<HTMLDivElement>(null)
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (assessmentTypeDropdownRef.current && !assessmentTypeDropdownRef.current.contains(event.target as Node)) {
+        setAssessmentTypeSearchOpen(false)
+        setAssessmentTypeSearchTerm('')
+      }
+    }
+
+    if (assessmentTypeSearchOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [assessmentTypeSearchOpen])
 
   useEffect(() => {
     authApi.getCurrentUser()
@@ -133,27 +152,11 @@ export default function QuestionLibrary() {
         response_type: 'Text',
         is_required: false,
         options: [],
+        type_of_control: 'multi_select',
       })
     },
   })
 
-  const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<QuestionLibraryType> }) => {
-      console.log('Updating question with data:', data)
-      return questionLibraryApi.update(id, data as any)
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['question-library'] })
-      setShowEditModal(false)
-      setSelectedQuestion(null)
-    },
-    onError: (error: any) => {
-      console.error('Error updating question:', error)
-      const errorMessage = error?.response?.data?.detail || error?.response?.data?.message || error.message || 'Unknown error'
-      console.error('Full error response:', error?.response?.data)
-      alert(`Failed to update question: ${errorMessage}`)
-    },
-  })
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => questionLibraryApi.delete(id),
@@ -258,26 +261,7 @@ export default function QuestionLibrary() {
   }
 
   const handleEdit = (question: QuestionLibraryType) => {
-    setSelectedQuestion(question)
-    // Handle assessment_type - convert to array if it's a string (backward compatibility)
-    const assessmentTypes = Array.isArray(question.assessment_type) 
-      ? question.assessment_type 
-      : question.assessment_type 
-        ? [question.assessment_type] 
-        : ['tprm']
-    
-    setFormData({
-      title: question.title,
-      question_text: question.question_text,
-      description: question.description || '',
-      assessment_type: assessmentTypes as AssessmentType[],
-      category: question.category || '',
-      field_type: question.field_type,
-      response_type: question.response_type,
-      is_required: question.is_required,
-      options: question.options || [],
-    })
-    setShowEditModal(true)
+    navigate(`/admin/question-library/${question.id}/edit`)
   }
 
   const handleUpdate = () => {
@@ -591,7 +575,7 @@ export default function QuestionLibrary() {
         {/* Create Modal */}
         {showCreateModal && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] flex flex-col">
+            <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden shadow-xl">
               <div className="flex items-center justify-between p-6 border-b border-gray-200 flex-shrink-0">
                 <h2 className="text-xl font-semibold text-gray-900">Add Question</h2>
                 <button 
@@ -601,7 +585,8 @@ export default function QuestionLibrary() {
                   <X className="w-5 h-5" />
                 </button>
               </div>
-              <div className="p-6 space-y-6 overflow-y-auto flex-1 min-h-0">
+              <div className="flex-1 overflow-y-auto min-h-0">
+                <div className="p-6 space-y-6">
                 <div>
                   <label className="block text-sm font-semibold text-gray-900 mb-2">Title *</label>
                   <input
@@ -632,38 +617,113 @@ export default function QuestionLibrary() {
                     placeholder="Optional description"
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-6">
-                  <div className="min-w-0">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="relative">
                     <label className="block text-sm font-semibold text-gray-900 mb-2">Assessment Type(s) *</label>
-                    <div className="border border-gray-300 rounded-lg p-3 max-h-[200px] overflow-y-auto bg-gray-50">
-                      <div className="space-y-2">
-                        {ASSESSMENT_TYPES.map(type => (
-                          <label
-                            key={type.value}
-                            className="flex items-center gap-2.5 cursor-pointer hover:bg-white p-1.5 rounded transition-colors"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={formData.assessment_type.includes(type.value)}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  setFormData({
-                                    ...formData,
-                                    assessment_type: [...formData.assessment_type, type.value]
-                                  })
-                                } else {
-                                  setFormData({
-                                    ...formData,
-                                    assessment_type: formData.assessment_type.filter(t => t !== type.value)
-                                  })
-                                }
-                              }}
-                              className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 flex-shrink-0"
-                            />
-                            <span className="text-sm text-gray-700 truncate">{type.label}</span>
-                          </label>
-                        ))}
-                      </div>
+                    <div className="relative" ref={assessmentTypeDropdownRef}>
+                      <button
+                        type="button"
+                        onClick={() => setAssessmentTypeSearchOpen(!assessmentTypeSearchOpen)}
+                        className="w-full px-4 py-2.5 text-sm text-left rounded-lg border border-gray-300 bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 flex items-center justify-between"
+                      >
+                        <span className="text-gray-700">
+                          {formData.assessment_type.length === 0
+                            ? 'Select assessment types...'
+                            : `${formData.assessment_type.length} selected`}
+                        </span>
+                        <ChevronDown className={`w-4 h-4 text-gray-500 transition-transform ${assessmentTypeSearchOpen ? 'transform rotate-180' : ''}`} />
+                      </button>
+                      
+                      {assessmentTypeSearchOpen && (
+                        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-hidden">
+                          <div className="p-2 border-b border-gray-200">
+                            <div className="relative">
+                              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                              <input
+                                type="text"
+                                value={assessmentTypeSearchTerm}
+                                onChange={(e) => setAssessmentTypeSearchTerm(e.target.value)}
+                                placeholder="Search assessment types..."
+                                className="w-full pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                autoFocus
+                              />
+                            </div>
+                          </div>
+                          <div className="max-h-48 overflow-y-auto">
+                            {ASSESSMENT_TYPES
+                              .filter(type => 
+                                type.label.toLowerCase().includes(assessmentTypeSearchTerm.toLowerCase())
+                              )
+                              .map(type => {
+                                const isSelected = formData.assessment_type.includes(type.value)
+                                return (
+                                  <label
+                                    key={type.value}
+                                    className="flex items-center gap-2 px-4 py-2 hover:bg-gray-50 cursor-pointer"
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={isSelected}
+                                      onChange={(e) => {
+                                        if (e.target.checked) {
+                                          setFormData({
+                                            ...formData,
+                                            assessment_type: [...formData.assessment_type, type.value]
+                                          })
+                                        } else {
+                                          setFormData({
+                                            ...formData,
+                                            assessment_type: formData.assessment_type.filter(t => t !== type.value)
+                                          })
+                                        }
+                                      }}
+                                      className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-2 focus:ring-indigo-500"
+                                    />
+                                    <span className="text-sm text-gray-700 flex-1">{type.label}</span>
+                                    {isSelected && <Check className="w-4 h-4 text-indigo-600" />}
+                                  </label>
+                                )
+                              })}
+                            {ASSESSMENT_TYPES.filter(type => 
+                              type.label.toLowerCase().includes(assessmentTypeSearchTerm.toLowerCase())
+                            ).length === 0 && (
+                              <div className="px-4 py-8 text-center text-sm text-gray-500">
+                                No assessment types found
+                              </div>
+                            )}
+                          </div>
+                          {formData.assessment_type.length > 0 && (
+                            <div className="p-2 border-t border-gray-200 bg-gray-50">
+                              <div className="flex flex-wrap gap-1">
+                                {formData.assessment_type.map(typeValue => {
+                                  const type = ASSESSMENT_TYPES.find(t => t.value === typeValue)
+                                  return type ? (
+                                    <span
+                                      key={typeValue}
+                                      className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-indigo-100 text-indigo-700 rounded"
+                                    >
+                                      {type.label}
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          setFormData({
+                                            ...formData,
+                                            assessment_type: formData.assessment_type.filter(t => t !== typeValue)
+                                          })
+                                        }}
+                                        className="hover:text-indigo-900"
+                                      >
+                                        <X className="w-3 h-3" />
+                                      </button>
+                                    </span>
+                                  ) : null
+                                })}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                     {formData.assessment_type.length === 0 && (
                       <p className="text-xs text-red-600 mt-2">At least one assessment type is required</p>
@@ -683,12 +743,36 @@ export default function QuestionLibrary() {
                     </select>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-900 mb-2">Type of Control</label>
+                    <select
+                      value={formData.type_of_control}
+                      onChange={(e) => setFormData({ ...formData, type_of_control: e.target.value })}
+                      className="w-full px-4 py-2.5 text-sm rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    >
+                      <option value="single_select">Single Select</option>
+                      <option value="multi_select">Multi Select</option>
+                      <option value="checkbox">Checkbox</option>
+                      <option value="radio">Radio</option>
+                    </select>
+                    <p className="text-xs text-gray-500 mt-1">Controls how assessment types are displayed/selected</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-semibold text-gray-900 mb-2">Field Type *</label>
                     <select
                       value={formData.field_type}
-                      onChange={(e) => setFormData({ ...formData, field_type: e.target.value })}
+                      onChange={(e) => {
+                        const newFieldType = e.target.value
+                        // Reset options if switching away from option-based field types
+                        if (!['select', 'multi_select', 'radio', 'checkbox'].includes(newFieldType)) {
+                          setFormData({ ...formData, field_type: newFieldType, options: [] })
+                        } else {
+                          setFormData({ ...formData, field_type: newFieldType })
+                        }
+                      }}
                       className="w-full px-4 py-2.5 text-sm rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                     >
                       {FIELD_TYPES.map(type => (
@@ -696,19 +780,92 @@ export default function QuestionLibrary() {
                       ))}
                     </select>
                   </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-900 mb-2">Response Type *</label>
-                    <select
-                      value={formData.response_type}
-                      onChange={(e) => setFormData({ ...formData, response_type: e.target.value })}
-                      className="w-full px-4 py-2.5 text-sm rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    >
-                      {RESPONSE_TYPES.map(type => (
-                        <option key={type.value} value={type.value}>{type.label}</option>
-                      ))}
-                    </select>
-                  </div>
+                  {/* Response Type only for text-based fields */}
+                  {['text', 'textarea', 'email', 'url', 'number'].includes(formData.field_type) && (
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-900 mb-2">Response Type *</label>
+                      <select
+                        value={formData.response_type}
+                        onChange={(e) => setFormData({ ...formData, response_type: e.target.value })}
+                        className="w-full px-4 py-2.5 text-sm rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      >
+                        {RESPONSE_TYPES.map(type => (
+                          <option key={type.value} value={type.value}>{type.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                 </div>
+                
+                {/* Options section for select, multi_select, radio, checkbox */}
+                {['select', 'multi_select', 'radio', 'checkbox'].includes(formData.field_type) && (
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-900 mb-2">
+                      Options *
+                      <span className="text-xs font-normal text-gray-500 ml-2">
+                        (Add options for {formData.field_type === 'checkbox' ? 'checkboxes' : formData.field_type === 'radio' ? 'radio buttons' : formData.field_type === 'multi_select' ? 'multi-select' : 'dropdown'})
+                      </span>
+                    </label>
+                    <div className="border border-gray-300 rounded-lg p-4 bg-gray-50">
+                      <div className="space-y-3">
+                        {formData.options.map((option, index) => (
+                          <div key={index} className="flex gap-2 items-center">
+                            <input
+                              type="text"
+                              value={option.value}
+                              onChange={(e) => {
+                                const newOptions = [...formData.options]
+                                newOptions[index].value = e.target.value
+                                setFormData({ ...formData, options: newOptions })
+                              }}
+                              className="flex-1 px-3 py-2 text-sm rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                              placeholder="Value (e.g., yes, no, maybe)"
+                            />
+                            <input
+                              type="text"
+                              value={option.label}
+                              onChange={(e) => {
+                                const newOptions = [...formData.options]
+                                newOptions[index].label = e.target.value
+                                setFormData({ ...formData, options: newOptions })
+                              }}
+                              className="flex-1 px-3 py-2 text-sm rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                              placeholder="Label (e.g., Yes, No, Maybe)"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const newOptions = formData.options.filter((_, i) => i !== index)
+                                setFormData({ ...formData, options: newOptions })
+                              }}
+                              className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition-colors"
+                              title="Remove option"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ))}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setFormData({
+                              ...formData,
+                              options: [...formData.options, { value: '', label: '' }]
+                            })
+                          }}
+                          className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors"
+                        >
+                          <Plus className="w-4 h-4" />
+                          Add Option
+                        </button>
+                        {formData.options.length === 0 && (
+                          <p className="text-xs text-red-600 mt-2">At least one option is required for {formData.field_type}</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
                 <div>
                   <label className="flex items-center gap-3 cursor-pointer">
                     <input
@@ -720,8 +877,9 @@ export default function QuestionLibrary() {
                     <span className="text-sm font-semibold text-gray-900">Required</span>
                   </label>
                 </div>
+                </div>
               </div>
-              <div className="flex gap-3 justify-end p-6 pt-4 border-t border-gray-200 flex-shrink-0">
+              <div className="flex gap-3 justify-end p-6 pt-4 border-t border-gray-200 flex-shrink-0 bg-white">
                 <button
                   onClick={() => setShowCreateModal(false)}
                   className="px-5 py-2.5 text-sm font-semibold text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
@@ -730,159 +888,17 @@ export default function QuestionLibrary() {
                 </button>
                 <button
                   onClick={handleCreate}
-                  disabled={!formData.title || !formData.question_text || formData.assessment_type.length === 0 || createMutation.isPending}
+                  disabled={
+                    !formData.title || 
+                    !formData.question_text || 
+                    formData.assessment_type.length === 0 || 
+                    (['select', 'multi_select', 'radio', 'checkbox'].includes(formData.field_type) && formData.options.length === 0) ||
+                    (['select', 'multi_select', 'radio', 'checkbox'].includes(formData.field_type) && formData.options.some(opt => !opt.value || !opt.label)) ||
+                    createMutation.isPending
+                  }
                   className="px-5 py-2.5 text-sm font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   {createMutation.isPending ? 'Creating...' : 'Create Question'}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Edit Modal */}
-        {showEditModal && selectedQuestion && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] flex flex-col">
-              <div className="flex items-center justify-between p-6 border-b border-gray-200 flex-shrink-0">
-                <h2 className="text-xl font-semibold text-gray-900">Edit Question</h2>
-                <button 
-                  onClick={() => setShowEditModal(false)} 
-                  className="text-gray-500 hover:text-gray-700 transition-colors p-1 rounded hover:bg-gray-100"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              <div className="p-6 space-y-6 overflow-y-auto flex-1 min-h-0">
-                <div>
-                  <label className="block text-sm font-semibold text-gray-900 mb-2">Title *</label>
-                  <input
-                    type="text"
-                    value={formData.title}
-                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                    className="w-full px-4 py-2.5 text-sm rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-900 mb-2">Question Text *</label>
-                  <textarea
-                    value={formData.question_text}
-                    onChange={(e) => setFormData({ ...formData, question_text: e.target.value })}
-                    className="w-full px-4 py-2.5 text-sm rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-y"
-                    rows={3}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-900 mb-2">Description</label>
-                  <textarea
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    className="w-full px-4 py-2.5 text-sm rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-y"
-                    rows={2}
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-6">
-                  <div className="min-w-0">
-                    <label className="block text-sm font-semibold text-gray-900 mb-2">Assessment Type(s) *</label>
-                    <div className="border border-gray-300 rounded-lg p-3 max-h-[200px] overflow-y-auto bg-gray-50">
-                      <div className="space-y-2">
-                        {ASSESSMENT_TYPES.map(type => (
-                          <label
-                            key={type.value}
-                            className="flex items-center gap-2.5 cursor-pointer hover:bg-white p-1.5 rounded transition-colors"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={formData.assessment_type.includes(type.value)}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  setFormData({
-                                    ...formData,
-                                    assessment_type: [...formData.assessment_type, type.value]
-                                  })
-                                } else {
-                                  setFormData({
-                                    ...formData,
-                                    assessment_type: formData.assessment_type.filter(t => t !== type.value)
-                                  })
-                                }
-                              }}
-                              className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-2 focus:ring-indigo-500 flex-shrink-0"
-                            />
-                            <span className="text-sm text-gray-700 truncate">{type.label}</span>
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-                    {formData.assessment_type.length === 0 && (
-                      <p className="text-xs text-red-600 mt-2">At least one assessment type is required</p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-900 mb-2">Category</label>
-                    <select
-                      value={formData.category}
-                      onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                      className="w-full px-4 py-2.5 text-sm rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    >
-                      <option value="">Select Category</option>
-                      {questionCategories.map((cat: MasterDataValue) => (
-                        <option key={cat.value} value={cat.value}>{cat.label}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-900 mb-2">Field Type *</label>
-                    <select
-                      value={formData.field_type}
-                      onChange={(e) => setFormData({ ...formData, field_type: e.target.value })}
-                      className="w-full px-4 py-2.5 text-sm rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    >
-                      {FIELD_TYPES.map(type => (
-                        <option key={type.value} value={type.value}>{type.label}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-900 mb-2">Response Type *</label>
-                    <select
-                      value={formData.response_type}
-                      onChange={(e) => setFormData({ ...formData, response_type: e.target.value })}
-                      className="w-full px-4 py-2.5 text-sm rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    >
-                      {RESPONSE_TYPES.map(type => (
-                        <option key={type.value} value={type.value}>{type.label}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-                <div>
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={formData.is_required}
-                      onChange={(e) => setFormData({ ...formData, is_required: e.target.checked })}
-                      className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-2 focus:ring-indigo-500"
-                    />
-                    <span className="text-sm font-semibold text-gray-900">Required</span>
-                  </label>
-                </div>
-              </div>
-              <div className="flex gap-3 justify-end p-6 pt-4 border-t border-gray-200 flex-shrink-0">
-                <button
-                  onClick={() => setShowEditModal(false)}
-                  className="px-5 py-2.5 text-sm font-semibold text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleUpdate}
-                  disabled={!formData.title || !formData.question_text || formData.assessment_type.length === 0 || updateMutation.isPending}
-                  className="px-5 py-2.5 text-sm font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  {updateMutation.isPending ? 'Updating...' : 'Update Question'}
                 </button>
               </div>
             </div>

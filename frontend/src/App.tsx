@@ -43,6 +43,7 @@ import AssessmentAssignmentPage from './pages/AssessmentAssignment'
 import AssessmentApprover from './pages/AssessmentApprover'
 import GenericApprover from './pages/GenericApprover'
 import QuestionLibrary from './pages/QuestionLibrary'
+import QuestionLibraryEdit from './pages/QuestionLibraryEdit'
 import MyActions from './pages/MyActions'
 import AssessmentAnalytics from './pages/AssessmentAnalytics'
 import AgentConnections from './pages/AgentConnections'
@@ -147,6 +148,7 @@ function App() {
           <Route path="/cve" element={<CVEDashboard />} />
           <Route path="/vendors/:vendorId/security" element={<VendorSecurity />} />
           <Route path="/admin/question-library" element={<QuestionLibrary />} />
+          <Route path="/admin/question-library/:id/edit" element={<QuestionLibraryEdit />} />
           <Route path="/question-library" element={<Navigate to="/admin/question-library" replace />} />
           <Route path="/admin/submission-requirements" element={<SubmissionRequirementsManagement />} />
           <Route path="/submission-requirements" element={<Navigate to="/admin/submission-requirements" replace />} />

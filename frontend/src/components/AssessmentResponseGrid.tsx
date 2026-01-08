@@ -23,6 +23,7 @@ interface AssessmentResponseGridProps {
     vendor_comment?: string
   }>
   onForwardQuestion?: (questionId: string) => void // Callback for forwarding a specific question
+  isCompleted?: boolean // Whether the assignment is completed (approved/rejected) - disables all action buttons
 }
 
 export default function AssessmentResponseGrid({
@@ -33,7 +34,8 @@ export default function AssessmentResponseGrid({
   showReviewStatus = false,
   showQuestionActions = false, // Show Accept/Deny/More Info buttons for approvers
   questionReviews = {},
-  onForwardQuestion // Callback for forwarding a specific question
+  onForwardQuestion, // Callback for forwarding a specific question
+  isCompleted = false // Whether the assignment is completed (approved/rejected) - disables all action buttons
 }: AssessmentResponseGridProps) {
   const queryClient = useQueryClient()
   const [moreInfoQuestionId, setMoreInfoQuestionId] = useState<string | null>(null)
@@ -499,8 +501,12 @@ export default function AssessmentResponseGrid({
                   <div className="flex gap-2">
                     <button
                       onClick={() => handleSubmitMoreInfo(questionIdStr)}
-                      disabled={reviewQuestionMutation.isPending || !moreInfoComment.trim()}
-                      className="px-3 py-1.5 text-xs font-medium rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      disabled={isCompleted || reviewQuestionMutation.isPending || !moreInfoComment.trim()}
+                      className={`px-3 py-1.5 text-xs font-medium rounded-md ${
+                        isCompleted
+                          ? 'bg-gray-400 text-white cursor-not-allowed'
+                          : 'bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed'
+                      }`}
                     >
                       Submit Request
                     </button>
@@ -519,9 +525,11 @@ export default function AssessmentResponseGrid({
                 <div className="flex gap-2 flex-wrap">
                   <button
                     onClick={() => handleAccept(questionIdStr)}
-                    disabled={reviewQuestionMutation.isPending || reviewStatus === 'pass'}
+                    disabled={isCompleted || reviewQuestionMutation.isPending || reviewStatus === 'pass'}
                     className={`px-3 py-1.5 text-xs font-medium rounded-md flex items-center gap-1.5 transition-all ${
-                      reviewStatus === 'pass'
+                      isCompleted
+                        ? 'bg-gray-400 text-white cursor-not-allowed'
+                        : reviewStatus === 'pass'
                         ? 'bg-green-700 text-white cursor-default'
                         : 'bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed'
                     }`}
@@ -531,9 +539,11 @@ export default function AssessmentResponseGrid({
                   </button>
                   <button
                     onClick={() => handleDeny(questionIdStr)}
-                    disabled={reviewQuestionMutation.isPending || reviewStatus === 'fail'}
+                    disabled={isCompleted || reviewQuestionMutation.isPending || reviewStatus === 'fail'}
                     className={`px-3 py-1.5 text-xs font-medium rounded-md flex items-center gap-1.5 transition-all ${
-                      reviewStatus === 'fail'
+                      isCompleted
+                        ? 'bg-gray-400 text-white cursor-not-allowed'
+                        : reviewStatus === 'fail'
                         ? 'bg-red-700 text-white cursor-default'
                         : 'bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed'
                     }`}
@@ -543,9 +553,11 @@ export default function AssessmentResponseGrid({
                   </button>
                   <button
                     onClick={() => handleMoreInfo(questionIdStr)}
-                    disabled={reviewQuestionMutation.isPending || reviewStatus === 'in_progress'}
+                    disabled={isCompleted || reviewQuestionMutation.isPending || reviewStatus === 'in_progress'}
                     className={`px-3 py-1.5 text-xs font-medium rounded-md flex items-center gap-1.5 transition-all border ${
-                      reviewStatus === 'in_progress'
+                      isCompleted
+                        ? 'bg-gray-400 text-white border-gray-400 cursor-not-allowed'
+                        : reviewStatus === 'in_progress'
                         ? 'bg-blue-100 text-blue-700 border-blue-300 cursor-default'
                         : 'bg-white text-gray-700 border-gray-300 hover:bg-blue-50 hover:border-blue-400 disabled:opacity-50 disabled:cursor-not-allowed'
                     }`}
@@ -555,9 +567,18 @@ export default function AssessmentResponseGrid({
                   </button>
                   {onForwardQuestion && (
                     <button
-                      onClick={() => onForwardQuestion(questionIdStr)}
-                      className="px-3 py-1.5 text-xs font-medium rounded-md flex items-center gap-1.5 transition-all bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 hover:border-gray-400"
-                      title="Forward this question"
+                      onClick={() => {
+                        if (!isCompleted) {
+                          onForwardQuestion(questionIdStr)
+                        }
+                      }}
+                      disabled={isCompleted}
+                      className={`px-3 py-1.5 text-xs font-medium rounded-md flex items-center gap-1.5 transition-all border ${
+                        isCompleted
+                          ? 'bg-gray-200 text-gray-400 border-gray-300 cursor-not-allowed opacity-50'
+                          : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
+                      }`}
+                      title={isCompleted ? "Assessment already completed" : "Forward this question"}
                     >
                       <Forward className="w-3.5 h-3.5" />
                       Forward
@@ -895,14 +916,14 @@ export default function AssessmentResponseGrid({
                                       </div>
                                       <a
                                         href={fileUrl}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
                                         className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded transition-colors"
                                         title="Download file"
-                                      >
+                                  >
                                         <Download className="w-3.5 h-3.5" />
                                         <span>Download</span>
-                                      </a>
+                                  </a>
                                     </div>
                                   )
                                 })}
@@ -910,7 +931,7 @@ export default function AssessmentResponseGrid({
                             </div>
                           )}
                         </div>
-                      </div>
+                        </div>
                     </div>
 
                     {/* Review Comments Section - APPROVER EDITABLE */}
@@ -1023,9 +1044,18 @@ export default function AssessmentResponseGrid({
                             </button>
                             {onForwardQuestion && (
                               <button
-                                onClick={() => onForwardQuestion(questionIdStr)}
-                                className="px-3 py-1.5 text-xs font-medium rounded-md flex items-center gap-1.5 transition-all bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 hover:border-gray-400"
-                                title="Forward this question to another reviewer"
+                                onClick={() => {
+                                  if (!isCompleted) {
+                                    onForwardQuestion(questionIdStr)
+                                  }
+                                }}
+                                disabled={isCompleted}
+                                className={`px-3 py-1.5 text-xs font-medium rounded-md flex items-center gap-1.5 transition-all border ${
+                                  isCompleted
+                                    ? 'bg-gray-200 text-gray-400 border-gray-300 cursor-not-allowed opacity-50'
+                                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400'
+                                }`}
+                                title={isCompleted ? "Assessment already completed" : "Forward this question to another reviewer"}
                               >
                                 <Forward className="w-3.5 h-3.5" />
                                 Forward

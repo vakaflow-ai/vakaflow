@@ -1,6 +1,7 @@
 """
 Action Items API - User inbox endpoints
 """
+from sklearn import base
 from fastapi import APIRouter, Depends, HTTPException, status as http_status, Query
 from sqlalchemy.orm import Session
 from pydantic import BaseModel

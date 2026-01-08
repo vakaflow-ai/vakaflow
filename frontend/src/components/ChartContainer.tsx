@@ -82,9 +82,9 @@ export default function ChartContainer({
       }}
     >
       {hasDimensions && dimensions.width > 0 && dimensions.height > 0 ? (
-        <ResponsiveContainer width="100%" height="100%">
-          {children}
-        </ResponsiveContainer>
+      <ResponsiveContainer width="100%" height="100%">
+        {children}
+      </ResponsiveContainer>
       ) : (
         <div 
           className="flex items-center justify-center"

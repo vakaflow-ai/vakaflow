@@ -19,6 +19,7 @@ interface DynamicFormProps {
   onValidationChange?: (isValid: boolean, errors: Record<string, string>) => void
   assignmentId?: string // Assignment ID for assessment workflows
   onForwardQuestion?: (questionId: string) => void // Callback for forwarding a specific question
+  isCompleted?: boolean // Whether the assignment is completed (approved/rejected) - disables all action buttons
 }
 
 export default function DynamicForm({
@@ -34,6 +35,7 @@ export default function DynamicForm({
   onValidationChange,
   assignmentId,
   onForwardQuestion, // Callback for forwarding a specific question
+  isCompleted = false, // Whether the assignment is completed (approved/rejected) - disables all action buttons
 }: DynamicFormProps) {
   const [user, setUser] = useState<any>(null)
   const [userRole, setUserRole] = useState<string>('')
@@ -532,6 +534,7 @@ export default function DynamicForm({
             showReviewStatus={requestType === 'approver' || requestType === 'assessment_workflow'}
             showQuestionActions={!readOnly && (requestType === 'approver' || requestType === 'assessment_workflow')} // Show actions for approvers when not read-only
             onForwardQuestion={onForwardQuestion} // Pass forward callback for question-level forwarding
+            isCompleted={isCompleted} // Pass isCompleted to disable buttons when assignment is completed
           />
         </div>
       )
