@@ -19,6 +19,7 @@ from app.models.assessment_template import AssessmentTemplate, TemplateApplicabi
 from app.models.question_library import QuestionLibrary, QuestionCategory
 from app.models.requirement_question import RequirementQuestion  # Junction table for many-to-many relationship
 from app.models.assessment_rule import AssessmentRule, RuleType
+from app.models.assessment_table_layout import AssessmentTableLayout, TableViewType
 from app.models.business_rule import BusinessRule
 from app.models.agentic_agent import (
     AgenticAgent,
@@ -111,6 +112,8 @@ __all__ = [
     "RequirementQuestion",
     "AssessmentRule",
     "RuleType",
+    "AssessmentTableLayout",
+    "TableViewType",
     "BusinessRule",
     "AgenticAgent",
     "AgenticAgentType",

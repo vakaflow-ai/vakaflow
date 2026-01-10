@@ -208,6 +208,14 @@ except Exception as e:
     logger.error(f"Failed to import form_layouts module: {e}", exc_info=True)
     form_layouts = None
 
+# Import assessment_table_layouts with error handling
+try:
+    from app.api.v1 import assessment_table_layouts
+    logger.info("Assessment table layouts module imported successfully")
+except Exception as e:
+    logger.error(f"Failed to import assessment_table_layouts module: {e}", exc_info=True)
+    assessment_table_layouts = None
+
 # Import form_types with error handling
 try:
     from app.api.v1 import form_types
@@ -259,6 +267,8 @@ app.include_router(assessments.router, prefix="/api/v1")
 app.include_router(assessments.template_router, prefix="/api/v1")
 app.include_router(question_library.router, prefix="/api/v1")
 app.include_router(assessment_rules.router, prefix="/api/v1")
+if assessment_table_layouts:
+    app.include_router(assessment_table_layouts.router, prefix="/api/v1")
 app.include_router(business_rules.router, prefix="/api/v1")
 app.include_router(agent_connections.router, prefix="/api/v1")
 app.include_router(frameworks.router, prefix="/api/v1")

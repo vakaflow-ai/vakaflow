@@ -446,10 +446,53 @@ export default function StageSettingsModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full h-[90vh] flex flex-col my-auto mx-auto overflow-hidden">
+    <>
+      <style>{`
+        /* Custom scrollbar styling to prevent overlap */
+        .stage-settings-modal-scrollable {
+          scrollbar-width: thin;
+          scrollbar-color: #94a3b8 #f1f5f9;
+          overflow-y: auto !important;
+        }
+        .stage-settings-modal-scrollable::-webkit-scrollbar {
+          width: 12px;
+        }
+        .stage-settings-modal-scrollable::-webkit-scrollbar-track {
+          background: #f1f5f9;
+          border-radius: 6px;
+          margin: 2px;
+        }
+        .stage-settings-modal-scrollable::-webkit-scrollbar-thumb {
+          background: #94a3b8;
+          border-radius: 6px;
+          border: 2px solid #f1f5f9;
+        }
+        .stage-settings-modal-scrollable::-webkit-scrollbar-thumb:hover {
+          background: #64748b;
+        }
+        .stage-settings-fields-scrollable {
+          scrollbar-width: thin;
+          scrollbar-color: #cbd5e0 #f8fafc;
+        }
+        .stage-settings-fields-scrollable::-webkit-scrollbar {
+          width: 8px;
+        }
+        .stage-settings-fields-scrollable::-webkit-scrollbar-track {
+          background: #f8fafc;
+          border-radius: 4px;
+        }
+        .stage-settings-fields-scrollable::-webkit-scrollbar-thumb {
+          background: #cbd5e0;
+          border-radius: 4px;
+        }
+        .stage-settings-fields-scrollable::-webkit-scrollbar-thumb:hover {
+          background: #a0aec0;
+        }
+      `}</style>
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[100] p-4" style={{ backdropFilter: 'blur(2px)' }} onClick={onClose}>
+        <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full flex flex-col my-auto mx-auto overflow-hidden" style={{ height: '90vh', maxHeight: '90vh' }} onClick={(e) => e.stopPropagation()}>
         {/* Header - Fixed */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 flex-shrink-0">
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 flex-shrink-0 bg-white">
           <h3 className="text-lg font-medium">Stage Settings: {step.step_name}</h3>
           <button
             onClick={onClose}
@@ -462,54 +505,16 @@ export default function StageSettingsModal({
         </div>
 
         {/* Content - Scrollable */}
-        <div className="flex-1 overflow-y-scroll overflow-x-hidden" style={{ maxHeight: 'calc(90vh - 140px)' }}>
-          <div className="p-6">
-          <div className="space-y-6">
-          {/* Visible Fields Section */}
-          <div>
-            <h4 className="text-sm font-medium mb-3">Visible Fields</h4>
-            <p className="text-xs text-gray-600 mb-3">
-              Fields loaded from the form mapped in Process Designer (Workflow Layout Manager). Select which fields will be visible to reviewers/approvers at this stage.
-            </p>
-            <div className="grid grid-cols-3 gap-2 max-h-48 overflow-y-auto border rounded-lg p-3">
-              {effectiveAvailableFields.length > 0 ? (
-                effectiveAvailableFields.map((field) => (
-                  <label
-                    key={field}
-                    className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={(settings.visible_fields || []).includes(field)}
-                      onChange={() => toggleField(field)}
-                      className="w-4 h-4"
-                    />
-                    <span className="text-sm text-gray-700">
-                      {field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                    </span>
-                  </label>
-                ))
-              ) : (
-                <div className="col-span-3 text-sm text-gray-500 text-center py-4">
-                  {settings.layout_id 
-                    ? 'Loading fields from mapped form...'
-                    : 'Select a form layout in "Approver Screen Layout" to load fields from Process Designer'}
-                </div>
-              )}
-            </div>
-            {(settings.visible_fields || []).length === 0 && (
-              <p className="text-xs text-gray-500 mt-2">
-                No fields selected. All fields will be visible by default.
-              </p>
-            )}
-          </div>
-
+        <div className="flex-1 overflow-y-auto overflow-x-hidden bg-white stage-settings-modal-scrollable" style={{ minHeight: 0, maxHeight: '100%' }}>
+          <div className="p-6 pb-12">
           {/* Form Layout Section */}
-          <div>
-            <h4 className="text-sm font-medium mb-3">Approver Screen Layout</h4>
-            <p className="text-xs text-gray-600 mb-3">
-              Select a form layout to use for approver screen tabs at this stage
-            </p>
+          <div className="mb-8 space-y-3">
+            <div>
+              <h4 className="text-sm font-semibold text-gray-900 mb-2">Approver Screen Layout</h4>
+              <p className="text-xs text-gray-600 mb-3 leading-relaxed">
+                Select a form layout to use for approver screen tabs at this stage
+              </p>
+            </div>
             <MaterialSelect
               value={settings.layout_id || null}
               onChange={(e) => setSettings({
@@ -536,9 +541,52 @@ export default function StageSettingsModal({
             )}
           </div>
 
+          {/* Visible Fields Section */}
+          <div className="mb-8 pt-8 border-t border-gray-200 space-y-3">
+            <div>
+              <h4 className="text-sm font-semibold text-gray-900 mb-2">Visible Fields</h4>
+              <p className="text-xs text-gray-600 mb-3 leading-relaxed">
+                Fields loaded from the form mapped in Process Designer (Workflow Layout Manager). Select which fields will be visible to reviewers/approvers at this stage.
+              </p>
+            </div>
+            <div className="grid grid-cols-3 gap-2 max-h-48 overflow-y-auto border border-gray-200 rounded-lg p-3 pr-4 stage-settings-fields-scrollable bg-gray-50" style={{ contain: 'layout style paint' }}>
+              {effectiveAvailableFields.length > 0 ? (
+                effectiveAvailableFields.map((field) => (
+                  <label
+                    key={field}
+                    className="flex items-start gap-2 cursor-pointer hover:bg-white p-2 rounded transition-colors min-w-0"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={(settings.visible_fields || []).includes(field)}
+                      onChange={() => toggleField(field)}
+                      className="w-4 h-4 flex-shrink-0 mt-0.5"
+                    />
+                    <span className="text-sm text-gray-700 break-words leading-tight min-w-0 flex-1">
+                      {field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                    </span>
+                  </label>
+                ))
+              ) : (
+                <div className="col-span-3 text-sm text-gray-500 text-center py-4">
+                  {settings.layout_id 
+                    ? 'Loading fields from mapped form...'
+                    : 'Select a form layout in "Approver Screen Layout" to load fields from Process Designer'}
+                </div>
+              )}
+            </div>
+            {(settings.visible_fields || []).length === 0 && (
+              <p className="text-xs text-gray-500 mt-2">
+                No fields selected. All fields will be visible by default.
+              </p>
+            )}
+          </div>
+
           {/* Email Notifications Section */}
-          <div>
-            <h4 className="text-sm font-medium mb-3">Email Notifications</h4>
+          <div className="mb-4 pt-8 border-t border-gray-200 space-y-4">
+            <div>
+              <h4 className="text-sm font-semibold text-gray-900 mb-3">Email Notifications</h4>
+            </div>
             <div className="space-y-4">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
@@ -557,7 +605,7 @@ export default function StageSettingsModal({
               </label>
 
               {settings.email_notifications?.enabled && (
-                <>
+                <div className="space-y-4 pl-6 border-l-2 border-gray-100">
                   <div>
                     <label className="block text-sm font-medium mb-2">Recipients</label>
                     <div className="space-y-2">
@@ -593,7 +641,7 @@ export default function StageSettingsModal({
 
                   <div>
                     <label className="block text-sm font-medium mb-2">Reminder Settings (Days)</label>
-                    <div className="flex gap-3">
+                    <div className="flex gap-3 flex-wrap">
                       {[1, 2, 3, 5, 7].map((days) => (
                         <label key={days} className="flex items-center gap-2 cursor-pointer">
                           <input
@@ -607,10 +655,9 @@ export default function StageSettingsModal({
                       ))}
                     </div>
                   </div>
-                </>
+                </div>
               )}
             </div>
-          </div>
           </div>
           </div>
         </div>
@@ -632,6 +679,7 @@ export default function StageSettingsModal({
         </div>
       </div>
     </div>
+    </>
   )
 }
 

@@ -5,6 +5,7 @@ import { MaterialCard, MaterialChip } from '../components/material'
 import { actionsApi } from '../lib/actions'
 import { assessmentsApi } from '../lib/assessments'
 import { authApi } from '../lib/auth'
+import { assessmentTableLayoutsApi, AssessmentTableLayout } from '../lib/assessmentTableLayouts'
 import { workflowOrchestrationApi, ViewStructure } from '../lib/workflowOrchestration'
 import { agentsApi } from '../lib/agents'
 import { vendorsApi } from '../lib/vendors'
@@ -33,7 +34,8 @@ import {
   BarChart3,
   Forward,
   Search,
-  Clock
+  Clock,
+  MessageSquare
 } from 'lucide-react'
 
 interface GenericApproverPageProps {}
@@ -65,6 +67,8 @@ export default function GenericApproverPage({}: GenericApproverPageProps) {
   const [forwardUserSearch, setForwardUserSearch] = useState('')
   const [forwardUserId, setForwardUserId] = useState('')
   const [forwardComment, setForwardComment] = useState('')
+  const [questionComments, setQuestionComments] = useState<Record<string, string>>({})
+  const [expandedComments, setExpandedComments] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     authApi.getCurrentUser()
@@ -261,6 +265,13 @@ export default function GenericApproverPage({}: GenericApproverPageProps) {
     queryKey: ['approval-status', actionItem?.source_id],
     queryFn: () => assessmentsApi.getApprovalStatus(actionItem!.source_id),
     enabled: !!actionItem && isAssessmentType && !!actionItem.source_id,
+  })
+
+  // Load approver table layout
+  const { data: approverTableLayout } = useQuery({
+    queryKey: ['approver-table-layout'],
+    queryFn: () => assessmentTableLayoutsApi.getDefault('approver'),
+    enabled: isAssessmentType,
   })
 
   // Note: DynamicForm fetches its own layout, so we don't need to fetch it here
@@ -674,15 +685,344 @@ export default function GenericApproverPage({}: GenericApproverPageProps) {
           {/* Tab Content */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
             <div className="p-6">
-              {viewStructureLoading ? (
+              {viewStructureLoading || questionsLoading || responsesLoading ? (
                 <div className="text-center py-8">
                   <Loader2 className="w-8 h-8 animate-spin text-blue-600 mx-auto" />
-                  <p className="text-sm text-gray-500 mt-2">Loading tab content...</p>
+                  <p className="text-sm text-gray-500 mt-2">Loading questions...</p>
+                </div>
+              ) : (activeTab === 'overview' && isAssessmentType) ? (
+                // Table layout for assessment approver view - ALWAYS show for assessment types on overview tab
+                <div>
+                  <div className="mb-4">
+                    <h3 className="text-lg font-semibold text-gray-900">Assessment Questions & Responses</h3>
+                    <p className="text-sm text-gray-600 mt-1">Review all assessment questions and vendor responses</p>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse">
+                      <thead>
+                        <tr className="border-b border-gray-200 bg-gray-50">
+                          {(() => {
+                            // Use configured columns from layout, or fallback to defaults
+                            const columns = approverTableLayout?.columns || [
+                              { id: 'question', label: 'Question', visible: true, order: 1, width: '30%' },
+                              { id: 'vendor_response', label: 'Vendor Response', visible: true, order: 2, width: '25%' },
+                              { id: 'action', label: 'Action', visible: true, order: 3, width: '20%' },
+                              { id: 'comments', label: 'Comments', visible: true, order: 4, width: '25%' },
+                            ]
+                            return columns
+                              .filter(col => col.visible)
+                              .sort((a, b) => a.order - b.order)
+                              .map(col => (
+                                <th 
+                                  key={col.id} 
+                                  className="px-4 py-3 text-left text-sm font-semibold text-gray-900"
+                                  style={col.width ? { width: col.width } : undefined}
+                                >
+                                  {col.label}
+                                </th>
+                              ))
+                          })()}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {(() => {
+                          // Group questions by category
+                          const groupedQuestions: Record<string, typeof questions> = {}
+                          questions.forEach((q: any) => {
+                            const category = q.category || q.section || 'Uncategorized'
+                            if (!groupedQuestions[category]) {
+                              groupedQuestions[category] = []
+                            }
+                            groupedQuestions[category].push(q)
+                          })
+
+                          // Get configured columns or use defaults (calculate once before the loop)
+                          const defaultColumns = [
+                            { id: 'question', label: 'Question', visible: true, order: 1 },
+                            { id: 'vendor_response', label: 'Vendor Response', visible: true, order: 2 },
+                            { id: 'action', label: 'Action', visible: true, order: 3 },
+                            { id: 'comments', label: 'Comments', visible: true, order: 4 },
+                          ]
+                          const columns = approverTableLayout?.columns || defaultColumns
+                          const visibleColumns = columns.filter((col: any) => col.visible).sort((a: any, b: any) => (a.order || 0) - (b.order || 0))
+                          const visibleColumnCount = visibleColumns.length
+
+                          const rows: JSX.Element[] = []
+                          Object.entries(groupedQuestions).forEach(([category, categoryQuestions]) => {
+                            // Add category header row
+                            rows.push(
+                              <tr key={`category-${category}`} className="bg-gray-100">
+                                <td colSpan={visibleColumnCount} className="px-4 py-3 text-sm font-bold text-gray-900 uppercase">
+                                  {category} ({categoryQuestions.length} questions)
+                                </td>
+                              </tr>
+                            )
+
+                            // Add question rows
+                            categoryQuestions.forEach((question: any) => {
+                              const questionIdStr = String(question.id)
+                              const response = responses?.[questionIdStr] || responses?.[question.id] || { value: '', comment: '' }
+                              const questionReview = questionReviewsData?.question_reviews?.[questionIdStr] || questionReviewsData?.question_reviews?.[question.id]
+                              const reviewStatus = questionReview?.status || 'pending'
+                              const reviewerComment = questionReview?.reviewer_comment || ''
+                              const vendorComment = questionReview?.vendor_comment || response.comment || ''
+                              
+                              // Format vendor answer for display
+                              const formatVendorAnswer = (value: any): string => {
+                                if (value === null || value === undefined || value === '') return ''
+                                if (typeof value === 'string') return value
+                                if (Array.isArray(value)) return value.join(', ')
+                                return String(value)
+                              }
+
+                              const vendorAnswer = formatVendorAnswer(response.value)
+                              const isCommentExpanded = expandedComments[questionIdStr] || false
+                              const commentText = questionComments[questionIdStr] || reviewerComment || ''
+
+                              rows.push(
+                                <tr key={question.id} className="hover:bg-gray-50">
+                                  {visibleColumns.map((col: any) => {
+                                    if (col.id === 'question') {
+                                      return (
+                                        <td key={col.id} className="px-4 py-3">
+                                          <div className="space-y-1">
+                                            <div className="text-sm font-medium text-gray-900">
+                                              {question.question_text || question.title}
+                                              {question.is_required && <span className="text-red-600 ml-1">*</span>}
+                                            </div>
+                                            {question.description && (
+                                              <div className="text-xs text-gray-500">{question.description}</div>
+                                            )}
+                                            {question.category && (
+                                              <div className="mt-1">
+                                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                                                  {question.category}
+                                                </span>
+                                              </div>
+                                            )}
+                                          </div>
+                                        </td>
+                                      )
+                                    }
+                                    
+                                    if (col.id === 'vendor_response') {
+                                      return (
+                                        <td key={col.id} className="px-4 py-3">
+                                          <div className="text-sm text-gray-900 max-w-md">
+                                            {(() => {
+                                              if (question.response_type === 'File' || question.field_type === 'file') {
+                                                if (response.documents && response.documents.length > 0) {
+                                                  return (
+                                                    <div className="space-y-1">
+                                                      {response.documents.map((doc: any, idx: number) => (
+                                                        <div key={idx} className="flex items-center gap-2">
+                                                          <FileText className="w-4 h-4 text-gray-500 flex-shrink-0" />
+                                                          <span className="text-gray-700">{doc.name || doc.path || `File ${idx + 1}`}</span>
+                                                        </div>
+                                                      ))}
+                                                    </div>
+                                                  )
+                                                }
+                                                return <span className="text-gray-400 italic">No file uploaded</span>
+                                              }
+                                              
+                                              if (question.response_type === 'URL' || question.field_type === 'url') {
+                                                return vendorAnswer ? (
+                                                  <a href={vendorAnswer} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline break-all">
+                                                    {vendorAnswer}
+                                                  </a>
+                                                ) : <span className="text-gray-400 italic">No URL provided</span>
+                                              }
+                                              
+                                              if (question.response_type === 'Boolean' || (question.field_type === 'radio' && question.options?.some((opt: any) => ['yes', 'no', 'true', 'false'].includes(String(opt.value || opt).toLowerCase())))) {
+                                                const boolValue = vendorAnswer?.toLowerCase()
+                                                const isYes = boolValue === 'yes' || boolValue === 'true' || boolValue === '1'
+                                                return (
+                                                  <span className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
+                                                    isYes ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                                                  }`}>
+                                                    {isYes ? 'Yes' : 'No'}
+                                                  </span>
+                                                )
+                                              }
+                                              
+                                              if (question.response_type === 'Number' || question.field_type === 'number') {
+                                                return vendorAnswer ? <span className="font-mono">{vendorAnswer}</span> : <span className="text-gray-400 italic">No number provided</span>
+                                              }
+                                              
+                                              if (Array.isArray(response.value)) {
+                                                return (
+                                                  <ul className="list-disc list-inside space-y-1">
+                                                    {response.value.map((item: any, idx: number) => (
+                                                      <li key={idx} className="text-gray-700">{String(item)}</li>
+                                                    ))}
+                                                  </ul>
+                                                )
+                                              }
+                                              
+                                              return vendorAnswer ? (
+                                                <div className="whitespace-pre-wrap leading-relaxed">{vendorAnswer}</div>
+                                              ) : (
+                                                <span className="text-gray-400 italic">No answer provided</span>
+                                              )
+                                            })()}
+                                          </div>
+                                        </td>
+                                      )
+                                    }
+                                    
+                                    if (col.id === 'action') {
+                                      return (
+                                        <td key={col.id} className="px-4 py-3">
+                                          <div className="flex flex-col gap-2">
+                                            <div className="flex gap-1">
+                                              <button
+                                                onClick={() => {
+                                                  const comment = questionComments[questionIdStr] || ''
+                                                  if (comment.trim()) {
+                                                    reviewQuestionMutation.mutate({
+                                                      questionId: questionIdStr,
+                                                      status: 'pass',
+                                                      comment: comment.trim()
+                                                    })
+                                                  } else {
+                                                    reviewQuestionMutation.mutate({
+                                                      questionId: questionIdStr,
+                                                      status: 'pass'
+                                                    })
+                                                  }
+                                                }}
+                                                disabled={isCompleted || reviewQuestionMutation.isPending || reviewStatus === 'pass'}
+                                                className={`flex-1 px-3 py-1.5 text-white text-xs font-medium rounded-md transition-colors flex items-center justify-center gap-1 ${
+                                                  isCompleted || reviewStatus === 'pass'
+                                                    ? 'bg-gray-400 cursor-not-allowed'
+                                                    : 'bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed'
+                                                }`}
+                                              >
+                                                <CheckCircle className="w-3.5 h-3.5" />
+                                                {reviewStatus === 'pass' ? 'Accepted' : 'Accept'}
+                                              </button>
+                                              <button
+                                                onClick={() => {
+                                                  const comment = questionComments[questionIdStr] || ''
+                                                  if (!comment.trim()) {
+                                                    showToast.error('Please provide a comment when denying')
+                                                    setExpandedComments(prev => ({ ...prev, [questionIdStr]: true }))
+                                                    return
+                                                  }
+                                                  reviewQuestionMutation.mutate({
+                                                    questionId: questionIdStr,
+                                                    status: 'fail',
+                                                    comment: comment.trim()
+                                                  })
+                                                }}
+                                                disabled={isCompleted || reviewQuestionMutation.isPending || reviewStatus === 'fail'}
+                                                className={`flex-1 px-3 py-1.5 text-white text-xs font-medium rounded-md transition-colors flex items-center justify-center gap-1 ${
+                                                  isCompleted || reviewStatus === 'fail'
+                                                    ? 'bg-gray-400 cursor-not-allowed'
+                                                    : 'bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed'
+                                                }`}
+                                              >
+                                                <XCircle className="w-3.5 h-3.5" />
+                                                {reviewStatus === 'fail' ? 'Denied' : 'Deny'}
+                                              </button>
+                                            </div>
+                                            <button
+                                              onClick={() => {
+                                                const comment = questionComments[questionIdStr] || ''
+                                                if (!comment.trim()) {
+                                                  showToast.error('Please provide a comment explaining what information is needed')
+                                                  setExpandedComments(prev => ({ ...prev, [questionIdStr]: true }))
+                                                  return
+                                                }
+                                                reviewQuestionMutation.mutate({
+                                                  questionId: questionIdStr,
+                                                  status: 'in_progress',
+                                                  comment: comment.trim()
+                                                })
+                                              }}
+                                              disabled={isCompleted || reviewQuestionMutation.isPending || reviewStatus === 'in_progress'}
+                                              className={`w-full px-3 py-1.5 text-white text-xs font-medium rounded-md transition-colors flex items-center justify-center gap-1 ${
+                                                isCompleted || reviewStatus === 'in_progress'
+                                                  ? 'bg-gray-400 cursor-not-allowed'
+                                                  : 'bg-yellow-600 hover:bg-yellow-700 disabled:opacity-50 disabled:cursor-not-allowed'
+                                              }`}
+                                            >
+                                              <HelpCircle className="w-3.5 h-3.5" />
+                                              {reviewStatus === 'in_progress' ? 'More Info Sent' : 'More Info'}
+                                            </button>
+                                            {reviewStatus && reviewStatus !== 'pending' && (
+                                              <div className="mt-1">
+                                                <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                                                  reviewStatus === 'pass' ? 'bg-green-100 text-green-800' :
+                                                  reviewStatus === 'fail' ? 'bg-red-100 text-red-800' :
+                                                  'bg-yellow-100 text-yellow-800'
+                                                }`}>
+                                                  {reviewStatus === 'pass' ? 'Accepted' : reviewStatus === 'fail' ? 'Denied' : 'More Info'}
+                                                </span>
+                                              </div>
+                                            )}
+                                          </div>
+                                        </td>
+                                      )
+                                    }
+                                    
+                                    if (col.id === 'comments') {
+                                      return (
+                                        <td key={col.id} className="px-4 py-3">
+                                          <div className="space-y-2">
+                                            {vendorComment && (
+                                              <div className="text-xs">
+                                                <div className="font-medium text-gray-700 mb-1">Vendor Comment:</div>
+                                                <div className="text-gray-600 bg-gray-50 p-2 rounded">{vendorComment}</div>
+                                              </div>
+                                            )}
+                                            {reviewerComment && (
+                                              <div className="text-xs">
+                                                <div className="font-medium text-gray-700 mb-1">Reviewer Comment:</div>
+                                                <div className="text-gray-600 bg-blue-50 p-2 rounded">{reviewerComment}</div>
+                                              </div>
+                                            )}
+                                            <div>
+                                              <button
+                                                onClick={() => setExpandedComments(prev => ({ ...prev, [questionIdStr]: !prev[questionIdStr] }))}
+                                                className="text-xs text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1"
+                                              >
+                                                <MessageSquare className="w-3 h-3" />
+                                                {isCommentExpanded ? 'Hide' : 'Add'} Comment
+                                              </button>
+                                              {isCommentExpanded && (
+                                                <div className="mt-2">
+                                                  <textarea
+                                                    value={commentText}
+                                                    onChange={(e) => setQuestionComments(prev => ({ ...prev, [questionIdStr]: e.target.value }))}
+                                                    placeholder="Enter your comment..."
+                                                    rows={3}
+                                                    className="w-full px-3 py-2 text-xs rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                                  />
+                                                </div>
+                                              )}
+                                            </div>
+                                          </div>
+                                        </td>
+                                      )
+                                    }
+                                    
+                                    return null
+                                  })}
+                                </tr>
+                              )
+                            })
+                          })
+                          return rows
+                        })()}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               ) : (() => {
                 // Find the section that matches the active tab
                 const activeSection = viewStructure?.sections?.find(s => s.id === activeTab)
-                
                 
                 // If we have a section from viewStructure, render it dynamically
                 if (activeSection) {
@@ -700,8 +1040,8 @@ export default function GenericApproverPage({}: GenericApproverPageProps) {
                         onChange={() => {}}
                         readOnly={false}
                         assignmentId={actionItem?.source_id}
-                        onForwardQuestion={(questionId) => handleForwardClick([questionId])} // Forward specific question
-                        isCompleted={isCompleted} // Pass isCompleted to disable buttons when assignment is completed
+                        onForwardQuestion={(questionId) => handleForwardClick([questionId])}
+                        isCompleted={isCompleted}
                       />
                     </div>
                   )
@@ -722,8 +1062,8 @@ export default function GenericApproverPage({}: GenericApproverPageProps) {
                         onChange={() => {}}
                         readOnly={false}
                         assignmentId={actionItem?.source_id}
-                        onForwardQuestion={(questionId) => handleForwardClick([questionId])} // Forward specific question
-                        isCompleted={isCompleted} // Pass isCompleted to disable buttons when assignment is completed
+                        onForwardQuestion={(questionId) => handleForwardClick([questionId])}
+                        isCompleted={isCompleted}
                       />
                     </div>
                   )

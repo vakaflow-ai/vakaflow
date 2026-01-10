@@ -4,11 +4,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { formLayoutsApi, FormLayout, FormLayoutCreate, FormLayoutUpdate, SectionDefinition, CustomField, FieldAccessCreate } from '../lib/formLayouts'
 import { masterDataListsApi } from '../lib/masterDataLists'
 import { SubmissionRequirement } from '../lib/submissionRequirements'
+import { assessmentTableLayoutsApi, AssessmentTableLayout, TableColumn, AvailableColumn } from '../lib/assessmentTableLayouts'
 import DeleteConfirmation from '../components/DeleteConfirmation'
 import Layout from '../components/Layout'
 import FormsDesigner from '../components/FormsDesigner'
 import { authApi } from '../lib/auth'
-import { ChevronDown, ChevronUp, ChevronRight, Plus, Shield, AlertTriangle, FolderOpen, FileText, CheckCircle2, Search, X, Save, ArrowLeft, Settings, List, Layers } from 'lucide-react'
+import { ChevronDown, ChevronUp, ChevronRight, Plus, Shield, AlertTriangle, FolderOpen, FileText, CheckCircle2, Search, X, Save, ArrowLeft, Settings, List, Layers, GripVertical, Eye, EyeOff, ArrowUp, ArrowDown, Trash2 } from 'lucide-react'
 import { showToast } from '../utils/toast'
 import { MaterialCard, MaterialButton, MaterialChip, MaterialInput } from '../components/material'
 import ReactQuillWrapper from '../components/ReactQuillWrapper'
@@ -331,9 +332,18 @@ export default function FormDesignerEditor() {
   const groupId = searchParams.get('group_id')
 
   const [user, setUser] = useState<any>(null)
-  const [activeTab, setActiveTab] = useState<'fields' | 'steps' | 'roles' | 'preview'>('steps') // Default to steps for simplicity
+  const [activeTab, setActiveTab] = useState<'fields' | 'steps' | 'roles' | 'preview' | 'table-layout'>('steps') // Default to steps for simplicity
   // Initialize editingLayout - start with null, will be set in useEffect
   const [editingLayout, setEditingLayout] = useState<Partial<FormLayoutCreate> | null>(null)
+  
+  // Determine if this is an assessment workflow (check both URL param and loaded layout)
+  const isAssessmentWorkflow = useMemo(() => {
+    if (requestTypeParam === 'assessment_workflow') return true
+    if (editingLayout?.request_type === 'assessment_workflow') return true
+    // Check if it's an array containing assessment_workflow
+    if (Array.isArray(editingLayout?.request_type) && editingLayout.request_type.includes('assessment_workflow')) return true
+    return false
+  }, [requestTypeParam, editingLayout?.request_type])
   // Initialize covered entities based on request type
   const getDefaultCoveredEntities = (requestType: string | null | undefined): string[] => {
     if (requestType === 'assessment_workflow') {
@@ -2014,6 +2024,7 @@ export default function FormDesignerEditor() {
                 { id: 'fields', label: 'All Fields', icon: <Layers className="w-4 h-4" /> },
                 { id: 'roles', label: 'Role Permissions', icon: <Shield className="w-4 h-4" /> },
                 { id: 'preview', label: 'Live Preview', icon: <CheckCircle2 className="w-4 h-4" /> },
+                ...(isAssessmentWorkflow ? [{ id: 'table-layout', label: 'Table Layout', icon: <List className="w-4 h-4" /> }] : []),
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -3005,6 +3016,11 @@ export default function FormDesignerEditor() {
                         availableFieldsList={availableFieldsList || []}
                         previewFormData={previewFormData}
                         setPreviewFormData={setPreviewFormData}
+                      />
+                    )}
+                    {activeTab === 'table-layout' && isAssessmentWorkflow && (
+                      <TableLayoutTab
+                        editingLayout={editingLayout}
                       />
                     )}
                   </div>
@@ -4278,6 +4294,403 @@ function PreviewTab({
               </div>
             ))}
         </form>
+      </div>
+    </div>
+  )
+}
+
+// Table Layout Tab Component - For configuring assessment table columns
+function TableLayoutTab({
+  editingLayout,
+}: {
+  editingLayout: Partial<FormLayoutCreate> | null
+}) {
+  const [vendorLayout, setVendorLayout] = useState<AssessmentTableLayout | null>(null)
+  const [approverLayout, setApproverLayout] = useState<AssessmentTableLayout | null>(null)
+  const [vendorColumns, setVendorColumns] = useState<TableColumn[]>([])
+  const [approverColumns, setApproverColumns] = useState<TableColumn[]>([])
+  const [availableVendorColumns, setAvailableVendorColumns] = useState<AvailableColumn[]>([])
+  const [availableApproverColumns, setAvailableApproverColumns] = useState<AvailableColumn[]>([])
+  const [activeViewType, setActiveViewType] = useState<'vendor_submission' | 'approver'>('vendor_submission')
+  const [isLoading, setIsLoading] = useState(true)
+  const [isSaving, setIsSaving] = useState(false)
+
+  // Load available columns and existing layouts
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setIsLoading(true)
+        
+        // Load available columns
+        const [vendorAvail, approverAvail] = await Promise.all([
+          assessmentTableLayoutsApi.getAvailableColumns('vendor_submission'),
+          assessmentTableLayoutsApi.getAvailableColumns('approver')
+        ])
+        setAvailableVendorColumns(vendorAvail)
+        setAvailableApproverColumns(approverAvail)
+
+        // Load existing layouts (or defaults)
+        try {
+          const [vendorDefault, approverDefault] = await Promise.all([
+            assessmentTableLayoutsApi.getDefault('vendor_submission'),
+            assessmentTableLayoutsApi.getDefault('approver')
+          ])
+          
+          setVendorLayout(vendorDefault)
+          setVendorColumns(vendorDefault.columns || [])
+          
+          setApproverLayout(approverDefault)
+          setApproverColumns(approverDefault.columns || [])
+        } catch (defaultError: any) {
+          // If no default exists, initialize with available columns marked as default_visible
+          console.log('No default layouts found, initializing with available columns', defaultError)
+          const vendorDefaults = vendorAvail.filter((col: any) => col.default_visible).map((col: any, idx: number) => ({
+            id: col.id,
+            label: col.label,
+            field: col.field,
+            order: idx + 1,
+            width: null,
+            visible: true,
+            sortable: false,
+            type: col.type
+          }))
+          const approverDefaults = approverAvail.filter((col: any) => col.default_visible).map((col: any, idx: number) => ({
+            id: col.id,
+            label: col.label,
+            field: col.field,
+            order: idx + 1,
+            width: null,
+            visible: true,
+            sortable: false,
+            type: col.type
+          }))
+          
+          setVendorColumns(vendorDefaults)
+          setApproverColumns(approverDefaults)
+        }
+      } catch (error: any) {
+        console.error('Failed to load table layouts:', error)
+        showToast.error(error?.response?.data?.detail || 'Failed to load table layouts')
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    
+    loadData()
+  }, [])
+
+  const handleAddColumn = (viewType: 'vendor_submission' | 'approver') => {
+    const available = viewType === 'vendor_submission' ? availableVendorColumns : availableApproverColumns
+    const currentColumns = viewType === 'vendor_submission' ? vendorColumns : approverColumns
+    
+    // Find first available column that's not already added
+    const columnToAdd = available.find(col => !currentColumns.some(c => c.id === col.id))
+    if (!columnToAdd) {
+      showToast.warning('All available columns are already added')
+      return
+    }
+
+    const newColumn: TableColumn = {
+      id: columnToAdd.id,
+      label: columnToAdd.label,
+      field: columnToAdd.field,
+      order: currentColumns.length + 1,
+      width: null,
+      visible: columnToAdd.default_visible,
+      sortable: false,
+      type: columnToAdd.type
+    }
+
+    if (viewType === 'vendor_submission') {
+      setVendorColumns([...currentColumns, newColumn])
+    } else {
+      setApproverColumns([...currentColumns, newColumn])
+    }
+  }
+
+  const handleRemoveColumn = (viewType: 'vendor_submission' | 'approver', columnId: string) => {
+    const currentColumns = viewType === 'vendor_submission' ? vendorColumns : approverColumns
+    const updated = currentColumns.filter(c => c.id !== columnId).map((c, idx) => ({ ...c, order: idx + 1 }))
+    
+    if (viewType === 'vendor_submission') {
+      setVendorColumns(updated)
+    } else {
+      setApproverColumns(updated)
+    }
+  }
+
+  const handleToggleVisibility = (viewType: 'vendor_submission' | 'approver', columnId: string) => {
+    const currentColumns = viewType === 'vendor_submission' ? vendorColumns : approverColumns
+    const updated = currentColumns.map(c => c.id === columnId ? { ...c, visible: !c.visible } : c)
+    
+    if (viewType === 'vendor_submission') {
+      setVendorColumns(updated)
+    } else {
+      setApproverColumns(updated)
+    }
+  }
+
+  const handleMoveColumn = (viewType: 'vendor_submission' | 'approver', columnId: string, direction: 'up' | 'down') => {
+    const currentColumns = viewType === 'vendor_submission' ? vendorColumns : approverColumns
+    const index = currentColumns.findIndex(c => c.id === columnId)
+    if (index === -1) return
+
+    const newIndex = direction === 'up' ? index - 1 : index + 1
+    if (newIndex < 0 || newIndex >= currentColumns.length) return
+
+    const updated = [...currentColumns]
+    ;[updated[index], updated[newIndex]] = [updated[newIndex], updated[index]]
+    const reordered = updated.map((c, idx) => ({ ...c, order: idx + 1 }))
+    
+    if (viewType === 'vendor_submission') {
+      setVendorColumns(reordered)
+    } else {
+      setApproverColumns(reordered)
+    }
+  }
+
+  const handleUpdateColumn = (viewType: 'vendor_submission' | 'approver', columnId: string, updates: Partial<TableColumn>) => {
+    const currentColumns = viewType === 'vendor_submission' ? vendorColumns : approverColumns
+    const updated = currentColumns.map(c => c.id === columnId ? { ...c, ...updates } : c)
+    
+    if (viewType === 'vendor_submission') {
+      setVendorColumns(updated)
+    } else {
+      setApproverColumns(updated)
+    }
+  }
+
+  const handleSave = async (viewType: 'vendor_submission' | 'approver') => {
+    try {
+      setIsSaving(true)
+      const columns = viewType === 'vendor_submission' ? vendorColumns : approverColumns
+      const existingLayout = viewType === 'vendor_submission' ? vendorLayout : approverLayout
+
+      if (existingLayout && existingLayout.id !== 'default') {
+        // Update existing layout
+        await assessmentTableLayoutsApi.update(existingLayout.id, { columns })
+        showToast.success(`${viewType === 'vendor_submission' ? 'Vendor' : 'Approver'} table layout updated successfully`)
+      } else {
+        // Create new layout
+        const newLayout = await assessmentTableLayoutsApi.create({
+          name: `Default ${viewType === 'vendor_submission' ? 'Vendor Submission' : 'Approver'} Layout`,
+          view_type: viewType,
+          description: `Table column configuration for ${viewType === 'vendor_submission' ? 'vendor submission' : 'approver'} view`,
+          columns,
+          is_default: true,
+          is_active: true
+        })
+        
+        if (viewType === 'vendor_submission') {
+          setVendorLayout(newLayout)
+        } else {
+          setApproverLayout(newLayout)
+        }
+        
+        showToast.success(`${viewType === 'vendor_submission' ? 'Vendor' : 'Approver'} table layout created successfully`)
+      }
+    } catch (error: any) {
+      showToast.error(error?.response?.data?.detail || 'Failed to save table layout')
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-sm text-gray-500">Loading table layouts...</p>
+        </div>
+      </div>
+    )
+  }
+
+  const currentColumns = activeViewType === 'vendor_submission' ? vendorColumns : approverColumns
+  const availableColumns = activeViewType === 'vendor_submission' ? availableVendorColumns : availableApproverColumns
+  const unusedColumns = availableColumns.filter(col => !currentColumns.some(c => c.id === col.id))
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">Assessment Table Layout Configuration</h3>
+        <p className="text-sm text-gray-600">
+          Configure table columns for vendor submission and approver views. Drag to reorder, toggle visibility, and set column widths.
+        </p>
+      </div>
+
+      {/* View Type Tabs */}
+      <div className="flex gap-4 border-b border-gray-200">
+        <button
+          onClick={() => setActiveViewType('vendor_submission')}
+          className={`pb-3 px-4 text-sm font-medium transition-all border-b-2 -mb-px ${
+            activeViewType === 'vendor_submission'
+              ? 'border-blue-500 text-blue-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+          }`}
+        >
+          Vendor Submission View
+        </button>
+        <button
+          onClick={() => setActiveViewType('approver')}
+          className={`pb-3 px-4 text-sm font-medium transition-all border-b-2 -mb-px ${
+            activeViewType === 'approver'
+              ? 'border-blue-500 text-blue-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+          }`}
+        >
+          Approver View
+        </button>
+      </div>
+
+      {/* Column Configuration */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h4 className="text-sm font-semibold text-gray-900">
+            Configure Columns ({activeViewType === 'vendor_submission' ? 'Vendor Submission' : 'Approver'})
+          </h4>
+          <div className="flex gap-2">
+            {unusedColumns.length > 0 && (
+              <MaterialButton
+                variant="outlined"
+                size="small"
+                onClick={() => handleAddColumn(activeViewType)}
+                startIcon={<Plus className="w-4 h-4" />}
+              >
+                Add Column
+              </MaterialButton>
+            )}
+            <MaterialButton
+              variant="contained"
+              size="small"
+              onClick={() => handleSave(activeViewType)}
+              disabled={isSaving}
+              startIcon={<Save className="w-4 h-4" />}
+            >
+              {isSaving ? 'Saving...' : 'Save Layout'}
+            </MaterialButton>
+          </div>
+        </div>
+
+        {/* Column List */}
+        <div className="space-y-2">
+          {currentColumns.length === 0 ? (
+            <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-lg">
+              <p className="mb-2">No columns configured</p>
+              {unusedColumns.length > 0 && (
+                <MaterialButton
+                  variant="outlined"
+                  size="small"
+                  onClick={() => handleAddColumn(activeViewType)}
+                  startIcon={<Plus className="w-4 h-4" />}
+                >
+                  Add First Column
+                </MaterialButton>
+              )}
+            </div>
+          ) : (
+            currentColumns
+              .sort((a, b) => a.order - b.order)
+              .map((column, index) => (
+                <MaterialCard key={column.id} elevation={1} className="p-4">
+                  <div className="flex items-center gap-4">
+                    {/* Drag Handle */}
+                    <div className="flex flex-col gap-1">
+                      <button
+                        onClick={() => handleMoveColumn(activeViewType, column.id, 'up')}
+                        disabled={index === 0}
+                        className={`p-1 ${index === 0 ? 'opacity-30 cursor-not-allowed' : 'hover:bg-gray-100'}`}
+                      >
+                        <ArrowUp className="w-3 h-3" />
+                      </button>
+                      <button
+                        onClick={() => handleMoveColumn(activeViewType, column.id, 'down')}
+                        disabled={index === currentColumns.length - 1}
+                        className={`p-1 ${index === currentColumns.length - 1 ? 'opacity-30 cursor-not-allowed' : 'hover:bg-gray-100'}`}
+                      >
+                        <ArrowDown className="w-3 h-3" />
+                      </button>
+                    </div>
+
+                    {/* Column Info */}
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <input
+                          type="text"
+                          value={column.label}
+                          onChange={(e) => handleUpdateColumn(activeViewType, column.id, { label: e.target.value })}
+                          className="text-sm font-medium px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                        <span className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded">{column.type}</span>
+                      </div>
+                      <div className="flex items-center gap-4 text-xs text-gray-600">
+                        <div className="flex items-center gap-2">
+                          <label className="flex items-center gap-1">
+                            <input
+                              type="checkbox"
+                              checked={column.visible}
+                              onChange={() => handleToggleVisibility(activeViewType, column.id)}
+                              className="w-3 h-3"
+                            />
+                            <span>Visible</span>
+                          </label>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <label className="text-gray-600">Width:</label>
+                          <input
+                            type="text"
+                            value={column.width || ''}
+                            onChange={(e) => handleUpdateColumn(activeViewType, column.id, { width: e.target.value || null })}
+                            placeholder="30%"
+                            className="w-20 px-2 py-1 border border-gray-300 rounded text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <label className="flex items-center gap-1">
+                            <input
+                              type="checkbox"
+                              checked={column.sortable}
+                              onChange={(e) => handleUpdateColumn(activeViewType, column.id, { sortable: e.target.checked })}
+                              className="w-3 h-3"
+                            />
+                            <span>Sortable</span>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <button
+                      onClick={() => handleRemoveColumn(activeViewType, column.id)}
+                      className="p-2 text-red-600 hover:bg-red-50 rounded"
+                      title="Remove column"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </MaterialCard>
+              ))
+          )}
+        </div>
+
+        {/* Available Columns to Add */}
+        {unusedColumns.length > 0 && (
+          <div className="mt-6">
+            <h5 className="text-sm font-medium text-gray-700 mb-2">Available Columns</h5>
+            <div className="flex flex-wrap gap-2">
+              {unusedColumns.map((col) => (
+                <button
+                  key={col.id}
+                  onClick={() => handleAddColumn(activeViewType)}
+                  className="px-3 py-1.5 text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md border border-gray-300"
+                >
+                  + {col.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

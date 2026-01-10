@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { assessmentsApi, AssessmentQuestion, AssessmentAssignment as AssessmentAssignmentType } from '../lib/assessments'
 import { authApi } from '../lib/auth'
+import { assessmentTableLayoutsApi, AssessmentTableLayout } from '../lib/assessmentTableLayouts'
 import Layout from '../components/Layout'
 import { showToast } from '../utils/toast'
 import { 
@@ -108,6 +109,13 @@ export default function AssessmentAssignmentPage() {
     staleTime: 30000, // Cache for 30 seconds
   })
 
+  // Load table layout configuration for vendor submission view
+  const { data: tableLayout } = useQuery<AssessmentTableLayout>({
+    queryKey: ['assessment-table-layout', 'vendor_submission'],
+    queryFn: () => assessmentTableLayoutsApi.getDefault('vendor_submission'),
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+  })
+
   // Initialize responses from existing data
   useEffect(() => {
     if (existingResponses && Object.keys(existingResponses).length > 0) {
@@ -190,7 +198,7 @@ export default function AssessmentAssignmentPage() {
   
   // Debounce search queries
   useEffect(() => {
-    const timers: Record<string, NodeJS.Timeout> = {}
+    const timers: Record<string, ReturnType<typeof setTimeout>> = {}
     Object.entries(assigneeSearchQuery).forEach(([questionId, query]) => {
       if (timers[questionId]) clearTimeout(timers[questionId])
       timers[questionId] = setTimeout(() => {
@@ -466,11 +474,23 @@ export default function AssessmentAssignmentPage() {
                     })
 
                     const rows: JSX.Element[] = []
+                    // Get configured columns once for all categories
+                    const defaultColumns = [
+                      { id: 'question', visible: true },
+                      { id: 'assignee', visible: true },
+                      { id: 'vendor_answer', visible: true },
+                      { id: 'comments', visible: true },
+                      { id: 'attachments', visible: true },
+                    ]
+                    // Access tableLayout from parent scope - it's defined above in the component
+                    const layoutColumns = tableLayout?.columns || defaultColumns
+                    const visibleColumnCount = layoutColumns.filter((col: any) => col.visible).length
+
                     Object.entries(groupedQuestions).forEach(([category, categoryQuestions]) => {
                       // Add category header row
                       rows.push(
                         <tr key={`category-${category}`} className="bg-gray-100">
-                          <td colSpan={5} className="px-4 py-3 text-sm font-semibold text-gray-900">
+                          <td colSpan={visibleColumnCount} className="px-4 py-3 text-sm font-semibold text-gray-900">
                             {category}
                           </td>
                         </tr>
@@ -503,20 +523,32 @@ export default function AssessmentAssignmentPage() {
 
                         const vendorAnswer = formatVendorAnswer(response.value)
 
+                        // Get configured columns or use defaults (already defined above)
+                        const visibleColumns = layoutColumns.filter((col: any) => col.visible).sort((a: any, b: any) => (a.order || 0) - (b.order || 0))
+
                         rows.push(
                           <tr key={question.id} className="hover:bg-gray-50">
-                            <td className="px-4 py-3">
-                              <div className="space-y-1">
-                                <div className="text-sm font-medium text-gray-900">
-                                  {question.question_text || question.title}
-                                  {question.is_required && <span className="text-red-600 ml-1">*</span>}
-                                </div>
-                                {question.description && (
-                                  <div className="text-xs text-gray-500">{question.description}</div>
-                                )}
-                              </div>
-                            </td>
-                            <td className="px-4 py-3">
+                            {visibleColumns.map((col: any) => {
+                              // Render cell based on column type
+                              if (col.id === 'question') {
+                                return (
+                                  <td key={col.id} className="px-4 py-3">
+                                    <div className="space-y-1">
+                                      <div className="text-sm font-medium text-gray-900">
+                                        {question.question_text || question.title}
+                                        {question.is_required && <span className="text-red-600 ml-1">*</span>}
+                                      </div>
+                                      {question.description && (
+                                        <div className="text-xs text-gray-500">{question.description}</div>
+                                      )}
+                                    </div>
+                                  </td>
+                                )
+                              }
+                              
+                              if (col.id === 'assignee') {
+                                return (
+                                  <td key={col.id} className="px-4 py-3">
                               {isReadOnly ? (
                                 <div className="text-sm text-gray-700">
                                   {assigneeName}
@@ -594,8 +626,13 @@ export default function AssessmentAssignmentPage() {
                                   )}
                                 </div>
                               )}
-                            </td>
-                            <td className="px-4 py-3">
+                                  </td>
+                                )
+                              }
+                              
+                              if (col.id === 'vendor_answer') {
+                                return (
+                                  <td key={col.id} className="px-4 py-3">
                               {isReadOnly ? (
                                 <div className="text-sm text-gray-900 max-w-md">
                                   {(() => {
@@ -678,7 +715,7 @@ export default function AssessmentAssignmentPage() {
                                         const selectedValues = Array.isArray(response.value) ? response.value : [response.value].filter(Boolean)
                                         if (selectedValues.length > 0) {
                                           const selectedLabels = selectedValues.map((val: any) => {
-                                            const opt = question.options.find((opt: any) => {
+                                            const opt = (question.options || []).find((opt: any) => {
                                               const optValue = typeof opt === 'string' ? opt : opt.value
                                               return optValue === val
                                             })
@@ -715,7 +752,7 @@ export default function AssessmentAssignmentPage() {
                                         <div className="space-y-2">
                                           {response.documents && response.documents.length > 0 && (
                                             <div className="space-y-1">
-                                              {response.documents.map((doc: any, docIndex: number) => (
+                                              {(response.documents || []).map((doc: any, docIndex: number) => (
                                                 <div key={docIndex} className="flex items-center gap-2 text-sm bg-gray-50 p-2 rounded">
                                                   <FileText className="w-4 h-4 text-gray-500" />
                                                   <span className="text-gray-700 flex-1">{doc.name || doc.path || `Document ${docIndex + 1}`}</span>
@@ -723,7 +760,7 @@ export default function AssessmentAssignmentPage() {
                                                     type="button"
                                                     onClick={() => {
                                                       const questionIdStr = String(question.id)
-                                                      const newDocs = response.documents.filter((_: any, i: number) => i !== docIndex)
+                                                      const newDocs = (response.documents || []).filter((_: any, i: number) => i !== docIndex)
                                                       setResponses(prev => ({
                                                         ...prev,
                                                         [questionIdStr]: { ...prev[questionIdStr] || {}, documents: newDocs }
@@ -746,7 +783,7 @@ export default function AssessmentAssignmentPage() {
                                               input.type = 'file'
                                               input.multiple = true
                                               input.onchange = (e: any) => {
-                                                const files = Array.from(e.target.files || [])
+                                                const files = Array.from(e.target.files || []) as File[]
                                                 const questionIdStr = String(question.id)
                                                 const newDocs = files.map((file: File) => ({
                                                   name: file.name,
@@ -946,8 +983,13 @@ export default function AssessmentAssignmentPage() {
                                   })()}
                                 </div>
                               )}
-                            </td>
-                            <td className="px-4 py-3">
+                                  </td>
+                                )
+                              }
+                              
+                              if (col.id === 'comments') {
+                                return (
+                                  <td key={col.id} className="px-4 py-3">
                               <div className="space-y-2">
                                 {isReadOnly ? (
                                   <>
@@ -982,8 +1024,13 @@ export default function AssessmentAssignmentPage() {
                                   />
                                 )}
                               </div>
-                            </td>
-                            <td className="px-4 py-3">
+                                  </td>
+                                )
+                              }
+                              
+                              if (col.id === 'attachments') {
+                                return (
+                                  <td key={col.id} className="px-4 py-3">
                               <div className="space-y-2">
                                 {(() => {
                                   // For file type questions, attachments are shown in the vendor answer column
@@ -1042,7 +1089,7 @@ export default function AssessmentAssignmentPage() {
                                       input.type = 'file'
                                       input.multiple = true
                                       input.onchange = (e: any) => {
-                                        const files = Array.from(e.target.files || [])
+                                        const files = Array.from(e.target.files || []) as File[]
                                         const questionIdStr = String(question.id)
                                         const newDocs = files.map((file: File) => ({
                                           name: file.name,
@@ -1068,7 +1115,13 @@ export default function AssessmentAssignmentPage() {
                                   </Button>
                                 )}
                               </div>
-                            </td>
+                                  </td>
+                                )
+                              }
+                              
+                              // Unknown column type - render empty cell
+                              return <td key={col.id} className="px-4 py-3"></td>
+                            })}
                           </tr>
                         )
                       })
