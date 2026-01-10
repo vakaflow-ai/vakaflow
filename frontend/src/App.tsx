@@ -70,6 +70,8 @@ import CustomFields from './pages/CustomFields'
 import MyAssessments from './pages/MyAssessments'
 import Entities from './pages/Entities'
 import SuppliersMasterView from './pages/SuppliersMasterView'
+import VendorProfile from './pages/VendorProfile'
+import PlatformArchitecture from './pages/PlatformArchitecture'
 
 const queryClient = new QueryClient()
 
@@ -178,6 +180,8 @@ function App() {
           <Route path="/admin/master-data" element={<MasterData />} />
           <Route path="/entities" element={<Entities />} />
           <Route path="/suppliers-master" element={<SuppliersMasterView />} />
+          <Route path="/vendors/:vendorId" element={<VendorProfile />} />
+          <Route path="/suppliers-master/:vendorId" element={<VendorProfile />} />
           <Route path="/analytics" element={<AnalyticsDashboard />} />
           <Route path="/ai-posture" element={<AIPostureDashboard />} />
           <Route path="/ecosystem-map" element={<EcosystemMap />} />
@@ -206,6 +210,8 @@ function App() {
           <Route path="/my-vendors" element={<MyVendors />} />
           <Route path="/admin/platform-config" element={<PlatformConfiguration />} />
           <Route path="/admin/cluster-nodes" element={<ClusterNodeManagement />} />
+          <Route path="/admin/architecture" element={<PlatformArchitecture />} />
+          <Route path="/architecture" element={<PlatformArchitecture />} />
           <Route path="/studio" element={<Studio />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/admin/tenant-settings" element={<TenantSettings />} />

@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { formLayoutsApi, FormLayout, FormLayoutCreate, FormLayoutUpdate, SectionDefinition, CustomField, FieldAccessCreate } from '../lib/formLayouts'
 import { masterDataListsApi } from '../lib/masterDataLists'
 import { SubmissionRequirement } from '../lib/submissionRequirements'
-import { assessmentTableLayoutsApi, AssessmentTableLayout, TableColumn, AvailableColumn } from '../lib/assessmentTableLayouts'
+import { assessmentTableLayoutsApi, AssessmentTableLayout, TableColumn, AvailableColumn, TableDisplayConfig } from '../lib/assessmentTableLayouts'
 import DeleteConfirmation from '../components/DeleteConfirmation'
 import Layout from '../components/Layout'
 import FormsDesigner from '../components/FormsDesigner'
@@ -338,12 +338,31 @@ export default function FormDesignerEditor() {
   
   // Determine if this is an assessment workflow (check both URL param and loaded layout)
   const isAssessmentWorkflow = useMemo(() => {
-    if (requestTypeParam === 'assessment_workflow') return true
-    if (editingLayout?.request_type === 'assessment_workflow') return true
-    // Check if it's an array containing assessment_workflow
-    if (Array.isArray(editingLayout?.request_type) && editingLayout.request_type.includes('assessment_workflow')) return true
-    return false
-  }, [requestTypeParam, editingLayout?.request_type])
+    const urlParamMatch = requestTypeParam === 'assessment_workflow'
+    const layoutTypeMatch = editingLayout?.request_type === 'assessment_workflow'
+    const arrayMatch = Array.isArray(editingLayout?.request_type) && editingLayout.request_type.includes('assessment_workflow')
+    
+    // Fallback: Check if layout name contains "Assessment" (case-insensitive)
+    const nameMatch = editingLayout?.name?.toLowerCase().includes('assessment') || false
+    
+    const result = urlParamMatch || layoutTypeMatch || arrayMatch || nameMatch
+    
+    // Debug logging
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔍 Assessment Workflow Check:', {
+        requestTypeParam,
+        layoutRequestType: editingLayout?.request_type,
+        layoutName: editingLayout?.name,
+        urlParamMatch,
+        layoutTypeMatch,
+        arrayMatch,
+        nameMatch,
+        isAssessmentWorkflow: result
+      })
+    }
+    
+    return result
+  }, [requestTypeParam, editingLayout?.request_type, editingLayout?.name])
   // Initialize covered entities based on request type
   const getDefaultCoveredEntities = (requestType: string | null | undefined): string[] => {
     if (requestType === 'assessment_workflow') {
@@ -2019,13 +2038,33 @@ export default function FormDesignerEditor() {
           <div className="space-y-6">
             {/* Dynamic Tab Navigation - Material Design */}
             <div className="flex gap-4 border-b border-gray-200">
-              {[
-                { id: 'steps', label: 'Form Designer', icon: <FolderOpen className="w-4 h-4" /> },
-                { id: 'fields', label: 'All Fields', icon: <Layers className="w-4 h-4" /> },
-                { id: 'roles', label: 'Role Permissions', icon: <Shield className="w-4 h-4" /> },
-                { id: 'preview', label: 'Live Preview', icon: <CheckCircle2 className="w-4 h-4" /> },
-                ...(isAssessmentWorkflow ? [{ id: 'table-layout', label: 'Table Layout', icon: <List className="w-4 h-4" /> }] : []),
-              ].map((tab) => (
+              {(() => {
+                const tabs = [
+                  { id: 'steps', label: 'Form Designer', icon: <FolderOpen className="w-4 h-4" /> },
+                  { id: 'fields', label: 'All Fields', icon: <Layers className="w-4 h-4" /> },
+                  { id: 'roles', label: 'Role Permissions', icon: <Shield className="w-4 h-4" /> },
+                  { id: 'preview', label: 'Live Preview', icon: <CheckCircle2 className="w-4 h-4" /> },
+                ]
+                
+                // Add Table Layout tab for assessment workflows
+                if (isAssessmentWorkflow) {
+                  tabs.push({ id: 'table-layout', label: 'Table Layout', icon: <List className="w-4 h-4" /> })
+                }
+                
+                // Debug: Log tab visibility
+                if (process.env.NODE_ENV === 'development') {
+                  console.log('📋 Tab Visibility Check:', {
+                    isAssessmentWorkflow,
+                    requestTypeParam,
+                    layoutRequestType: editingLayout?.request_type,
+                    layoutName: editingLayout?.name,
+                    tabsCount: tabs.length,
+                    hasTableLayoutTab: tabs.some(t => t.id === 'table-layout')
+                  })
+                }
+                
+                return tabs
+              })().map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as any)}
@@ -4314,6 +4353,20 @@ function TableLayoutTab({
   const [activeViewType, setActiveViewType] = useState<'vendor_submission' | 'approver'>('vendor_submission')
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
+  
+  // Display configuration state
+  const [vendorDisplayConfig, setVendorDisplayConfig] = useState<TableDisplayConfig>({
+    default_expanded: true,
+    group_by: 'category',
+    show_attachments_by_default: true,
+    enable_collapse: true
+  })
+  const [approverDisplayConfig, setApproverDisplayConfig] = useState<TableDisplayConfig>({
+    default_expanded: true,
+    group_by: 'category',
+    show_attachments_by_default: true,
+    enable_collapse: true
+  })
 
   // Load available columns and existing layouts
   useEffect(() => {
@@ -4330,44 +4383,136 @@ function TableLayoutTab({
         setAvailableApproverColumns(approverAvail)
 
         // Load existing layouts (or defaults)
-        try {
-          const [vendorDefault, approverDefault] = await Promise.all([
-            assessmentTableLayoutsApi.getDefault('vendor_submission'),
-            assessmentTableLayoutsApi.getDefault('approver')
-          ])
-          
-          setVendorLayout(vendorDefault)
-          setVendorColumns(vendorDefault.columns || [])
-          
-          setApproverLayout(approverDefault)
-          setApproverColumns(approverDefault.columns || [])
-        } catch (defaultError: any) {
-          // If no default exists, initialize with available columns marked as default_visible
-          console.log('No default layouts found, initializing with available columns', defaultError)
-          const vendorDefaults = vendorAvail.filter((col: any) => col.default_visible).map((col: any, idx: number) => ({
-            id: col.id,
-            label: col.label,
-            field: col.field,
-            order: idx + 1,
-            width: null,
-            visible: true,
-            sortable: false,
-            type: col.type
+        // The getDefault endpoint should always return columns (either from DB or from AVAILABLE_COLUMNS)
+        const [vendorDefault, approverDefault] = await Promise.all([
+          assessmentTableLayoutsApi.getDefault('vendor_submission').catch((error: any) => {
+            console.warn('Failed to load vendor default layout, using available columns:', error)
+            // Return a mock layout with default columns
+            return {
+              id: 'default',
+              tenant_id: null,
+              name: 'Default Vendor Submission Layout',
+              view_type: 'vendor_submission',
+              description: 'Default column configuration',
+              columns: vendorAvail.filter((col: any) => col.default_visible).map((col: any, idx: number) => ({
+                id: col.id,
+                label: col.label,
+                field: col.field,
+                order: idx + 1,
+                width: null,
+                visible: true,
+                sortable: false,
+                type: col.type
+              })),
+              is_active: true,
+              is_default: true,
+              created_by: null,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            }
+          }),
+          assessmentTableLayoutsApi.getDefault('approver').catch((error: any) => {
+            console.warn('Failed to load approver default layout, using available columns:', error)
+            // Return a mock layout with default columns
+            return {
+              id: 'default',
+              tenant_id: null,
+              name: 'Default Approver Layout',
+              view_type: 'approver',
+              description: 'Default column configuration',
+              columns: approverAvail.filter((col: any) => col.default_visible).map((col: any, idx: number) => ({
+                id: col.id,
+                label: col.label,
+                field: col.field,
+                order: idx + 1,
+                width: null,
+                visible: true,
+                sortable: false,
+                type: col.type
+              })),
+              is_active: true,
+              is_default: true,
+              created_by: null,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            }
+          })
+        ])
+        
+        // Ensure columns are always set (even if empty array from backend)
+        // Normalize columns from backend to ensure they have all required fields
+        const normalizeColumns = (cols: any[]): TableColumn[] => {
+          if (!cols || cols.length === 0) return []
+          return cols.map((col: any) => ({
+            id: col.id || '',
+            label: col.label || '',
+            field: col.field || null,
+            order: col.order || 0,
+            width: col.width || null,
+            visible: col.visible !== undefined ? col.visible : true,
+            sortable: col.sortable !== undefined ? col.sortable : false,
+            type: col.type || 'text'
           }))
-          const approverDefaults = approverAvail.filter((col: any) => col.default_visible).map((col: any, idx: number) => ({
-            id: col.id,
-            label: col.label,
-            field: col.field,
-            order: idx + 1,
-            width: null,
-            visible: true,
-            sortable: false,
-            type: col.type
-          }))
-          
-          setVendorColumns(vendorDefaults)
-          setApproverColumns(approverDefaults)
         }
+        
+        let vendorCols = normalizeColumns(vendorDefault.columns || [])
+        let approverCols = normalizeColumns(approverDefault.columns || [])
+        
+        // If no columns from backend, initialize with default_visible columns from available
+        if (vendorCols.length === 0 && vendorAvail.length > 0) {
+          vendorCols = vendorAvail.filter((col: any) => col.default_visible).map((col: any, idx: number) => ({
+            id: col.id,
+            label: col.label,
+            field: col.field || null,
+            order: idx + 1,
+            width: null,
+            visible: true,
+            sortable: false,
+            type: col.type
+          }))
+        }
+        
+        if (approverCols.length === 0 && approverAvail.length > 0) {
+          approverCols = approverAvail.filter((col: any) => col.default_visible).map((col: any, idx: number) => ({
+            id: col.id,
+            label: col.label,
+            field: col.field || null,
+            order: idx + 1,
+            width: null,
+            visible: true,
+            sortable: false,
+            type: col.type
+          }))
+        }
+        
+        setVendorLayout(vendorDefault)
+        setVendorColumns(vendorCols)
+        setVendorDisplayConfig(vendorDefault.display_config || {
+          default_expanded: true,
+          group_by: 'category',
+          show_attachments_by_default: true,
+          enable_collapse: true
+        })
+        
+        setApproverLayout(approverDefault)
+        setApproverColumns(approverCols)
+        setApproverDisplayConfig(approverDefault.display_config || {
+          default_expanded: true,
+          group_by: 'category',
+          show_attachments_by_default: true,
+          enable_collapse: true
+        })
+        
+        console.log('📋 Table Layout Columns Loaded:', {
+          vendorColumns: vendorCols.length,
+          approverColumns: approverCols.length,
+          vendorDefaultColumns: vendorDefault.columns?.length || 0,
+          approverDefaultColumns: approverDefault.columns?.length || 0,
+          vendorAvailable: vendorAvail.length,
+          approverAvailable: approverAvail.length,
+          vendorDisplayConfig: vendorDefault.display_config,
+          approverDisplayConfig: approverDefault.display_config
+        })
       } catch (error: any) {
         console.error('Failed to load table layouts:', error)
         showToast.error(error?.response?.data?.detail || 'Failed to load table layouts')
@@ -4464,11 +4609,12 @@ function TableLayoutTab({
     try {
       setIsSaving(true)
       const columns = viewType === 'vendor_submission' ? vendorColumns : approverColumns
+      const displayConfig = viewType === 'vendor_submission' ? vendorDisplayConfig : approverDisplayConfig
       const existingLayout = viewType === 'vendor_submission' ? vendorLayout : approverLayout
 
       if (existingLayout && existingLayout.id !== 'default') {
         // Update existing layout
-        await assessmentTableLayoutsApi.update(existingLayout.id, { columns })
+        await assessmentTableLayoutsApi.update(existingLayout.id, { columns, display_config: displayConfig })
         showToast.success(`${viewType === 'vendor_submission' ? 'Vendor' : 'Approver'} table layout updated successfully`)
       } else {
         // Create new layout
@@ -4477,6 +4623,7 @@ function TableLayoutTab({
           view_type: viewType,
           description: `Table column configuration for ${viewType === 'vendor_submission' ? 'vendor submission' : 'approver'} view`,
           columns,
+          display_config: displayConfig,
           is_default: true,
           is_active: true
         })
@@ -4542,6 +4689,146 @@ function TableLayoutTab({
         >
           Approver View
         </button>
+      </div>
+
+      {/* Display Configuration */}
+      <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+        <h4 className="text-sm font-semibold text-gray-900 mb-4">Display Settings</h4>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                checked={activeViewType === 'vendor_submission' ? vendorDisplayConfig.default_expanded : approverDisplayConfig.default_expanded}
+                onChange={(e) => {
+                  const config = activeViewType === 'vendor_submission' ? vendorDisplayConfig : approverDisplayConfig
+                  const setConfig = activeViewType === 'vendor_submission' ? setVendorDisplayConfig : setApproverDisplayConfig
+                  setConfig({ ...config, default_expanded: e.target.checked })
+                }}
+                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              />
+              <span>Categories expanded by default</span>
+            </label>
+          </div>
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                checked={activeViewType === 'vendor_submission' ? vendorDisplayConfig.enable_collapse : approverDisplayConfig.enable_collapse}
+                onChange={(e) => {
+                  const config = activeViewType === 'vendor_submission' ? vendorDisplayConfig : approverDisplayConfig
+                  const setConfig = activeViewType === 'vendor_submission' ? setVendorDisplayConfig : setApproverDisplayConfig
+                  setConfig({ ...config, enable_collapse: e.target.checked })
+                }}
+                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              />
+              <span>Enable collapse/expand</span>
+            </label>
+          </div>
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                checked={activeViewType === 'vendor_submission' ? vendorDisplayConfig.show_attachments_by_default : approverDisplayConfig.show_attachments_by_default}
+                onChange={(e) => {
+                  const config = activeViewType === 'vendor_submission' ? vendorDisplayConfig : approverDisplayConfig
+                  const setConfig = activeViewType === 'vendor_submission' ? setVendorDisplayConfig : setApproverDisplayConfig
+                  setConfig({ ...config, show_attachments_by_default: e.target.checked })
+                }}
+                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              />
+              <span>Show attachments by default</span>
+            </label>
+          </div>
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-gray-700">
+              Group by
+            </label>
+            <select
+              value={activeViewType === 'vendor_submission' ? vendorDisplayConfig.group_by : approverDisplayConfig.group_by}
+              onChange={(e) => {
+                const config = activeViewType === 'vendor_submission' ? vendorDisplayConfig : approverDisplayConfig
+                const setConfig = activeViewType === 'vendor_submission' ? setVendorDisplayConfig : setApproverDisplayConfig
+                setConfig({ ...config, group_by: e.target.value as 'category' | 'section' | 'none' })
+              }}
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="category">Category</option>
+              <option value="section">Section</option>
+              <option value="none">None</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* Display Configuration */}
+      <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+        <h4 className="text-sm font-semibold text-gray-900 mb-4">Display Settings</h4>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                checked={activeViewType === 'vendor_submission' ? vendorDisplayConfig.default_expanded : approverDisplayConfig.default_expanded}
+                onChange={(e) => {
+                  const config = activeViewType === 'vendor_submission' ? vendorDisplayConfig : approverDisplayConfig
+                  const setConfig = activeViewType === 'vendor_submission' ? setVendorDisplayConfig : setApproverDisplayConfig
+                  setConfig({ ...config, default_expanded: e.target.checked })
+                }}
+                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              />
+              <span>Categories expanded by default</span>
+            </label>
+          </div>
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                checked={activeViewType === 'vendor_submission' ? vendorDisplayConfig.enable_collapse : approverDisplayConfig.enable_collapse}
+                onChange={(e) => {
+                  const config = activeViewType === 'vendor_submission' ? vendorDisplayConfig : approverDisplayConfig
+                  const setConfig = activeViewType === 'vendor_submission' ? setVendorDisplayConfig : setApproverDisplayConfig
+                  setConfig({ ...config, enable_collapse: e.target.checked })
+                }}
+                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              />
+              <span>Enable collapse/expand</span>
+            </label>
+          </div>
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                checked={activeViewType === 'vendor_submission' ? vendorDisplayConfig.show_attachments_by_default : approverDisplayConfig.show_attachments_by_default}
+                onChange={(e) => {
+                  const config = activeViewType === 'vendor_submission' ? vendorDisplayConfig : approverDisplayConfig
+                  const setConfig = activeViewType === 'vendor_submission' ? setVendorDisplayConfig : setApproverDisplayConfig
+                  setConfig({ ...config, show_attachments_by_default: e.target.checked })
+                }}
+                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              />
+              <span>Show attachments by default</span>
+            </label>
+          </div>
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-gray-700">
+              Group by
+            </label>
+            <select
+              value={activeViewType === 'vendor_submission' ? vendorDisplayConfig.group_by : approverDisplayConfig.group_by}
+              onChange={(e) => {
+                const config = activeViewType === 'vendor_submission' ? vendorDisplayConfig : approverDisplayConfig
+                const setConfig = activeViewType === 'vendor_submission' ? setVendorDisplayConfig : setApproverDisplayConfig
+                setConfig({ ...config, group_by: e.target.value as 'category' | 'section' | 'none' })
+              }}
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="category">Category</option>
+              <option value="section">Section</option>
+              <option value="none">None</option>
+            </select>
+          </div>
+        </div>
       </div>
 
       {/* Column Configuration */}

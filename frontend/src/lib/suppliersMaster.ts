@@ -143,11 +143,32 @@ export interface SupplierMasterView {
   department_relationships: SupplierDepartmentRelationship[]
   assessment_history: Array<{
     id: string
+    assignment_id?: string
     name: string
     type?: string
     status?: string
     assigned_at?: string
     completed_at?: string
+    due_date?: string
+    workflow_ticket_id?: string
+    schedule?: {
+      id?: string
+      scheduled_date?: string
+      due_date?: string
+      frequency?: string
+      status?: string
+    }
+    responses_count?: number
+    artifacts_count?: number
+    artifacts?: Array<any>
+    reviews?: Array<{
+      id: string
+      review_type: string
+      status: string
+      risk_score?: number
+      risk_level?: string
+      created_at?: string
+    }>
   }>
   agents: Array<{
     id: string

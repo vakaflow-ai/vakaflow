@@ -11,6 +11,13 @@ export interface TableColumn {
   type: string
 }
 
+export interface TableDisplayConfig {
+  default_expanded: boolean
+  group_by: 'category' | 'section' | 'none'
+  show_attachments_by_default: boolean
+  enable_collapse: boolean
+}
+
 export interface AssessmentTableLayout {
   id: string
   tenant_id: string | null
@@ -18,6 +25,7 @@ export interface AssessmentTableLayout {
   view_type: 'vendor_submission' | 'approver'
   description: string | null
   columns: TableColumn[]
+  display_config?: TableDisplayConfig
   is_active: boolean
   is_default: boolean
   created_by: string | null
@@ -30,6 +38,7 @@ export interface AssessmentTableLayoutCreate {
   view_type: 'vendor_submission' | 'approver'
   description?: string | null
   columns: TableColumn[]
+  display_config?: TableDisplayConfig
   is_active?: boolean
   is_default?: boolean
 }
@@ -38,6 +47,7 @@ export interface AssessmentTableLayoutUpdate {
   name?: string
   description?: string | null
   columns?: TableColumn[]
+  display_config?: TableDisplayConfig
   is_active?: boolean
   is_default?: boolean
 }
@@ -51,7 +61,7 @@ export interface AvailableColumn {
 }
 
 class AssessmentTableLayoutsApi {
-  private baseUrl = '/api/v1/assessment-table-layouts'
+  private baseUrl = 'assessment-table-layouts' // apiClient already adds /api/v1 prefix
 
   async list(params?: {
     view_type?: 'vendor_submission' | 'approver'

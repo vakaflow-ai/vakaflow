@@ -13,7 +13,8 @@ from app.core.database import get_db
 from app.models.user import User
 from app.models.vendor import Vendor
 from app.models.agent import Agent
-from app.models.assessment import Assessment, AssessmentAssignment
+from app.models.assessment import Assessment, AssessmentAssignment, AssessmentSchedule, AssessmentQuestionResponse
+from app.models.assessment_review import AssessmentReview
 from app.models.supplier_master import (
     SupplierAgreement,
     SupplierCVE,
@@ -248,210 +249,8 @@ async def list_suppliers_master(
         
         result = []
         for vendor in vendors:
-            # Get offerings
-            offerings = db.query(SupplierOffering).filter(
-                SupplierOffering.vendor_id == vendor.id,
-                SupplierOffering.tenant_id == effective_tenant_id
-            ).all()
-            
-            # Get agreements
-            agreements = db.query(SupplierAgreement).filter(
-                SupplierAgreement.vendor_id == vendor.id,
-                SupplierAgreement.tenant_id == effective_tenant_id
-            ).all()
-            
-            # Get CVEs
-            cves = db.query(SupplierCVE).filter(
-                SupplierCVE.vendor_id == vendor.id,
-                SupplierCVE.tenant_id == effective_tenant_id
-            ).all()
-            
-            # Get investigations
-            investigations = db.query(SupplierInvestigation).filter(
-                SupplierInvestigation.vendor_id == vendor.id,
-                SupplierInvestigation.tenant_id == effective_tenant_id
-            ).all()
-            
-            # Get compliance issues
-            compliance_issues = db.query(SupplierComplianceIssue).filter(
-                SupplierComplianceIssue.vendor_id == vendor.id,
-                SupplierComplianceIssue.tenant_id == effective_tenant_id
-            ).all()
-            
-            # Get department relationships
-            dept_relationships = db.query(SupplierDepartmentRelationship).filter(
-                SupplierDepartmentRelationship.vendor_id == vendor.id,
-                SupplierDepartmentRelationship.tenant_id == effective_tenant_id
-            ).all()
-            
-            # Get agents
-            agents = db.query(Agent).filter(Agent.vendor_id == vendor.id).all()
-            
-            # Get assessment history
-            # Get assessments assigned to this vendor
-            try:
-                assessment_assignments = db.query(AssessmentAssignment).join(
-                    Assessment, AssessmentAssignment.assessment_id == Assessment.id
-                ).filter(
-                    Assessment.tenant_id == effective_tenant_id,
-                    AssessmentAssignment.vendor_id == vendor.id
-                ).all()
-            except Exception as e:
-                logger.warning(f"Error fetching assessment assignments for vendor {vendor.id}: {e}")
-                assessment_assignments = []
-            
-            assessment_history = []
-            for assignment in assessment_assignments:
-                assessment = db.query(Assessment).filter(Assessment.id == assignment.assessment_id).first()
-                if assessment:
-                    assessment_history.append({
-                        "id": str(assessment.id),
-                        "name": assessment.name,
-                        "type": get_enum_value(assessment.assessment_type),
-                        "status": assignment.status if assignment.status else None,
-                        "assigned_at": assignment.assigned_at.isoformat() if assignment.assigned_at else None,
-                        "completed_at": assignment.completed_at.isoformat() if assignment.completed_at else None,
-                    })
-            
-            # Build response
-            result.append(SupplierMasterViewResponse(
-                vendor={
-                "id": str(vendor.id),
-                "name": vendor.name,
-                "contact_email": vendor.contact_email,
-                "contact_phone": vendor.contact_phone,
-                "address": vendor.address,
-                "website": vendor.website,
-                "description": vendor.description,
-                "logo_url": vendor.logo_url,
-                "registration_number": vendor.registration_number,
-                "compliance_score": vendor.compliance_score,
-                "created_at": vendor.created_at.isoformat() if vendor.created_at else None,
-                "updated_at": vendor.updated_at.isoformat() if vendor.updated_at else None,
-                },
-                offerings=[SupplierOfferingResponse(
-                id=str(o.id),
-                vendor_id=str(o.vendor_id),
-                vendor_name=vendor.name,
-                name=o.name,
-                description=o.description,
-                category=o.category,
-                offering_type=o.offering_type,
-                pricing_model=o.pricing_model,
-                price=o.price,
-                currency=o.currency,
-                is_active=o.is_active,
-                is_approved=o.is_approved,
-                related_agent_ids=[str(aid) for aid in (o.related_agent_ids or [])],
-                created_at=o.created_at.isoformat() if o.created_at else None,
-                updated_at=o.updated_at.isoformat() if o.updated_at else None,
-                ) for o in offerings],
-                agreements=[SupplierAgreementResponse(
-                id=str(a.id),
-                vendor_id=str(a.vendor_id),
-                vendor_name=vendor.name,
-                agreement_type=get_enum_value(a.agreement_type),
-                title=a.title,
-                description=a.description,
-                status=get_enum_value(a.status),
-                effective_date=a.effective_date.isoformat() if a.effective_date else None,
-                expiry_date=a.expiry_date.isoformat() if a.expiry_date else None,
-                signed_date=a.signed_date.isoformat() if a.signed_date else None,
-                renewal_date=a.renewal_date.isoformat() if a.renewal_date else None,
-                signed_by_vendor=a.signed_by_vendor,
-                signed_by_tenant=a.signed_by_tenant,
-                pdf_file_name=a.pdf_file_name,
-                pdf_file_path=a.pdf_file_path,
-                pdf_file_size=a.pdf_file_size,
-                pdf_uploaded_at=a.pdf_uploaded_at.isoformat() if a.pdf_uploaded_at else None,
-                additional_metadata=a.additional_metadata,
-                tags=a.tags,
-                created_at=a.created_at.isoformat() if a.created_at else None,
-                updated_at=a.updated_at.isoformat() if a.updated_at else None,
-                ) for a in agreements],
-                cves=[SupplierCVEResponse(
-                id=str(c.id),
-                vendor_id=str(c.vendor_id),
-                vendor_name=vendor.name,
-                cve_id=c.cve_id,
-                title=c.title,
-                description=c.description,
-                severity=c.severity,
-                cvss_score=c.cvss_score,
-                status=get_enum_value(c.status),
-                confirmed=c.confirmed,
-                confirmed_at=c.confirmed_at.isoformat() if c.confirmed_at else None,
-                affected_products=c.affected_products,
-                affected_agents=[str(aid) for aid in (c.affected_agents or [])],
-                remediation_notes=c.remediation_notes,
-                remediation_date=c.remediation_date.isoformat() if c.remediation_date else None,
-                mitigation_applied=c.mitigation_applied,
-                discovered_at=c.discovered_at.isoformat() if c.discovered_at else None,
-                created_at=c.created_at.isoformat() if c.created_at else None,
-                updated_at=c.updated_at.isoformat() if c.updated_at else None,
-                ) for c in cves],
-                investigations=[SupplierInvestigationResponse(
-                id=str(i.id),
-                vendor_id=str(i.vendor_id),
-                vendor_name=vendor.name,
-                title=i.title,
-                description=i.description,
-                investigation_type=i.investigation_type,
-                status=get_enum_value(i.status),
-                priority=i.priority,
-                assigned_to=str(i.assigned_to) if i.assigned_to else None,
-                assigned_to_name=None,  # Will be populated below
-                opened_at=i.opened_at.isoformat() if i.opened_at else None,
-                resolved_at=i.resolved_at.isoformat() if i.resolved_at else None,
-                findings=i.findings,
-                resolution_notes=i.resolution_notes,
-                created_at=i.created_at.isoformat() if i.created_at else None,
-                updated_at=i.updated_at.isoformat() if i.updated_at else None,
-                ) for i in investigations],
-                compliance_issues=[SupplierComplianceIssueResponse(
-                id=str(c.id),
-                vendor_id=str(c.vendor_id),
-                vendor_name=vendor.name,
-                title=c.title,
-                description=c.description,
-                compliance_framework=c.compliance_framework,
-                requirement=c.requirement,
-                severity=c.severity,
-                status=get_enum_value(c.status),
-                identified_at=c.identified_at.isoformat() if c.identified_at else None,
-                target_resolution_date=c.target_resolution_date.isoformat() if c.target_resolution_date else None,
-                resolved_at=c.resolved_at.isoformat() if c.resolved_at else None,
-                remediation_plan=c.remediation_plan,
-                assigned_to=str(c.assigned_to) if c.assigned_to else None,
-                assigned_to_name=None,  # Will be populated below
-                created_at=c.created_at.isoformat() if c.created_at else None,
-                updated_at=c.updated_at.isoformat() if c.updated_at else None,
-                ) for c in compliance_issues],
-                department_relationships=[SupplierDepartmentRelationshipResponse(
-                id=str(d.id),
-                vendor_id=str(d.vendor_id),
-                vendor_name=vendor.name,
-                department=d.department,
-                relationship_type=d.relationship_type,
-                contact_person=d.contact_person,
-                contact_email=d.contact_email,
-                contact_phone=d.contact_phone,
-                engagement_start_date=d.engagement_start_date.isoformat() if d.engagement_start_date else None,
-                engagement_end_date=d.engagement_end_date.isoformat() if d.engagement_end_date else None,
-                is_active=d.is_active,
-                annual_spend=d.annual_spend,
-                created_at=d.created_at.isoformat() if d.created_at else None,
-                updated_at=d.updated_at.isoformat() if d.updated_at else None,
-                ) for d in dept_relationships],
-                assessment_history=assessment_history,
-                agents=[{
-                "id": str(a.id),
-                "name": a.name,
-                "type": a.type,
-                "status": a.status,
-                "created_at": a.created_at.isoformat() if a.created_at else None,
-                } for a in agents],
-            ))
+            # Build response using helper function
+            result.append(build_supplier_master_response(vendor, effective_tenant_id, db))
         
         return result
     except HTTPException:
@@ -462,6 +261,260 @@ async def list_suppliers_master(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error retrieving suppliers master data: {str(e)}"
         )
+
+
+def build_supplier_master_response(vendor: Vendor, effective_tenant_id: UUID, db: Session) -> SupplierMasterViewResponse:
+    """Helper function to build supplier master view response for a single vendor"""
+    # Get offerings
+    offerings = db.query(SupplierOffering).filter(
+        SupplierOffering.vendor_id == vendor.id,
+        SupplierOffering.tenant_id == effective_tenant_id
+    ).all()
+    
+    # Get agreements
+    agreements = db.query(SupplierAgreement).filter(
+        SupplierAgreement.vendor_id == vendor.id,
+        SupplierAgreement.tenant_id == effective_tenant_id
+    ).all()
+    
+    # Get CVEs
+    cves = db.query(SupplierCVE).filter(
+        SupplierCVE.vendor_id == vendor.id,
+        SupplierCVE.tenant_id == effective_tenant_id
+    ).all()
+    
+    # Get investigations
+    investigations = db.query(SupplierInvestigation).filter(
+        SupplierInvestigation.vendor_id == vendor.id,
+        SupplierInvestigation.tenant_id == effective_tenant_id
+    ).all()
+    
+    # Get compliance issues
+    compliance_issues = db.query(SupplierComplianceIssue).filter(
+        SupplierComplianceIssue.vendor_id == vendor.id,
+        SupplierComplianceIssue.tenant_id == effective_tenant_id
+    ).all()
+    
+    # Get department relationships
+    dept_relationships = db.query(SupplierDepartmentRelationship).filter(
+        SupplierDepartmentRelationship.vendor_id == vendor.id,
+        SupplierDepartmentRelationship.tenant_id == effective_tenant_id
+    ).all()
+    
+    # Get agents
+    agents = db.query(Agent).filter(Agent.vendor_id == vendor.id).all()
+    
+    # Get assessment history with full details
+    try:
+        assessment_assignments = db.query(AssessmentAssignment).join(
+            Assessment, AssessmentAssignment.assessment_id == Assessment.id
+        ).filter(
+            Assessment.tenant_id == effective_tenant_id,
+            AssessmentAssignment.vendor_id == vendor.id
+        ).all()
+    except Exception as e:
+        logger.warning(f"Error fetching assessment assignments for vendor {vendor.id}: {e}")
+        assessment_assignments = []
+    
+    assessment_history = []
+    for assignment in assessment_assignments:
+        assessment = db.query(Assessment).filter(Assessment.id == assignment.assessment_id).first()
+        if not assessment:
+            continue
+        
+        # Get schedule if exists
+        schedule = None
+        if assignment.schedule_id:
+            schedule = db.query(AssessmentSchedule).filter(
+                AssessmentSchedule.id == assignment.schedule_id
+            ).first()
+        
+        # Get responses and artifacts
+        question_responses = db.query(AssessmentQuestionResponse).filter(
+            AssessmentQuestionResponse.assignment_id == assignment.id
+        ).all()
+        
+        # Extract artifacts from responses
+        artifacts = []
+        responses_count = len(question_responses)
+        for qr in question_responses:
+            if qr.documents:
+                artifacts.extend(qr.documents)
+        
+        # Get reviews
+        reviews = db.query(AssessmentReview).filter(
+            AssessmentReview.assignment_id == assignment.id,
+            AssessmentReview.vendor_id == vendor.id
+        ).all()
+        
+        assessment_history.append({
+            "id": str(assessment.id),
+            "assignment_id": str(assignment.id),
+            "name": assessment.name,
+            "type": get_enum_value(assessment.assessment_type),
+            "status": assignment.status if assignment.status else None,
+            "assigned_at": assignment.assigned_at.isoformat() if assignment.assigned_at else None,
+            "completed_at": assignment.completed_at.isoformat() if assignment.completed_at else None,
+            "due_date": assignment.due_date.isoformat() if assignment.due_date else None,
+            "workflow_ticket_id": assignment.workflow_ticket_id,
+            "schedule": {
+                "id": str(schedule.id) if schedule else None,
+                "scheduled_date": schedule.scheduled_date.isoformat() if schedule and schedule.scheduled_date else None,
+                "due_date": schedule.due_date.isoformat() if schedule and schedule.due_date else None,
+                "frequency": schedule.frequency if schedule else None,
+                "status": schedule.status if schedule else None,
+            } if schedule else None,
+            "responses_count": responses_count,
+            "artifacts_count": len(artifacts),
+            "artifacts": artifacts[:10],  # Limit to first 10 for performance
+            "reviews": [{
+                "id": str(r.id),
+                "review_type": r.review_type,
+                "status": r.status,
+                "risk_score": r.risk_score,
+                "risk_level": r.risk_level,
+                "created_at": r.created_at.isoformat() if r.created_at else None,
+            } for r in reviews],
+        })
+    
+    return SupplierMasterViewResponse(
+        vendor={
+            "id": str(vendor.id),
+            "name": vendor.name,
+            "contact_email": vendor.contact_email,
+            "contact_phone": vendor.contact_phone,
+            "address": vendor.address,
+            "website": vendor.website,
+            "description": vendor.description,
+            "logo_url": vendor.logo_url,
+            "registration_number": vendor.registration_number,
+            "compliance_score": vendor.compliance_score,
+            "created_at": vendor.created_at.isoformat() if vendor.created_at else None,
+            "updated_at": vendor.updated_at.isoformat() if vendor.updated_at else None,
+        },
+        offerings=[SupplierOfferingResponse(
+            id=str(o.id),
+            vendor_id=str(o.vendor_id),
+            vendor_name=vendor.name,
+            name=o.name,
+            description=o.description,
+            category=o.category,
+            offering_type=o.offering_type,
+            pricing_model=o.pricing_model,
+            price=o.price,
+            currency=o.currency,
+            is_active=o.is_active,
+            is_approved=o.is_approved,
+            related_agent_ids=[str(aid) for aid in (o.related_agent_ids or [])],
+            created_at=o.created_at.isoformat() if o.created_at else None,
+            updated_at=o.updated_at.isoformat() if o.updated_at else None,
+        ) for o in offerings],
+        agreements=[SupplierAgreementResponse(
+            id=str(a.id),
+            vendor_id=str(a.vendor_id),
+            vendor_name=vendor.name,
+            agreement_type=get_enum_value(a.agreement_type),
+            title=a.title,
+            description=a.description,
+            status=get_enum_value(a.status),
+            effective_date=a.effective_date.isoformat() if a.effective_date else None,
+            expiry_date=a.expiry_date.isoformat() if a.expiry_date else None,
+            signed_date=a.signed_date.isoformat() if a.signed_date else None,
+            renewal_date=a.renewal_date.isoformat() if a.renewal_date else None,
+            signed_by_vendor=a.signed_by_vendor,
+            signed_by_tenant=a.signed_by_tenant,
+            pdf_file_name=a.pdf_file_name,
+            pdf_file_path=a.pdf_file_path,
+            pdf_file_size=a.pdf_file_size,
+            pdf_uploaded_at=a.pdf_uploaded_at.isoformat() if a.pdf_uploaded_at else None,
+            additional_metadata=a.additional_metadata,
+            tags=a.tags,
+            created_at=a.created_at.isoformat() if a.created_at else None,
+            updated_at=a.updated_at.isoformat() if a.updated_at else None,
+        ) for a in agreements],
+        cves=[SupplierCVEResponse(
+            id=str(c.id),
+            vendor_id=str(c.vendor_id),
+            vendor_name=vendor.name,
+            cve_id=c.cve_id,
+            title=c.title,
+            description=c.description,
+            severity=c.severity,
+            cvss_score=c.cvss_score,
+            status=get_enum_value(c.status),
+            confirmed=c.confirmed,
+            confirmed_at=c.confirmed_at.isoformat() if c.confirmed_at else None,
+            affected_products=c.affected_products,
+            affected_agents=[str(aid) for aid in (c.affected_agents or [])],
+            remediation_notes=c.remediation_notes,
+            remediation_date=c.remediation_date.isoformat() if c.remediation_date else None,
+            mitigation_applied=c.mitigation_applied,
+            discovered_at=c.discovered_at.isoformat() if c.discovered_at else None,
+            created_at=c.created_at.isoformat() if c.created_at else None,
+            updated_at=c.updated_at.isoformat() if c.updated_at else None,
+        ) for c in cves],
+        investigations=[SupplierInvestigationResponse(
+            id=str(i.id),
+            vendor_id=str(i.vendor_id),
+            vendor_name=vendor.name,
+            title=i.title,
+            description=i.description,
+            investigation_type=i.investigation_type,
+            status=get_enum_value(i.status),
+            priority=i.priority,
+            assigned_to=str(i.assigned_to) if i.assigned_to else None,
+            assigned_to_name=None,
+            opened_at=i.opened_at.isoformat() if i.opened_at else None,
+            resolved_at=i.resolved_at.isoformat() if i.resolved_at else None,
+            findings=i.findings,
+            resolution_notes=i.resolution_notes,
+            created_at=i.created_at.isoformat() if i.created_at else None,
+            updated_at=i.updated_at.isoformat() if i.updated_at else None,
+        ) for i in investigations],
+        compliance_issues=[SupplierComplianceIssueResponse(
+            id=str(c.id),
+            vendor_id=str(c.vendor_id),
+            vendor_name=vendor.name,
+            title=c.title,
+            description=c.description,
+            compliance_framework=c.compliance_framework,
+            requirement=c.requirement,
+            severity=c.severity,
+            status=get_enum_value(c.status),
+            identified_at=c.identified_at.isoformat() if c.identified_at else None,
+            target_resolution_date=c.target_resolution_date.isoformat() if c.target_resolution_date else None,
+            resolved_at=c.resolved_at.isoformat() if c.resolved_at else None,
+            remediation_plan=c.remediation_plan,
+            assigned_to=str(c.assigned_to) if c.assigned_to else None,
+            assigned_to_name=None,
+            created_at=c.created_at.isoformat() if c.created_at else None,
+            updated_at=c.updated_at.isoformat() if c.updated_at else None,
+        ) for c in compliance_issues],
+        department_relationships=[SupplierDepartmentRelationshipResponse(
+            id=str(d.id),
+            vendor_id=str(d.vendor_id),
+            vendor_name=vendor.name,
+            department=d.department,
+            relationship_type=d.relationship_type,
+            contact_person=d.contact_person,
+            contact_email=d.contact_email,
+            contact_phone=d.contact_phone,
+            engagement_start_date=d.engagement_start_date.isoformat() if d.engagement_start_date else None,
+            engagement_end_date=d.engagement_end_date.isoformat() if d.engagement_end_date else None,
+            is_active=d.is_active,
+            annual_spend=d.annual_spend,
+            created_at=d.created_at.isoformat() if d.created_at else None,
+            updated_at=d.updated_at.isoformat() if d.updated_at else None,
+        ) for d in dept_relationships],
+        assessment_history=assessment_history,
+        agents=[{
+            "id": str(a.id),
+            "name": a.name,
+            "type": a.type,
+            "status": a.status,
+            "created_at": a.created_at.isoformat() if a.created_at else None,
+        } for a in agents],
+    )
 
 
 @router.get("/{vendor_id}", response_model=SupplierMasterViewResponse)
@@ -498,12 +551,7 @@ async def get_supplier_master(
             detail="Supplier not found"
         )
     
-    # Get all related data (same as list endpoint)
-    # ... (reuse the same logic from list endpoint)
-    # For brevity, I'll create a helper function or reuse the logic
-    
-    # This is a simplified version - in production, extract to a helper function
-    return await list_suppliers_master(current_user, db, include_inactive=True)
+    return build_supplier_master_response(vendor, effective_tenant_id, db)
 
 
 # Agreement endpoints

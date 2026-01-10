@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 import { authApi } from '../lib/auth'
 import { suppliersMasterApi, SupplierMasterView } from '../lib/suppliersMaster'
 import Layout from '../components/Layout'
@@ -7,11 +8,12 @@ import { showToast } from '../utils/toast'
 import {
   Building2, FileText, Shield, AlertTriangle, CheckCircle, XCircle,
   Users, Package, FileCheck, Search, Filter, Download, Eye, ChevronDown, ChevronRight,
-  Calendar, DollarSign, Tag, ExternalLink, File
+  Calendar, DollarSign, Tag, ExternalLink, File, User
 } from 'lucide-react'
 import { MaterialCard, MaterialButton } from '../components/material'
 
 export default function SuppliersMasterView() {
+  const navigate = useNavigate()
   const [user, setUser] = useState<any>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedSupplier, setSelectedSupplier] = useState<string | null>(null)
@@ -160,7 +162,7 @@ export default function SuppliersMasterView() {
             <MaterialCard key={supplier.vendor.id} className="p-6">
               {/* Supplier Header */}
               <div className="flex items-start justify-between mb-4">
-                <div className="flex items-start gap-4">
+                <div className="flex items-start gap-4 flex-1">
                   {supplier.vendor.logo_url ? (
                     <img src={supplier.vendor.logo_url} alt={supplier.vendor.name} className="w-16 h-16 rounded-lg object-cover" />
                   ) : (
@@ -168,7 +170,7 @@ export default function SuppliersMasterView() {
                       <Building2 className="w-8 h-8 text-gray-400" />
                     </div>
                   )}
-                  <div>
+                  <div className="flex-1">
                     <h2 className="text-xl font-bold text-gray-900">{supplier.vendor.name}</h2>
                     <p className="text-sm text-gray-600 mt-1">{supplier.vendor.contact_email}</p>
                     {supplier.vendor.website && (
@@ -187,6 +189,13 @@ export default function SuppliersMasterView() {
                     )}
                   </div>
                 </div>
+                <MaterialButton
+                  onClick={() => navigate(`/vendors/${supplier.vendor.id}`)}
+                  className="flex items-center gap-2"
+                >
+                  <User className="w-4 h-4" />
+                  View Profile
+                </MaterialButton>
               </div>
 
               {/* Summary Stats */}

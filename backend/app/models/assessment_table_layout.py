@@ -75,6 +75,16 @@ class AssessmentTableLayout(Base):
     # ]
     columns = Column(JSON, nullable=False, default=list)
     
+    # Table display configuration
+    # JSON structure for table behavior settings
+    # {
+    #   "default_expanded": true,  # Whether categories are expanded by default
+    #   "group_by": "category",  # Group by field: "category", "section", "none"
+    #   "show_attachments_by_default": true,  # Show attachments column by default
+    #   "enable_collapse": true,  # Allow users to collapse/expand groups
+    # }
+    display_config = Column(JSON, nullable=True, default=dict)  # Table display configuration
+    
     # Default columns available for each view type
     # These are the standard columns that can be configured
     AVAILABLE_COLUMNS = {

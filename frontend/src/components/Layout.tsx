@@ -296,9 +296,6 @@ export default function Layout({ children, user }: LayoutProps) {
     if (isAdmin && checkPermission('/my-vendors')) {
       overviewItems.push({ path: '/my-vendors', label: 'My Vendors', icon: BuildingIcon, show: true })
     }
-    if ((isAdmin || isReviewer) && checkPermission('/suppliers-master')) {
-      overviewItems.push({ path: '/suppliers-master', label: 'Suppliers Master', icon: BuildingIcon, show: true })
-    }
     if (overviewItems.length > 0) {
       groups.push({ title: 'Overview', items: overviewItems })
     }

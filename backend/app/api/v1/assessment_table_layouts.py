@@ -42,12 +42,21 @@ class TableColumn(BaseModel):
     type: str = Field(..., description="Column type: text, response, action, comments, attachments, assignee, status")
 
 
+class TableDisplayConfig(BaseModel):
+    """Table display configuration"""
+    default_expanded: bool = Field(True, description="Whether categories are expanded by default")
+    group_by: str = Field("category", description="Group by field: 'category', 'section', or 'none'")
+    show_attachments_by_default: bool = Field(True, description="Show attachments column by default")
+    enable_collapse: bool = Field(True, description="Allow users to collapse/expand groups")
+
+
 class AssessmentTableLayoutCreate(BaseModel):
     """Create assessment table layout request"""
     name: str = Field(..., description="Layout name")
     view_type: str = Field(..., description="View type: vendor_submission or approver")
     description: Optional[str] = None
     columns: List[TableColumn] = Field(..., description="Column configurations")
+    display_config: Optional[TableDisplayConfig] = Field(None, description="Table display configuration")
     is_active: bool = True
     is_default: bool = False
 
@@ -57,6 +66,7 @@ class AssessmentTableLayoutUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     columns: Optional[List[TableColumn]] = None
+    display_config: Optional[TableDisplayConfig] = None
     is_active: Optional[bool] = None
     is_default: Optional[bool] = None
 
@@ -69,6 +79,7 @@ class AssessmentTableLayoutResponse(BaseModel):
     view_type: str
     description: Optional[str]
     columns: List[Dict[str, Any]]
+    display_config: Optional[Dict[str, Any]] = None
     is_active: bool
     is_default: bool
     created_by: Optional[str]
@@ -107,12 +118,21 @@ async def create_table_layout(
     # Convert columns to dict for JSON storage
     columns_dict = [col.dict() for col in layout_data.columns]
     
+    # Convert display_config to dict for JSON storage
+    display_config_dict = layout_data.display_config.dict() if layout_data.display_config else {
+        "default_expanded": True,
+        "group_by": "category",
+        "show_attachments_by_default": True,
+        "enable_collapse": True
+    }
+    
     layout = AssessmentTableLayout(
         tenant_id=effective_tenant_id,
         name=layout_data.name,
         view_type=layout_data.view_type,
         description=layout_data.description,
         columns=columns_dict,
+        display_config=display_config_dict,
         is_active=layout_data.is_active,
         is_default=layout_data.is_default,
         created_by=current_user.id
@@ -140,6 +160,12 @@ async def create_table_layout(
         view_type=layout.view_type,
         description=layout.description,
         columns=layout.columns,
+        display_config=layout.display_config or {
+            "default_expanded": True,
+            "group_by": "category",
+            "show_attachments_by_default": True,
+            "enable_collapse": True
+        },
         is_active=layout.is_active,
         is_default=layout.is_default,
         created_by=str(layout.created_by) if layout.created_by else None,
@@ -232,6 +258,12 @@ async def get_table_layout(
         view_type=layout.view_type,
         description=layout.description,
         columns=layout.columns,
+        display_config=layout.display_config or {
+            "default_expanded": True,
+            "group_by": "category",
+            "show_attachments_by_default": True,
+            "enable_collapse": True
+        },
         is_active=layout.is_active,
         is_default=layout.is_default,
         created_by=str(layout.created_by) if layout.created_by else None,
@@ -297,6 +329,12 @@ async def get_default_table_layout(
             view_type=view_type,
             description="Default column configuration",
             columns=default_columns,
+            display_config={
+                "default_expanded": True,
+                "group_by": "category",
+                "show_attachments_by_default": True,
+                "enable_collapse": True
+            },
             is_active=True,
             is_default=True,
             created_by=None,
@@ -311,6 +349,12 @@ async def get_default_table_layout(
         view_type=layout.view_type,
         description=layout.description,
         columns=layout.columns,
+        display_config=layout.display_config or {
+            "default_expanded": True,
+            "group_by": "category",
+            "show_attachments_by_default": True,
+            "enable_collapse": True
+        },
         is_active=layout.is_active,
         is_default=layout.is_default,
         created_by=str(layout.created_by) if layout.created_by else None,
@@ -357,6 +401,8 @@ async def update_table_layout(
         layout.description = layout_data.description
     if layout_data.columns is not None:
         layout.columns = [col.dict() for col in layout_data.columns]
+    if layout_data.display_config is not None:
+        layout.display_config = layout_data.display_config.dict()
     if layout_data.is_active is not None:
         layout.is_active = layout_data.is_active
     if layout_data.is_default is not None:
@@ -384,6 +430,12 @@ async def update_table_layout(
         view_type=layout.view_type,
         description=layout.description,
         columns=layout.columns,
+        display_config=layout.display_config or {
+            "default_expanded": True,
+            "group_by": "category",
+            "show_attachments_by_default": True,
+            "enable_collapse": True
+        },
         is_active=layout.is_active,
         is_default=layout.is_default,
         created_by=str(layout.created_by) if layout.created_by else None,
