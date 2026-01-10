@@ -40,7 +40,7 @@ export interface FormLayout {
   name: string
   request_type: 'agent_onboarding_workflow' | 'vendor_submission_workflow' | 'assessment_workflow'
   workflow_stage: 'new' | 'in_progress' | 'pending_approval' | 'approved' | 'rejected' | 'closed' | 'cancelled' | 'pending_review' | 'needs_revision' // DEPRECATED: Use layout_type instead
-  layout_type?: 'submission' | 'approver' | 'completed' // NEW: Simplified layout type
+  layout_type?: 'submission' | 'approver' | 'completed' // Simplified layout type: 'submission' (for submission/rejection) or 'approver' (for approval/completed). 'completed' is deprecated and maps to 'approver'.
   description?: string
   servicenow_table?: string
   servicenow_state_mapping?: Record<string, number>
@@ -62,7 +62,7 @@ export interface FormLayoutCreate {
   name: string
   request_type?: 'agent_onboarding_workflow' | 'vendor_submission_workflow' | 'assessment_workflow' // Optional - if not provided, saves to Forms entity (workflow-agnostic)
   workflow_stage?: 'new' | 'in_progress' | 'pending_approval' | 'approved' | 'rejected' | 'closed' | 'cancelled' | 'pending_review' | 'needs_revision' // DEPRECATED: Use layout_type instead
-  layout_type?: 'submission' | 'approver' | 'completed' // NEW: Simplified layout type
+  layout_type?: 'submission' | 'approver' | 'completed' // Simplified layout type: 'submission' (for submission/rejection) or 'approver' (for approval/completed). 'completed' is deprecated and maps to 'approver'.
   description?: string
   servicenow_table?: string
   servicenow_state_mapping?: Record<string, number>
@@ -80,7 +80,7 @@ export interface FormLayoutUpdate {
   name?: string
   description?: string
   workflow_stage?: 'new' | 'in_progress' | 'pending_approval' | 'approved' | 'rejected' | 'closed' | 'cancelled' | 'pending_review' | 'needs_revision' // DEPRECATED: Use layout_type instead
-  layout_type?: 'submission' | 'approver' | 'completed' // NEW: Simplified layout type
+  layout_type?: 'submission' | 'approver' | 'completed' // Simplified layout type: 'submission' (for submission/rejection) or 'approver' (for approval/completed). 'completed' is deprecated and maps to 'approver'.
   sections?: SectionDefinition[]
   servicenow_table?: string
   servicenow_state_mapping?: Record<string, number>

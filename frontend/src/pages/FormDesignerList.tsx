@@ -267,9 +267,7 @@ export default function FormDesignerList() {
       covered_entities: ['vendor', 'agent', 'users', 'workflow_ticket'],
       stage_mappings: templateId ? {
         'submission': { layout_id: templateId, name: templateName },
-        'approval': { layout_id: templateId, name: templateName },
-        'rejection': { layout_id: templateId, name: templateName },
-        'completion': { layout_id: templateId, name: templateName }
+        'approval': { layout_id: templateId, name: templateName }
       } : {},
       is_default: false
     }
@@ -480,14 +478,15 @@ export default function FormDesignerList() {
   }
 
   // Map step/action names to layout_type values
-  // Actions: Submission → submission, Approval → approver, Rejection → rejection, Completion → completed
+  // Simplified to 2 types: Submission and Approval
+  // Actions: Submission → submission, Rejection → submission, Approval → approver, Completion → approver
   const getLayoutTypeForStep = (stepKey: string): string | null => {
     const stepLower = stepKey.toLowerCase().trim()
     // Match exact action names first, then check for partial matches
     if (stepLower === 'submission' || stepLower.includes('submission')) return 'submission'
+    if (stepLower === 'rejection' || stepLower.includes('rejection')) return 'submission' // Rejection uses submission view
     if (stepLower === 'approval' || stepLower.includes('approval')) return 'approver'
-    if (stepLower === 'rejection' || stepLower.includes('rejection')) return 'rejection' // Rejection has its own type
-    if (stepLower === 'completion' || stepLower.includes('completion')) return 'completed'
+    if (stepLower === 'completion' || stepLower.includes('completion')) return 'approver' // Completion uses approver view
     return null
   }
 
@@ -521,13 +520,14 @@ export default function FormDesignerList() {
       const requiredType = layoutType.toLowerCase()
       let matches = layoutTypes.length > 0 && layoutTypes.includes(requiredType)
       
-      // Backward compatibility: rejection actions can also match forms with "approver" type
-      if (!matches && requiredType === 'rejection') {
-        matches = layoutTypes.includes('approver')
-      }
-      // Also: forms with "rejection" type can match approver actions (for flexibility)
-      if (!matches && requiredType === 'approver' && layoutTypes.includes('rejection')) {
-        matches = true
+      // Backward compatibility: Handle deprecated types
+      // Forms with "rejection" or "completed" types should still work
+      if (!matches) {
+        if (requiredType === 'submission' && (layoutTypes.includes('rejection') || layoutTypes.includes('submission'))) {
+          matches = true
+        } else if (requiredType === 'approver' && (layoutTypes.includes('completed') || layoutTypes.includes('approver'))) {
+          matches = true
+        }
       }
       
       return matches
@@ -583,7 +583,8 @@ export default function FormDesignerList() {
   }
 
   // Define the standard steps we expect for every group if not provided (use lowercase keys that match stored mappings)
-  const DEFAULT_STEPS = ['submission', 'approval', 'rejection', 'completion']
+  // Simplified to 2 steps: Submission (for submission/rejection stages) and Approval (for approval/completed stages)
+  const DEFAULT_STEPS = ['submission', 'approval']
 
   return (
     <Layout user={user}>
@@ -749,7 +750,7 @@ export default function FormDesignerList() {
                                     const name = m && m.layout_id ? (m.name || m.layout_id) : 'Not mapped'
                                     const label = sk.charAt(0).toUpperCase() + sk.slice(1).toLowerCase()
                                     return `${label}: ${name}`
-                                  }).slice(0, 3)
+                                  }).slice(0, 2)
                                   return <div className="text-xs text-gray-500">{summary.join(' · ')}</div>
                                 })()}
                               </div>
@@ -955,7 +956,7 @@ export default function FormDesignerList() {
                       {isExpanded && (
                         <tr className="bg-gray-50">
                           <td colSpan={4} className="px-6 py-4">
-                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               {DEFAULT_STEPS.map((step) => {
                                 const canonical = Object.keys(group.stage_mappings || {}).find(k => k.toLowerCase() === step.toLowerCase()) || step
                                 const m = (group.stage_mappings || {})[canonical]

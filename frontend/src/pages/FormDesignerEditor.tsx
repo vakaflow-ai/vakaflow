@@ -379,13 +379,13 @@ export default function FormDesignerEditor() {
   const [previewFormData, setPreviewFormData] = useState<Record<string, any>>({})
   const [roleMatrix, setRoleMatrix] = useState<Record<string, Record<string, { show: boolean; edit: boolean; hide: boolean }>>>({})
   const [customFields, setCustomFields] = useState<CustomField[]>([])
-  // Layout Settings collapse/expand state
-  const [isLayoutSettingsExpanded, setIsLayoutSettingsExpanded] = useState(true)
+  // Layout Settings collapse/expand state - All collapsed by default
+  const [isLayoutSettingsExpanded, setIsLayoutSettingsExpanded] = useState(false)
   // Design Tools (Library) collapse/expand state
   const [isDesignToolsExpanded, setIsDesignToolsExpanded] = useState(false)
   const [showLibraryList, setShowLibraryList] = useState(false)
-  // Fields panel collapse/expand state
-  const [isFieldsPanelExpanded, setIsFieldsPanelExpanded] = useState(true)
+  // Fields panel collapse/expand state - All collapsed by default
+  const [isFieldsPanelExpanded, setIsFieldsPanelExpanded] = useState(false)
   // Fields panel state
   const [fieldSearchQuery, setFieldSearchQuery] = useState('')
   const [fieldSourceFilter, setFieldSourceFilter] = useState<string>('all')
@@ -605,9 +605,9 @@ export default function FormDesignerEditor() {
       const requestType = existingLayout.request_type
       const workflowStage = existingLayout.workflow_stage
       const layoutType = existingLayout.layout_type || (workflowStage ? 
-        (workflowStage === 'new' || workflowStage === 'needs_revision' ? 'submission' :
-         workflowStage === 'pending_approval' || workflowStage === 'pending_review' || workflowStage === 'in_progress' ? 'approver' :
-         'completed') : 'submission')
+        (workflowStage === 'new' || workflowStage === 'needs_revision' || workflowStage === 'rejected' ? 'submission' :
+         workflowStage === 'pending_approval' || workflowStage === 'pending_review' || workflowStage === 'in_progress' || workflowStage === 'approved' || workflowStage === 'closed' || workflowStage === 'cancelled' ? 'approver' :
+         'submission') : 'submission')
       const agentType = existingLayout.agent_type
       
       // Helper function to convert value to array (handles single values, arrays, and comma-separated strings)
@@ -2233,12 +2233,11 @@ export default function FormDesignerEditor() {
 
                       <div className="space-y-1.5 w-full">
                         <label className="text-xs font-medium text-gray-600 tracking-tight">Layout Type</label>
+                        <p className="text-xs text-gray-500 mb-2">Submission and Rejection use Submission view. Approval and Completed use Approval view.</p>
                         <div className="w-full space-y-2">
                           {[
                             { value: 'submission', label: 'Submission' },
-                            { value: 'approver', label: 'Approval' },
-                            { value: 'rejection', label: 'Rejection' },
-                            { value: 'completed', label: 'Completed' }
+                            { value: 'approver', label: 'Approval' }
                           ].map((option) => {
                             // Parse current layout_type value (can be comma-separated string, array, or single value)
                             const currentValue = editingLayout.layout_type
@@ -2280,8 +2279,6 @@ export default function FormDesignerEditor() {
                                 defaultWorkflowStage = 'new'
                                       } else if (newValues[0] === 'approver') {
                                 defaultWorkflowStage = 'pending_approval'
-                                      } else if (newValues[0] === 'completed') {
-                                defaultWorkflowStage = 'approved'
                               }
                             }
                                     

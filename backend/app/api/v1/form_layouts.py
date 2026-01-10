@@ -203,7 +203,7 @@ class FormLayoutCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
     request_type: Optional[str] = None  # Optional - if not provided, saves to Forms entity
     workflow_stage: Optional[str] = Field(None, pattern="^((new|in_progress|pending_approval|approved|rejected|closed|cancelled|pending_review|needs_revision)(,(new|in_progress|pending_approval|approved|rejected|closed|cancelled|pending_review|needs_revision))*)?$")
-    layout_type: Optional[str] = Field(None, pattern="^((submission|approver|rejection|completed)(,(submission|approver|rejection|completed))*)?$")
+    layout_type: Optional[str] = Field(None, pattern="^((submission|approver)(,(submission|approver))*)?$", description="Layout type: 'submission' (for submission/rejection stages) or 'approver' (for approval/completed stages). 'rejection' and 'completed' are deprecated and map to 'submission' and 'approver' respectively.")
     servicenow_table: Optional[str] = None  # ServiceNow table name (e.g., "sc_request", "change_request")
     servicenow_state_mapping: Optional[Dict[str, int]] = None  # Map workflow_stage to ServiceNow state value
     description: Optional[str] = None
@@ -227,7 +227,7 @@ class FormLayoutUpdate(BaseModel):
     """
     name: Optional[str] = Field(None, min_length=1, max_length=255)
     description: Optional[str] = None
-    layout_type: Optional[str] = Field(None, pattern="^((submission|approver|rejection|completed)(,(submission|approver|rejection|completed))*)?$")  # NEW: Simplified layout type. Supports comma-separated values
+    layout_type: Optional[str] = Field(None, pattern="^((submission|approver)(,(submission|approver))*)?$", description="Layout type: 'submission' (for submission/rejection stages) or 'approver' (for approval/completed stages). 'rejection' and 'completed' are deprecated and map to 'submission' and 'approver' respectively.")  # NEW: Simplified layout type. Supports comma-separated values
     workflow_stage: Optional[str] = Field(None, pattern="^((new|in_progress|pending_approval|approved|rejected|closed|cancelled|pending_review|needs_revision)(,(new|in_progress|pending_approval|approved|rejected|closed|cancelled|pending_review|needs_revision))*)?$")  # Supports comma-separated values
     servicenow_table: Optional[str] = None
     servicenow_state_mapping: Optional[Dict[str, int]] = None
@@ -2537,15 +2537,17 @@ async def get_active_layout_for_stage(
             action_name = 'Completion'
         
         # Also try layout_type-based mapping
+        # Map workflow stages: rejection -> submission, completed -> approver
         if not action_name:
             if layout_type == 'submission':
                 action_name = 'Submission'
             elif layout_type == 'approver':
                 action_name = 'Approval'
+            # Handle deprecated types for backward compatibility
             elif layout_type == 'rejection':
-                action_name = 'Rejection'
+                action_name = 'Submission'  # Rejection uses submission view
             elif layout_type == 'completed':
-                action_name = 'Completion'
+                action_name = 'Approval'  # Completed uses approver view
         
         logger.info(f"Process mapping check - request_type: {request_type}, workflow_stage: {workflow_stage}, layout_type: {layout_type}, action_name: {action_name}")
         

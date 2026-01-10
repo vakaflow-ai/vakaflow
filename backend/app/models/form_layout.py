@@ -55,10 +55,16 @@ class LayoutType(str, enum.Enum):
     """
     Simplified layout types - reduces configuration complexity
     Permissions control what users see based on their role
+    
+    Now using 2 types:
+    - SUBMISSION: For initial submission, resubmission, and rejection (new, needs_revision, rejected stages)
+    - APPROVER: For review, approval, and completed states (pending_approval, pending_review, in_progress, approved, closed, cancelled stages)
+    
+    COMPLETED is kept for backward compatibility but maps to APPROVER
     """
-    SUBMISSION = "submission"  # For initial submission and resubmission (new, needs_revision stages)
-    APPROVER = "approver"  # For review and approval (pending_approval, pending_review, in_progress stages)
-    COMPLETED = "completed"  # For final states (approved, rejected, closed, cancelled stages)
+    SUBMISSION = "submission"  # For initial submission, resubmission, and rejection (new, needs_revision, rejected stages)
+    APPROVER = "approver"  # For review, approval, and completed states (pending_approval, pending_review, in_progress, approved, closed, cancelled stages)
+    COMPLETED = "completed"  # DEPRECATED: Maps to APPROVER. Kept for backward compatibility.
 
 
 class FormLayout(Base):
