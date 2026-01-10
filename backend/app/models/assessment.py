@@ -252,6 +252,16 @@ class AssessmentQuestionResponse(Base):
     # JSON array of file objects: [{"path": "...", "name": "...", "size": 1234, "type": "application/pdf"}]
     documents = Column(JSON, nullable=True)  # Array of document metadata
     
+    # AI Evaluation Results (from pass/fail criteria evaluation)
+    # JSON structure: {
+    #   "status": "passed" | "failed" | "review",
+    #   "confidence": 0.0-1.0,
+    #   "reasoning": "Explanation of evaluation",
+    #   "evaluated_at": "ISO timestamp",
+    #   "evaluated_by": "ai_system"
+    # }
+    ai_evaluation = Column(JSON, nullable=True)  # AI evaluation result
+    
     # Metadata
     submitted_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
     owner_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True, index=True)  # Assigned owner for the question

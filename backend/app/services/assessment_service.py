@@ -144,76 +144,77 @@ class AssessmentService:
         try:
             from app.models.question_library import QuestionLibrary
 
-            # For TPRM assessments, populate from question library
-            if assessment.assessment_type == AssessmentType.TPRM.value:
-                # Query questions that are suitable for TPRM assessments
-                # Use a simpler approach - get all questions and filter in Python
-                all_questions = self.db.query(QuestionLibrary).filter(
-                    QuestionLibrary.tenant_id == tenant_id,
-                    QuestionLibrary.is_active == True
-                ).order_by(QuestionLibrary.created_at).all()
-
-                # Filter questions that have "tprm" in their assessment_type array
-                # Handle both list and string formats, case-insensitive
-                questions = []
-                for q in all_questions:
-                    if not q.assessment_type:
-                        continue
-                    
-                    # Normalize assessment_type to a list
-                    q_types = q.assessment_type
-                    if isinstance(q_types, str):
-                        # Try to parse as JSON if it looks like JSON
-                        try:
-                            import json
-                            q_types = json.loads(q_types)
-                        except (json.JSONDecodeError, ValueError):
-                            # If not JSON, treat as single string value
-                            q_types = [q_types]
-                    elif not isinstance(q_types, list):
-                        q_types = [q_types] if q_types else []
-                    
-                    # Check if "tprm" (case-insensitive) is in the assessment_type array
-                    q_types_lower = [str(t).lower() if t else "" for t in q_types]
-                    if "tprm" in q_types_lower:
-                        questions.append(q)
-                        logger.debug(f"Found TPRM question: {q.id} - {q.question_text[:50]}... (assessment_type: {q.assessment_type})")
+            # For all assessment types, populate from question library
+            # Get both platform-wide (tenant_id = NULL) and tenant-specific questions
+            platform_questions = self.db.query(QuestionLibrary).filter(
+                QuestionLibrary.tenant_id.is_(None),
+                QuestionLibrary.is_active == True
+            ).all()
+            
+            tenant_questions = self.db.query(QuestionLibrary).filter(
+                QuestionLibrary.tenant_id == tenant_id,
+                QuestionLibrary.is_active == True
+            ).all()
+            
+            all_questions = platform_questions + tenant_questions
+            
+            # Filter questions based on assessment type
+            questions = []
+            for q in all_questions:
+                if not q.assessment_type:
+                    continue
                 
-                logger.info(f"Found {len(questions)} TPRM questions in library (out of {len(all_questions)} total questions) for tenant {tenant_id}")
-
-                if questions:
-                    logger.info(f"Populating TPRM assessment {assessment.id} with {len(questions)} questions from library")
-                    for order, question in enumerate(questions):
-                        # Map QuestionLibrary fields to AssessmentQuestion fields
-                        # question_type should be "new_question" for questions from library
-                        assessment_question = AssessmentQuestion(
-                            assessment_id=assessment.id,
-                            tenant_id=tenant_id,
-                            question_type="new_question",  # Questions from library are new questions
-                            question_text=question.question_text,
-                            title=question.title if hasattr(question, 'title') else None,
-                            description=question.description,
-                            field_type=question.field_type,
-                            response_type=question.response_type if hasattr(question, 'response_type') else None,
-                            category=question.category if hasattr(question, 'category') else None,
-                            is_required=question.is_required,
-                            options=question.options,
-                            validation_rules=question.validation_rules,
-                            order=order
-                        )
-
-                        self.db.add(assessment_question)
-                        logger.debug(f"Added question '{question.question_text[:50]}...' to assessment")
-
-                    self.db.commit()
-                    logger.info(f"Successfully populated assessment {assessment.id} with {len(questions)} questions")
-                else:
-                    logger.warning(
-                        f"No questions found in library for TPRM assessments. Assessment {assessment.id} created without questions. "
-                        f"Tenant ID: {tenant_id}. Please add questions manually or ensure question library has TPRM questions."
+                # Normalize assessment_type to a list
+                q_types = q.assessment_type
+                if isinstance(q_types, str):
+                    try:
+                        import json
+                        q_types = json.loads(q_types)
+                    except (json.JSONDecodeError, ValueError):
+                        q_types = [q_types]
+                elif not isinstance(q_types, list):
+                    q_types = [q_types] if q_types else []
+                
+                # Check if assessment type (case-insensitive) is in the question's assessment_type array
+                q_types_lower = [str(t).lower() if t else "" for t in q_types]
+                if assessment.assessment_type.lower() in q_types_lower:
+                    questions.append(q)
+            
+            # If no questions found by assessment type, try to match by compliance frameworks
+            # (This would require adding compliance_framework_ids to Assessment model)
+            
+            if questions:
+                logger.info(f"Found {len(questions)} questions in library for {assessment.assessment_type} assessments (out of {len(all_questions)} total questions) for tenant {tenant_id}")
+                logger.info(f"Populating {assessment.assessment_type} assessment {assessment.id} with {len(questions)} questions from library")
+                
+                for order, question in enumerate(questions):
+                    # Map QuestionLibrary fields to AssessmentQuestion fields
+                    assessment_question = AssessmentQuestion(
+                        assessment_id=assessment.id,
+                        tenant_id=tenant_id,
+                        question_type="new_question",
+                        question_text=question.question_text,
+                        title=question.title if hasattr(question, 'title') else None,
+                        description=question.description,
+                        field_type=question.field_type,
+                        response_type=question.response_type if hasattr(question, 'response_type') else None,
+                        category=question.category if hasattr(question, 'category') else None,
+                        is_required=question.is_required,
+                        options=question.options,
+                        validation_rules=question.validation_rules,
+                        order=order
                     )
+                    
+                    self.db.add(assessment_question)
+                    logger.debug(f"Added question '{question.question_text[:50]}...' to assessment")
+                
+                self.db.commit()
+                logger.info(f"Successfully populated assessment {assessment.id} with {len(questions)} questions")
             else:
-                logger.info(f"No auto-population configured for assessment type: {assessment.assessment_type}")
+                logger.warning(
+                    f"No questions found in library for {assessment.assessment_type} assessments. Assessment {assessment.id} created without questions. "
+                    f"Tenant ID: {tenant_id}. Please add questions manually or ensure question library has questions for this assessment type."
+                )
 
         except Exception as e:
             self.db.rollback()
@@ -660,7 +661,7 @@ class AssessmentService:
             assignment_dict['agent_id'] = UUID(assignment_dict['agent_id']) if isinstance(assignment_dict['agent_id'], str) else assignment_dict['agent_id']
         
         # Extract status to avoid duplicate keyword argument
-            status = assignment_dict.pop('status', 'pending')
+        status = assignment_dict.pop('status', 'pending')
         
         # Remove fields that are passed explicitly
         assignment_dict.pop('assessment_id', None)

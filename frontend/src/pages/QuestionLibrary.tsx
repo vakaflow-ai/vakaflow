@@ -1,9 +1,10 @@
-import { useEffect, useState, useMemo, useRef } from 'react'
+import React, { useEffect, useState, useMemo, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { authApi } from '../lib/auth'
 import { questionLibraryApi, QuestionLibrary as QuestionLibraryType, AssessmentType } from '../lib/assessments'
 import { masterDataListsApi, MasterDataValue } from '../lib/masterDataLists'
+import { frameworksApi, ComplianceFramework } from '../lib/frameworks'
 import Layout from '../components/Layout'
 import { Plus, Edit, Trash2, Search, Filter, X, Save, ToggleLeft, ToggleRight, CheckSquare, Square, Download, Upload, ChevronDown, Check } from 'lucide-react'
 import * as XLSX from 'xlsx'
@@ -71,26 +72,41 @@ export default function QuestionLibrary() {
     response_type: 'Text',
     is_required: false,
     options: [] as Array<{ value: string; label: string }>,
-    type_of_control: 'multi_select', // New field: Type of Control
+    compliance_framework_ids: [] as string[],
+    risk_framework_ids: [] as string[],
   })
   const [assessmentTypeSearchOpen, setAssessmentTypeSearchOpen] = useState(false)
   const [assessmentTypeSearchTerm, setAssessmentTypeSearchTerm] = useState('')
   const assessmentTypeDropdownRef = useRef<HTMLDivElement>(null)
+  const [complianceFrameworkSearchOpen, setComplianceFrameworkSearchOpen] = useState(false)
+  const [complianceFrameworkSearchTerm, setComplianceFrameworkSearchTerm] = useState('')
+  const complianceFrameworkDropdownRef = useRef<HTMLDivElement>(null)
+  const [riskFrameworkSearchOpen, setRiskFrameworkSearchOpen] = useState(false)
+  const [riskFrameworkSearchTerm, setRiskFrameworkSearchTerm] = useState('')
+  const riskFrameworkDropdownRef = useRef<HTMLDivElement>(null)
 
-  // Close dropdown when clicking outside
+  // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (assessmentTypeDropdownRef.current && !assessmentTypeDropdownRef.current.contains(event.target as Node)) {
         setAssessmentTypeSearchOpen(false)
         setAssessmentTypeSearchTerm('')
       }
+      if (complianceFrameworkDropdownRef.current && !complianceFrameworkDropdownRef.current.contains(event.target as Node)) {
+        setComplianceFrameworkSearchOpen(false)
+        setComplianceFrameworkSearchTerm('')
+      }
+      if (riskFrameworkDropdownRef.current && !riskFrameworkDropdownRef.current.contains(event.target as Node)) {
+        setRiskFrameworkSearchOpen(false)
+        setRiskFrameworkSearchTerm('')
+      }
     }
 
-    if (assessmentTypeSearchOpen) {
+    if (assessmentTypeSearchOpen || complianceFrameworkSearchOpen || riskFrameworkSearchOpen) {
       document.addEventListener('mousedown', handleClickOutside)
       return () => document.removeEventListener('mousedown', handleClickOutside)
     }
-  }, [assessmentTypeSearchOpen])
+  }, [assessmentTypeSearchOpen, complianceFrameworkSearchOpen, riskFrameworkSearchOpen])
 
   useEffect(() => {
     authApi.getCurrentUser()
@@ -137,6 +153,14 @@ export default function QuestionLibrary() {
     ? assessmentTypesData.map((v: MasterDataValue) => ({ value: v.value as AssessmentType, label: v.label }))
     : ASSESSMENT_TYPES_FALLBACK
 
+  // Fetch compliance and risk frameworks
+  const { data: frameworks = [] } = useQuery({
+    queryKey: ['compliance-frameworks'],
+    queryFn: () => frameworksApi.list(),
+    enabled: !!user,
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+  })
+
   const createMutation = useMutation({
     mutationFn: (data: Partial<QuestionLibraryType>) => questionLibraryApi.create(data as any),
     onSuccess: () => {
@@ -152,7 +176,8 @@ export default function QuestionLibrary() {
         response_type: 'Text',
         is_required: false,
         options: [],
-        type_of_control: 'multi_select',
+        compliance_framework_ids: [],
+        risk_framework_ids: [],
       })
     },
   })
@@ -256,8 +281,37 @@ export default function QuestionLibrary() {
     return true
   })
 
+  // Group questions by category
+  const questionsByCategory = useMemo(() => {
+    const grouped: Record<string, QuestionLibraryType[]> = {}
+    
+    filteredQuestions.forEach(question => {
+      const category = question.category || 'Uncategorized'
+      if (!grouped[category]) {
+        grouped[category] = []
+      }
+      grouped[category].push(question)
+    })
+    
+    // Sort categories alphabetically, with "Uncategorized" at the end
+    const sortedCategories = Object.keys(grouped).sort((a, b) => {
+      if (a === 'Uncategorized') return 1
+      if (b === 'Uncategorized') return -1
+      return a.localeCompare(b)
+    })
+    
+    return { grouped, sortedCategories }
+  }, [filteredQuestions])
+
   const handleCreate = () => {
-    createMutation.mutate(formData)
+    // Ensure response_type is set (required field)
+    const responseType = formData.response_type || (formData.field_type === 'file' ? 'File' : formData.field_type === 'number' ? 'Number' : formData.field_type === 'date' ? 'Date' : 'Text')
+    createMutation.mutate({ 
+      ...formData, 
+      response_type: responseType,
+      compliance_framework_ids: formData.compliance_framework_ids.length > 0 ? formData.compliance_framework_ids : undefined,
+      risk_framework_ids: formData.risk_framework_ids.length > 0 ? formData.risk_framework_ids : undefined,
+    })
   }
 
   const handleEdit = (question: QuestionLibraryType) => {
@@ -504,67 +558,85 @@ export default function QuestionLibrary() {
                       </td>
                     </tr>
                   ) : (
-                    filteredQuestions.map((question) => (
-                      <tr key={question.id} className={`hover:bg-gray-50 ${selectedQuestions.has(question.id) ? 'bg-blue-50' : 'bg-white'}`}>
-                        <td className="px-4 py-2.5">
-                          <label className="flex items-center cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={selectedQuestions.has(question.id)}
-                              onChange={(e) => handleSelectQuestion(question.id, e.target.checked)}
-                              onClick={(e) => e.stopPropagation()}
-                              className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
-                            />
-                          </label>
-                        </td>
-                        <td className="table-cell-primary px-4 py-3">{question.title}</td>
-                        <td className="table-cell-secondary px-4 py-3">{question.question_text.substring(0, 100)}...</td>
-                        <td className="table-cell-secondary px-4 py-3">
-                          <div className="flex flex-wrap gap-1">
-                            {(Array.isArray(question.assessment_type) ? question.assessment_type : [question.assessment_type]).map((atype, idx) => (
-                              <span key={idx} className="px-2 py-1 badge-text bg-blue-100 text-blue-600 rounded">
-                                {ASSESSMENT_TYPES.find(t => t.value === atype)?.label || atype}
-                              </span>
-                            ))}
-                          </div>
-                        </td>
-                        <td className="table-cell-secondary px-4 py-3">{question.category || '-'}</td>
-                        <td className="table-cell-secondary px-4 py-3">{question.field_type}</td>
-                        <td className="table-cell-secondary px-4 py-3">{question.usage_count || 0}</td>
-                        <td className="px-4 py-2.5" style={{ width: '80px' }}>
-                          <label 
-                            className="flex items-center gap-1.5 cursor-pointer group"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              toggleMutation.mutate(question.id)
-                            }}
-                            title={question.is_active ? 'Click to disable' : 'Click to enable'}
-                          >
-                            {question.is_active ? (
-                              <ToggleRight className="w-5 h-5 text-green-600 group-hover:text-green-700" />
-                            ) : (
-                              <ToggleLeft className="w-5 h-5 text-gray-600 group-hover:text-gray-600" />
-                            )}
-                          </label>
-                        </td>
-                        <td className="px-4 py-3 text-sm">
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => handleEdit(question)}
-                              className="px-2 py-1 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700"
-                            >
-                              <Edit className="w-3 h-3 inline" />
-                            </button>
-                            <button
-                              onClick={() => handleDelete(question.id)}
-                              className="px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700"
-                            >
-                              <Trash2 className="w-3 h-3 inline" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
+                    questionsByCategory.sortedCategories.map((category) => {
+                      const categoryQuestions = questionsByCategory.grouped[category]
+                      return (
+                        <React.Fragment key={category}>
+                          {/* Category Header */}
+                          <tr className="bg-gray-100 border-t-2 border-gray-300">
+                            <td colSpan={9} className="px-4 py-3">
+                              <div className="flex items-center justify-between">
+                                <span className="text-sm font-bold text-gray-900 uppercase">
+                                  {category} ({categoryQuestions.length} {categoryQuestions.length === 1 ? 'question' : 'questions'})
+                                </span>
+                              </div>
+                            </td>
+                          </tr>
+                          {/* Questions in this category */}
+                          {categoryQuestions.map((question) => (
+                            <tr key={question.id} className={`hover:bg-gray-50 ${selectedQuestions.has(question.id) ? 'bg-blue-50' : 'bg-white'}`}>
+                              <td className="px-4 py-2.5">
+                                <label className="flex items-center cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedQuestions.has(question.id)}
+                                    onChange={(e) => handleSelectQuestion(question.id, e.target.checked)}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                                  />
+                                </label>
+                              </td>
+                              <td className="table-cell-primary px-4 py-3">{question.title}</td>
+                              <td className="table-cell-secondary px-4 py-3">{question.question_text.substring(0, 100)}...</td>
+                              <td className="table-cell-secondary px-4 py-3">
+                                <div className="flex flex-wrap gap-1">
+                                  {(Array.isArray(question.assessment_type) ? question.assessment_type : [question.assessment_type]).map((atype, idx) => (
+                                    <span key={idx} className="px-2 py-1 badge-text bg-blue-100 text-blue-600 rounded">
+                                      {ASSESSMENT_TYPES.find(t => t.value === atype)?.label || atype}
+                                    </span>
+                                  ))}
+                                </div>
+                              </td>
+                              <td className="table-cell-secondary px-4 py-3">{question.category || '-'}</td>
+                              <td className="table-cell-secondary px-4 py-3">{question.field_type}</td>
+                              <td className="table-cell-secondary px-4 py-3">{question.usage_count || 0}</td>
+                              <td className="px-4 py-2.5" style={{ width: '80px' }}>
+                                <label 
+                                  className="flex items-center gap-1.5 cursor-pointer group"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    toggleMutation.mutate(question.id)
+                                  }}
+                                  title={question.is_active ? 'Click to disable' : 'Click to enable'}
+                                >
+                                  {question.is_active ? (
+                                    <ToggleRight className="w-5 h-5 text-green-600 group-hover:text-green-700" />
+                                  ) : (
+                                    <ToggleLeft className="w-5 h-5 text-gray-600 group-hover:text-gray-600" />
+                                  )}
+                                </label>
+                              </td>
+                              <td className="px-4 py-3 text-sm">
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    onClick={() => handleEdit(question)}
+                                    className="px-2 py-1 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700"
+                                  >
+                                    <Edit className="w-3 h-3 inline" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDelete(question.id)}
+                                    className="px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700"
+                                  >
+                                    <Trash2 className="w-3 h-3 inline" />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </React.Fragment>
+                      )
+                    })
                   )}
                 </tbody>
               </table>
@@ -743,25 +815,16 @@ export default function QuestionLibrary() {
                     </select>
                   </div>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                
+                {/* Input Configuration Section */}
+                <div className="border-t border-gray-200 pt-6">
+                  <h3 className="text-sm font-semibold text-gray-900 mb-4">Input Configuration</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <label className="block text-sm font-semibold text-gray-900 mb-2">Type of Control</label>
-                    <select
-                      value={formData.type_of_control}
-                      onChange={(e) => setFormData({ ...formData, type_of_control: e.target.value })}
-                      className="w-full px-4 py-2.5 text-sm rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    >
-                      <option value="single_select">Single Select</option>
-                      <option value="multi_select">Multi Select</option>
-                      <option value="checkbox">Checkbox</option>
-                      <option value="radio">Radio</option>
-                    </select>
-                    <p className="text-xs text-gray-500 mt-1">Controls how assessment types are displayed/selected</p>
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-900 mb-2">Field Type *</label>
+                    <label className="block text-sm font-semibold text-gray-900 mb-2">
+                      Input Control * 
+                      <span className="text-xs font-normal text-gray-500 ml-2">(What UI element users see: text box, radio buttons, file upload, etc.)</span>
+                    </label>
                     <select
                       value={formData.field_type}
                       onChange={(e) => {
@@ -780,21 +843,43 @@ export default function QuestionLibrary() {
                       ))}
                     </select>
                   </div>
-                  {/* Response Type only for text-based fields */}
-                  {['text', 'textarea', 'email', 'url', 'number'].includes(formData.field_type) && (
                   <div>
-                    <label className="block text-sm font-semibold text-gray-900 mb-2">Response Type *</label>
+                    <label className="block text-sm font-semibold text-gray-900 mb-2">
+                      Data Type * 
+                      <span className="text-xs font-normal text-gray-500 ml-2">(How the answer is stored: Text, File, Number, Date, URL)</span>
+                    </label>
                     <select
                       value={formData.response_type}
                       onChange={(e) => setFormData({ ...formData, response_type: e.target.value })}
-                      className="w-full px-4 py-2.5 text-sm rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      disabled={['file', 'number', 'date'].includes(formData.field_type)}
+                      className={`w-full px-4 py-2.5 text-sm rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 ${
+                        ['file', 'number', 'date'].includes(formData.field_type) ? 'bg-gray-100 cursor-not-allowed' : ''
+                      }`}
                     >
                       {RESPONSE_TYPES.map(type => (
                         <option key={type.value} value={type.value}>{type.label}</option>
                       ))}
                     </select>
+                    {['file', 'number', 'date'].includes(formData.field_type) && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        Data type is automatically set based on input control
+                      </p>
+                    )}
+                    <p className="text-xs text-gray-500 mt-1">
+                      {formData.field_type === 'text' && 'Single-line text input'}
+                      {formData.field_type === 'textarea' && 'Multi-line text input'}
+                      {formData.field_type === 'number' && 'Numeric input'}
+                      {formData.field_type === 'email' && 'Email address input'}
+                      {formData.field_type === 'url' && 'URL input'}
+                      {formData.field_type === 'select' && 'Dropdown selection (single choice)'}
+                      {formData.field_type === 'multi_select' && 'Multi-select dropdown (multiple choices)'}
+                      {formData.field_type === 'radio' && 'Radio buttons (single choice, e.g., Yes/No)'}
+                      {formData.field_type === 'checkbox' && 'Checkboxes (multiple choices)'}
+                      {formData.field_type === 'date' && 'Date picker'}
+                      {formData.field_type === 'file' && 'File upload'}
+                    </p>
                   </div>
-                  )}
+                  </div>
                 </div>
                 
                 {/* Options section for select, multi_select, radio, checkbox */}
@@ -866,7 +951,230 @@ export default function QuestionLibrary() {
                 </div>
                 )}
                 
-                <div>
+                {/* Compliance & Risk Frameworks Section */}
+                <div className="border-t border-gray-200 pt-6">
+                  <h3 className="text-sm font-semibold text-gray-900 mb-4">Compliance & Risk Frameworks</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Compliance Frameworks */}
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-900 mb-2">
+                        Compliance Frameworks
+                        <span className="text-xs font-normal text-gray-500 ml-2">(Which compliance frameworks this question addresses)</span>
+                      </label>
+                      <div className="relative" ref={complianceFrameworkDropdownRef}>
+                        <button
+                          type="button"
+                          onClick={() => setComplianceFrameworkSearchOpen(!complianceFrameworkSearchOpen)}
+                          className="w-full px-4 py-2.5 text-sm text-left rounded-lg border border-gray-300 bg-white hover:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 flex items-center justify-between"
+                        >
+                          <span className="text-gray-700">
+                            {formData.compliance_framework_ids.length > 0
+                              ? `${formData.compliance_framework_ids.length} selected`
+                              : 'Select frameworks...'}
+                          </span>
+                          <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${complianceFrameworkSearchOpen ? 'transform rotate-180' : ''}`} />
+                        </button>
+                        {complianceFrameworkSearchOpen && (
+                          <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-64 overflow-hidden">
+                            <div className="p-2 border-b border-gray-200">
+                              <div className="relative">
+                                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                <input
+                                  type="text"
+                                  value={complianceFrameworkSearchTerm}
+                                  onChange={(e) => setComplianceFrameworkSearchTerm(e.target.value)}
+                                  placeholder="Search frameworks..."
+                                  className="w-full pl-8 pr-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                  onClick={(e) => e.stopPropagation()}
+                                />
+                              </div>
+                            </div>
+                            <div className="max-h-48 overflow-y-auto">
+                              {frameworks
+                                .filter(fw => fw.name.toLowerCase().includes(complianceFrameworkSearchTerm.toLowerCase()))
+                                .map(framework => {
+                                  const isSelected = formData.compliance_framework_ids.includes(framework.id)
+                                  return (
+                                    <label
+                                      key={framework.id}
+                                      className="flex items-center gap-2 px-4 py-2 hover:bg-gray-50 cursor-pointer"
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        checked={isSelected}
+                                        onChange={(e) => {
+                                          if (e.target.checked) {
+                                            setFormData({
+                                              ...formData,
+                                              compliance_framework_ids: [...formData.compliance_framework_ids, framework.id]
+                                            })
+                                          } else {
+                                            setFormData({
+                                              ...formData,
+                                              compliance_framework_ids: formData.compliance_framework_ids.filter(id => id !== framework.id)
+                                            })
+                                          }
+                                        }}
+                                        className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-2 focus:ring-indigo-500"
+                                      />
+                                      <span className="text-sm text-gray-700 flex-1">{framework.name}</span>
+                                      {isSelected && <Check className="w-4 h-4 text-indigo-600" />}
+                                    </label>
+                                  )
+                                })}
+                              {frameworks.filter(fw => fw.name.toLowerCase().includes(complianceFrameworkSearchTerm.toLowerCase())).length === 0 && (
+                                <div className="px-4 py-8 text-center text-sm text-gray-500">
+                                  No frameworks found
+                                </div>
+                              )}
+                            </div>
+                            {formData.compliance_framework_ids.length > 0 && (
+                              <div className="p-2 border-t border-gray-200 bg-gray-50">
+                                <div className="flex flex-wrap gap-1">
+                                  {formData.compliance_framework_ids.map(fwId => {
+                                    const framework = frameworks.find(fw => fw.id === fwId)
+                                    return framework ? (
+                                      <span
+                                        key={fwId}
+                                        className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-indigo-100 text-indigo-700 rounded"
+                                      >
+                                        {framework.name}
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation()
+                                            setFormData({
+                                              ...formData,
+                                              compliance_framework_ids: formData.compliance_framework_ids.filter(id => id !== fwId)
+                                            })
+                                          }}
+                                          className="hover:text-indigo-900"
+                                        >
+                                          <X className="w-3 h-3" />
+                                        </button>
+                                      </span>
+                                    ) : null
+                                  })}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {/* Risk Frameworks */}
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-900 mb-2">
+                        Risk Frameworks
+                        <span className="text-xs font-normal text-gray-500 ml-2">(Which risk frameworks this question addresses)</span>
+                      </label>
+                      <div className="relative" ref={riskFrameworkDropdownRef}>
+                        <button
+                          type="button"
+                          onClick={() => setRiskFrameworkSearchOpen(!riskFrameworkSearchOpen)}
+                          className="w-full px-4 py-2.5 text-sm text-left rounded-lg border border-gray-300 bg-white hover:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 flex items-center justify-between"
+                        >
+                          <span className="text-gray-700">
+                            {formData.risk_framework_ids.length > 0
+                              ? `${formData.risk_framework_ids.length} selected`
+                              : 'Select frameworks...'}
+                          </span>
+                          <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${riskFrameworkSearchOpen ? 'transform rotate-180' : ''}`} />
+                        </button>
+                        {riskFrameworkSearchOpen && (
+                          <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-64 overflow-hidden">
+                            <div className="p-2 border-b border-gray-200">
+                              <div className="relative">
+                                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                <input
+                                  type="text"
+                                  value={riskFrameworkSearchTerm}
+                                  onChange={(e) => setRiskFrameworkSearchTerm(e.target.value)}
+                                  placeholder="Search frameworks..."
+                                  className="w-full pl-8 pr-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                  onClick={(e) => e.stopPropagation()}
+                                />
+                              </div>
+                            </div>
+                            <div className="max-h-48 overflow-y-auto">
+                              {frameworks
+                                .filter(fw => fw.name.toLowerCase().includes(riskFrameworkSearchTerm.toLowerCase()))
+                                .map(framework => {
+                                  const isSelected = formData.risk_framework_ids.includes(framework.id)
+                                  return (
+                                    <label
+                                      key={framework.id}
+                                      className="flex items-center gap-2 px-4 py-2 hover:bg-gray-50 cursor-pointer"
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        checked={isSelected}
+                                        onChange={(e) => {
+                                          if (e.target.checked) {
+                                            setFormData({
+                                              ...formData,
+                                              risk_framework_ids: [...formData.risk_framework_ids, framework.id]
+                                            })
+                                          } else {
+                                            setFormData({
+                                              ...formData,
+                                              risk_framework_ids: formData.risk_framework_ids.filter(id => id !== framework.id)
+                                            })
+                                          }
+                                        }}
+                                        className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-2 focus:ring-indigo-500"
+                                      />
+                                      <span className="text-sm text-gray-700 flex-1">{framework.name}</span>
+                                      {isSelected && <Check className="w-4 h-4 text-indigo-600" />}
+                                    </label>
+                                  )
+                                })}
+                              {frameworks.filter(fw => fw.name.toLowerCase().includes(riskFrameworkSearchTerm.toLowerCase())).length === 0 && (
+                                <div className="px-4 py-8 text-center text-sm text-gray-500">
+                                  No frameworks found
+                                </div>
+                              )}
+                            </div>
+                            {formData.risk_framework_ids.length > 0 && (
+                              <div className="p-2 border-t border-gray-200 bg-gray-50">
+                                <div className="flex flex-wrap gap-1">
+                                  {formData.risk_framework_ids.map(fwId => {
+                                    const framework = frameworks.find(fw => fw.id === fwId)
+                                    return framework ? (
+                                      <span
+                                        key={fwId}
+                                        className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-orange-100 text-orange-700 rounded"
+                                      >
+                                        {framework.name}
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation()
+                                            setFormData({
+                                              ...formData,
+                                              risk_framework_ids: formData.risk_framework_ids.filter(id => id !== fwId)
+                                            })
+                                          }}
+                                          className="hover:text-orange-900"
+                                        >
+                                          <X className="w-3 h-3" />
+                                        </button>
+                                      </span>
+                                    ) : null
+                                  })}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Required Field */}
+                <div className="border-t border-gray-200 pt-6">
                   <label className="flex items-center gap-3 cursor-pointer">
                     <input
                       type="checkbox"
@@ -874,7 +1182,8 @@ export default function QuestionLibrary() {
                       onChange={(e) => setFormData({ ...formData, is_required: e.target.checked })}
                       className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-2 focus:ring-indigo-500"
                     />
-                    <span className="text-sm font-semibold text-gray-900">Required</span>
+                    <span className="text-sm font-semibold text-gray-900">Required Question</span>
+                    <span className="text-xs text-gray-500">(Vendor must answer this question)</span>
                   </label>
                 </div>
               </div>

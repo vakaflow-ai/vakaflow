@@ -113,6 +113,7 @@ export interface QuestionLibrary {
   validation_rules?: Record<string, any>
   requirement_ids?: string[]
   compliance_framework_ids?: string[]
+  risk_framework_ids?: string[]
   applicable_industries?: string[]
   is_active: boolean
   usage_count: number
@@ -135,6 +136,7 @@ export interface QuestionLibraryCreate {
   validation_rules?: Record<string, any>
   requirement_ids?: string[]
   compliance_framework_ids?: string[]
+  risk_framework_ids?: string[]
   applicable_industries?: string[]
 }
 
@@ -151,6 +153,7 @@ export interface QuestionLibraryUpdate {
   validation_rules?: Record<string, any>
   requirement_ids?: string[]
   compliance_framework_ids?: string[]
+  risk_framework_ids?: string[]
   applicable_industries?: string[]
   is_active?: boolean
 }
@@ -758,6 +761,7 @@ export interface QuestionLibrary {
   validation_rules?: Record<string, any>
   requirement_ids?: string[]
   compliance_framework_ids?: string[]
+  risk_framework_ids?: string[]
   applicable_industries?: string[]
   is_active: boolean
   usage_count: number
@@ -780,6 +784,7 @@ export interface QuestionLibraryCreate {
   validation_rules?: Record<string, any>
   requirement_ids?: string[]
   compliance_framework_ids?: string[]
+  risk_framework_ids?: string[]
   applicable_industries?: string[]
 }
 
@@ -796,6 +801,7 @@ export interface QuestionLibraryUpdate {
   validation_rules?: Record<string, any>
   requirement_ids?: string[]
   compliance_framework_ids?: string[]
+  risk_framework_ids?: string[]
   applicable_industries?: string[]
   is_active?: boolean
 }

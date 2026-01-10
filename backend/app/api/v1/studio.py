@@ -266,6 +266,8 @@ async def execute_studio_agent(
     
     studio_service = StudioService(db)
     
+    logger.info(f"🔍 Studio API: Executing agent {agent_id}, skill: {request.skill}, tenant: {effective_tenant_id}, user: {current_user.id}")
+    
     try:
         result = await studio_service.execute_agent_in_studio(
             tenant_id=effective_tenant_id,
@@ -273,8 +275,10 @@ async def execute_studio_agent(
             source=request.source,
             skill=request.skill,
             input_data=request.input_data,
-            mcp_connection_id=request.mcp_connection_id
+            mcp_connection_id=request.mcp_connection_id,
+            triggered_by=current_user.id
         )
+        logger.info(f"✅ Studio API: Agent execution successful for {agent_id}")
         return {"success": True, "result": result}
     except ValueError as e:
         logger.error(f"Agent execution validation error: {e}", exc_info=True)

@@ -218,19 +218,18 @@ class ActionItemService:
         # Direct assignments are only shown if there's no corresponding ActionItem record.
         assessment_assignment_ids_from_action_items = set()  # Track which assignments already have action items
         
-        # 3. Get pending assessment reviews and approvals (action items for completed assessments)
+        # 3. Get pending assessment approvals (action items for completed assessments)
         # Query action items table (gracefully handle if table doesn't exist)
         try:
-            # Get REVIEW, ASSESSMENT, and APPROVAL type action items for assessments
-            # APPROVAL type is used for assessment approval workflow items
-            # Query for assessment-related action items (REVIEW, ASSESSMENT, APPROVAL types)
+            # Query for assessment-related action items
+            # For vendors: ASSESSMENT type items (assignments to complete)
+            # For approvers: APPROVAL type items (approvals to process)
             # Use enum values directly for SQLEnum columns (SQLEnum handles both enum and string values)
             # For tenant_admin and platform_admin, show all action items in the tenant
             # For other users, only show items assigned to them
             logger.info(f"Querying assessment action items: user_id={user_id}, tenant_id={tenant_id}, user_role={user_role}")
-            # Query for assessment action items - REVIEW type is treated as APPROVAL (backward compatibility)
             # Apply limit early to improve performance
-            # For vendor users, only show ASSESSMENT type items (assignments and resubmissions), not approvals/reviews
+            # For vendor users, only show ASSESSMENT type items (assignments and resubmissions), not approvals
             if user_role == "vendor_user":
                 # Vendors should only see assessment assignments and resubmissions
                 # Use status parameter to determine which action items to query
@@ -255,15 +254,30 @@ class ActionItemService:
                     assignment_status_filter = None  # Will not filter by assignment status
                     logger.info(f"User is vendor_user (ID: {user_id}), querying ALL ASSESSMENT type items assigned to user in tenant {tenant_id}")
                 
-                assessment_query = self.db.query(ActionItem).join(
-                    AssessmentAssignment,
-                    ActionItem.source_id == AssessmentAssignment.id
-                ).filter(
-                    ActionItem.tenant_id == tenant_id,
-                    ActionItem.action_type == ActionItemType.ASSESSMENT,  # Only ASSESSMENT type for vendors
-                    ActionItem.source_type.in_(["assessment_assignment", "assessment_resubmission"]),  # Only assignments and resubmissions
-                    ActionItem.assigned_to == user_id  # Only items assigned to this vendor user
-                )
+                # For counts query (status=None), use LEFT JOIN to include all action items even if assignment doesn't exist
+                # For status-specific queries, use INNER JOIN to ensure assignment exists
+                if status is None:
+                    # Use LEFT JOIN for counts to include all action items
+                    assessment_query = self.db.query(ActionItem).outerjoin(
+                        AssessmentAssignment,
+                        ActionItem.source_id == AssessmentAssignment.id
+                    ).filter(
+                        ActionItem.tenant_id == tenant_id,
+                        ActionItem.action_type == ActionItemType.ASSESSMENT,  # Only ASSESSMENT type for vendors
+                        ActionItem.source_type.in_(["assessment_assignment", "assessment_resubmission"]),  # Only assignments and resubmissions
+                        ActionItem.assigned_to == user_id  # Only items assigned to this vendor user
+                    )
+                else:
+                    # Use INNER JOIN for status-specific queries
+                    assessment_query = self.db.query(ActionItem).join(
+                        AssessmentAssignment,
+                        ActionItem.source_id == AssessmentAssignment.id
+                    ).filter(
+                        ActionItem.tenant_id == tenant_id,
+                        ActionItem.action_type == ActionItemType.ASSESSMENT,  # Only ASSESSMENT type for vendors
+                        ActionItem.source_type.in_(["assessment_assignment", "assessment_resubmission"]),  # Only assignments and resubmissions
+                        ActionItem.assigned_to == user_id  # Only items assigned to this vendor user
+                    )
                 
                 # Apply status filters if specified
                 if action_item_status_filter is not None:
@@ -304,26 +318,35 @@ class ActionItemService:
                         ).all()
                         logger.info(f"DEBUG: Assignment {assn.id} (status={assn.status}): {len(action_items_for_assn)} action items for user {user_id}")
             elif user_role in ["approver", "security_reviewer", "compliance_reviewer", "technical_reviewer", "business_reviewer"]:
-                # Approvers and reviewers should ONLY see approval/review items for completed assessments
+                # Approvers should ONLY see approval items for completed assessments
                 # They should NOT see assessment_assignment items (those are for vendors to fill out)
                 # IMPORTANT: Join with AssessmentAssignment to show items where assignment is "completed" (submitted, waiting for approval)
                 # but exclude items where assignment is already "approved" or "rejected" (already processed)
                 assessment_query = self.db.query(ActionItem).outerjoin(
                     AssessmentAssignment,
                     (ActionItem.source_id == AssessmentAssignment.id) & 
-                    (ActionItem.source_type.in_(["assessment_approval", "assessment_review"]))
+                    (ActionItem.source_type == "assessment_approval")
                 ).filter(
                     ActionItem.tenant_id == tenant_id,
-                    ActionItem.action_type.in_([ActionItemType.REVIEW, ActionItemType.APPROVAL]),  # Only approval/review items
-                    ActionItem.status == ActionItemStatus.PENDING,
-                    ActionItem.source_type.in_(["assessment_approval", "assessment_review"]),  # Only approval items, NOT assignments
+                    ActionItem.action_type == ActionItemType.APPROVAL,  # Only APPROVAL type for approvers
+                    ActionItem.source_type == "assessment_approval",  # Only approval items, NOT assignments
                     ActionItem.assigned_to == user_id,  # Only items assigned to this approver
                     # Show items where assignment is "completed" (submitted, waiting for approval) or doesn't exist
                     # Exclude only "approved" and "rejected" (already processed)
                     (AssessmentAssignment.id.is_(None)) |  # For items without assignment (shouldn't happen, but safe)
                     (AssessmentAssignment.status.notin_(["approved", "rejected"]))  # Exclude only approved/rejected (allow "completed" which means waiting for approval)
                 )
-                logger.info(f"User is {user_role} (approver/reviewer), querying only APPROVAL/REVIEW type items (not assignments), allowing 'completed' status assignments")
+                # Apply status filter only when status is specified (for pending/completed/overdue tabs)
+                # When status=None (for counts), get all items and filter in memory
+                if status == "pending":
+                    assessment_query = assessment_query.filter(ActionItem.status == ActionItemStatus.PENDING)
+                elif status == "completed":
+                    assessment_query = assessment_query.filter(ActionItem.status == ActionItemStatus.COMPLETED)
+                elif status == "overdue":
+                    # Overdue items are pending items with past due dates
+                    assessment_query = assessment_query.filter(ActionItem.status == ActionItemStatus.PENDING)
+                # If status is None, don't filter by status - get all items for accurate counts
+                logger.info(f"User is {user_role} (approver), querying APPROVAL type items (status filter: {status}), allowing 'completed' status assignments")
             else:
                 # For other users (admins), show all assessment-related items
                 # IMPORTANT: Join with AssessmentAssignment to show items where assignment is "completed" (submitted, waiting for approval)
@@ -332,29 +355,38 @@ class ActionItemService:
                 assessment_query = self.db.query(ActionItem).outerjoin(
                     AssessmentAssignment,
                     (ActionItem.source_id == AssessmentAssignment.id) & 
-                    (ActionItem.source_type.in_(["assessment_assignment", "assessment_approval", "assessment_review"]))
+                    (ActionItem.source_type.in_(["assessment_assignment", "assessment_approval"]))
                 ).filter(
                     ActionItem.tenant_id == tenant_id,
-                    ActionItem.action_type.in_([ActionItemType.REVIEW, ActionItemType.ASSESSMENT, ActionItemType.APPROVAL]),  # REVIEW kept for backward compat, treated as APPROVAL
-                    ActionItem.status == ActionItemStatus.PENDING,
-                    ActionItem.source_type.in_(["assessment_assignment", "assessment_approval", "assessment_review"]),
+                    ActionItem.action_type.in_([ActionItemType.ASSESSMENT, ActionItemType.APPROVAL]),  # ASSESSMENT for vendors, APPROVAL for approvers
+                    ActionItem.source_type.in_(["assessment_assignment", "assessment_approval"]),
                     # Show items where assignment doesn't exist OR matches status rules
                     (AssessmentAssignment.id.is_(None)) |  # For items without assignment (shouldn't happen, but safe)
                     (
-                        # For approval/review items: allow "completed" (submitted, waiting for approval), exclude "approved"/"rejected"
-                        ((ActionItem.source_type.in_(["assessment_approval", "assessment_review"])) & 
+                        # For approval items: allow "completed" (submitted, waiting for approval), exclude "approved"/"rejected"
+                        ((ActionItem.source_type == "assessment_approval") & 
                          (AssessmentAssignment.status.notin_(["approved", "rejected"]))) |
                         # For assignment items: exclude "completed", "approved", "rejected" (vendors shouldn't see completed assignments)
                         ((ActionItem.source_type == "assessment_assignment") & 
                          (AssessmentAssignment.status.notin_(["completed", "approved", "rejected"])))
                     )
                 )
+                # Apply status filter only when status is specified (for pending/completed/overdue tabs)
+                # When status=None (for counts), get all items and filter in memory
+                if status == "pending":
+                    assessment_query = assessment_query.filter(ActionItem.status == ActionItemStatus.PENDING)
+                elif status == "completed":
+                    assessment_query = assessment_query.filter(ActionItem.status == ActionItemStatus.COMPLETED)
+                elif status == "overdue":
+                    # Overdue items are pending items with past due dates
+                    assessment_query = assessment_query.filter(ActionItem.status == ActionItemStatus.PENDING)
+                # If status is None, don't filter by status - get all items for accurate counts
                 
                 if user_role not in ["tenant_admin", "platform_admin"]:
-                    logger.info(f"User is {user_role}, querying only items assigned to user")
+                    logger.info(f"User is {user_role}, querying only items assigned to user (status filter: {status})")
                     assessment_query = assessment_query.filter(ActionItem.assigned_to == user_id)
                 else:
-                    logger.info(f"User is {user_role}, querying all assessment action items in tenant")
+                    logger.info(f"User is {user_role}, querying all assessment action items in tenant (status filter: {status})")
             
             # Apply limit and offset for pagination
             assessment_action_items = assessment_query.limit(limit + offset).offset(offset).all()
@@ -402,8 +434,8 @@ class ActionItemService:
                 # Also check if there are any action items for this tenant with the right source_type
                 tenant_action_items = self.db.query(ActionItem).filter(
                     ActionItem.tenant_id == tenant_id,
-                    ActionItem.source_type.in_(["assessment_assignment", "assessment_approval", "assessment_review"]),
-                    ActionItem.action_type.in_([ActionItemType.REVIEW, ActionItemType.ASSESSMENT, ActionItemType.APPROVAL])
+                    ActionItem.source_type.in_(["assessment_assignment", "assessment_approval"]),
+                    ActionItem.action_type.in_([ActionItemType.ASSESSMENT, ActionItemType.APPROVAL])
                 ).all()
                 logger.info(f"  Total assessment action items in tenant {tenant_id}: {len(tenant_action_items)}")
                 for item in tenant_action_items[:5]:  # Show first 5
@@ -524,6 +556,9 @@ class ActionItemService:
                         continue
                     # For vendors: If assignment is "pending" or "in_progress", continue processing (they need to complete it)
                     # For approvers: If assignment.status == "completed", continue processing (vendor has submitted, ready for approval)
+                    # IMPORTANT: For approvers, when assignment.status == "completed", the action item should be PENDING
+                    # The action item should only be COMPLETED when that specific approver has completed their review stage
+                    # The overall assignment should only be "approved" or "rejected" when ALL workflow stages are completed
                 
                 assessment = assessments_map.get(assignment.assessment_id) if assignment and assignment.assessment_id else None
 
@@ -573,20 +608,37 @@ class ActionItemService:
                     if base_metadata and base_metadata.get("workflow_ticket_id"):
                         metadata["workflow_ticket_id"] = base_metadata.get("workflow_ticket_id")
 
-                # Determine the correct status: if assignment is approved/rejected, action item should be COMPLETED
-                # Otherwise use the action item's current status
+                # Determine the correct status based on assignment status and action item status:
+                # CRITICAL: The action item status reflects whether THIS SPECIFIC APPROVER has completed their review.
+                # This is SEPARATE from the assignment status:
+                # - assignment.status = "completed" means VENDOR has submitted (not that assessment is done)
+                # - action_item.status = PENDING means THIS approver hasn't reviewed yet
+                # - action_item.status = COMPLETED means THIS approver has approved/denied and moved to next stage
+                # - assignment.status = "approved"/"rejected" means ALL approvers are done, assessment is closed
+                # 
+                # Status logic:
+                # 1. Use action_item.status from database as source of truth (whether THIS approver has completed)
+                # 2. Only override if assignment.status = "approved"/"rejected" (then all action items = COMPLETED)
+                # 3. assignment.status = "completed" does NOT change action_item.status (vendor submitted, but approver status is independent)
                 item_status = review_item.status.value if hasattr(review_item.status, 'value') else str(review_item.status)
-                if assignment and hasattr(assignment, 'status') and assignment.status in ["approved", "rejected"]:
-                    # Assignment is already processed, so action item should be COMPLETED
-                    item_status = ActionItemStatus.COMPLETED.value
-                    # Also update the database record if it's still PENDING/IN_PROGRESS
-                    if review_item.status == ActionItemStatus.PENDING or review_item.status == ActionItemStatus.IN_PROGRESS:
-                        try:
-                            review_item.status = ActionItemStatus.COMPLETED.value
-                            review_item.completed_at = datetime.utcnow()
-                            logger.info(f"Updated action item {review_item.id} status to COMPLETED because assignment {assignment.id} is {assignment.status}")
-                        except Exception as e:
-                            logger.warning(f"Failed to update action item {review_item.id} status: {e}")
+                
+                if assignment and hasattr(assignment, 'status'):
+                    if assignment.status in ["approved", "rejected"]:
+                        # Assignment is fully processed (all stages completed, assessment closed)
+                        # Mark action item as COMPLETED if it's still PENDING/IN_PROGRESS
+                        item_status = ActionItemStatus.COMPLETED.value
+                        if review_item.status == ActionItemStatus.PENDING or review_item.status == ActionItemStatus.IN_PROGRESS:
+                            try:
+                                review_item.status = ActionItemStatus.COMPLETED.value
+                                review_item.completed_at = datetime.utcnow()
+                                logger.info(f"Updated action item {review_item.id} status to COMPLETED because assignment {assignment.id} is {assignment.status} (all workflow stages completed, assessment closed)")
+                            except Exception as e:
+                                logger.warning(f"Failed to update action item {review_item.id} status: {e}")
+                    # For assignment.status = "completed" (vendor submitted):
+                    # - If action_item.status = PENDING → Show as PENDING (waiting for this approver)
+                    # - If action_item.status = COMPLETED → Show as COMPLETED (this approver done, but overall still pending other approvers)
+                    # Do NOT override action_item.status - use what's in the database
+                    # assignment.status = "completed" is just vendor submission status, not approver completion status
                 
                 # Add action item (assignment exists and is in correct tenant, verified above)
                 action_items.append({
@@ -1321,7 +1373,7 @@ class ActionItemService:
         
         for item in action_items:
             # For assessment items, deduplicate by workflow_ticket_id first, then by assignment_id
-            if item.get("source_type") in ["assessment_assignment", "assessment_approval", "assessment_review"]:
+            if item.get("source_type") in ["assessment_assignment", "assessment_approval"]:
                 ticket_id = item.get("metadata", {}).get("workflow_ticket_id")
                 assignment_id = item.get("source_id") or item.get("metadata", {}).get("assignment_id")
                 

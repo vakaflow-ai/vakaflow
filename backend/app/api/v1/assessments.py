@@ -23,6 +23,7 @@ from app.api.v1.submission_requirements import require_requirement_management_pe
 from app.services.assessment_service import AssessmentService
 from app.services.assessment_template_service import AssessmentTemplateService
 from app.models.assessment_template import AssessmentTemplate
+from app.services.compliance_calculation_service import ComplianceCalculationService
 from app.core.audit import audit_service, AuditAction
 import logging
 import os
@@ -31,6 +32,63 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/assessments", tags=["assessments"])
 template_router = APIRouter(prefix="/assessment-templates", tags=["assessment-templates"])
+
+
+# Compliance Calculation Schemas
+class ComplianceCalculationResponse(BaseModel):
+    assignment_id: str
+    calculated_at: str
+    frameworks: Dict[str, Any]
+    
+    class Config:
+        from_attributes = True
+
+
+@router.get("/assignments/{assignment_id}/compliance", response_model=ComplianceCalculationResponse)
+async def calculate_assignment_compliance(
+    assignment_id: UUID,
+    framework_id: Optional[UUID] = Query(None, description="Optional: Calculate for specific framework only"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Calculate compliance scores for an assessment assignment
+    Real-time calculation based on question responses and pass/fail criteria
+    """
+    from app.core.tenant_utils import get_effective_tenant_id
+    effective_tenant_id = get_effective_tenant_id(current_user, db)
+    if not effective_tenant_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Tenant access required"
+        )
+    
+    # Get assignment and verify tenant access
+    assignment = db.query(AssessmentAssignment).filter(
+        AssessmentAssignment.id == assignment_id,
+        AssessmentAssignment.tenant_id == effective_tenant_id
+    ).first()
+    
+    if not assignment:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Assignment not found"
+        )
+    
+    # Calculate compliance
+    try:
+        service = ComplianceCalculationService(db)
+        result = service.calculate_compliance_for_assignment(
+            assignment_id=assignment_id,
+            framework_id=framework_id
+        )
+        return result
+    except Exception as e:
+        logger.error(f"Error calculating compliance: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error calculating compliance: {str(e)}"
+        )
 
 
 # Import from shared utility to avoid circular imports
@@ -1741,10 +1799,47 @@ async def save_assessment_responses(
                 AssessmentQuestionResponseModel.question_id == question.id
             ).first()
             
+            # Evaluate response against pass/fail criteria (real-time, cost-optimized)
+            ai_evaluation = None
+            if question.reusable_question_id and response_value:
+                try:
+                    from app.models.question_library import QuestionLibrary
+                    from app.services.compliance_calculation_service import ComplianceCalculationService
+                    
+                    qlib_question = db.query(QuestionLibrary).filter(
+                        QuestionLibrary.id == question.reusable_question_id
+                    ).first()
+                    
+                    if qlib_question and qlib_question.pass_fail_criteria:
+                        # Create a temporary response object for evaluation
+                        temp_response = type('obj', (object,), {
+                            'value': response_value,
+                            'documents': documents or []
+                        })()
+                        
+                        service = ComplianceCalculationService(db)
+                        evaluation = service._evaluate_question_response(
+                            qlib_question,
+                            temp_response,
+                            question
+                        )
+                        
+                        ai_evaluation = {
+                            "status": evaluation["status"],
+                            "confidence": evaluation.get("confidence", 0.0),
+                            "reasoning": evaluation.get("reasoning", ""),
+                            "evaluated_at": datetime.utcnow().isoformat(),
+                            "evaluated_by": "ai_system"
+                        }
+                except Exception as e:
+                    logger.warning(f"Error evaluating response for question {question.id}: {e}")
+                    # Continue without evaluation - don't fail the save
+            
             if existing_response:
                 existing_response.value = response_value
                 existing_response.comment = comment if comment else None
                 existing_response.documents = documents if documents and len(documents) > 0 else None
+                existing_response.ai_evaluation = ai_evaluation
                 existing_response.updated_at = datetime.utcnow()
             else:
                 question_response_obj = AssessmentQuestionResponseModel(
@@ -2077,10 +2172,11 @@ async def save_assessment_responses(
             ActionItem.action_type == ActionItemType.APPROVAL,
             ActionItem.status.in_([ActionItemStatus.PENDING, ActionItemStatus.IN_PROGRESS])
         ).count()
-        review_items_count = db.query(ActionItem).filter(
+        # Check for approval items (legacy code - now all use assessment_approval source_type)
+        approval_items_legacy_count = db.query(ActionItem).filter(
             ActionItem.source_id == assignment_id,
-            ActionItem.source_type == "assessment_assignment",
-            ActionItem.action_type == ActionItemType.REVIEW
+            ActionItem.source_type == "assessment_approval",
+            ActionItem.action_type == ActionItemType.APPROVAL
         ).count()
         
         # Log detailed information about action items
@@ -2121,13 +2217,13 @@ async def save_assessment_responses(
         logger.info(f"After commit: Found {approval_items_after_commit} approval action items for assignment {assignment_id}")
         
         # Verify action items after commit
-        review_items_after = db.query(ActionItem).filter(
+        approval_items_after = db.query(ActionItem).filter(
             ActionItem.source_id == assignment_id,
-            ActionItem.source_type == "assessment_assignment",
-            ActionItem.action_type == ActionItemType.REVIEW
+            ActionItem.source_type == "assessment_approval",
+            ActionItem.action_type == ActionItemType.APPROVAL
         ).all()
-        logger.info(f"After commit: Found {len(review_items_after)} review action items for assignment {assignment_id}")
-        for item in review_items_after:
+        logger.info(f"After commit: Found {len(approval_items_after)} approval action items for assignment {assignment_id}")
+        for item in approval_items_after:
             logger.info(f"  - Action item {item.id}: assigned_to={item.assigned_to}, status={item.status.value if hasattr(item.status, 'value') else item.status}, type={item.action_type.value if hasattr(item.action_type, 'value') else item.action_type}")
         
         # Refresh assignment to ensure status is persisted and get latest ticket ID
@@ -2429,13 +2525,13 @@ async def _assign_human_reviewers(
             tenant_id=assignment.tenant_id,
             assigned_to=assigned_reviewer.id,
             assigned_by=None,
-            action_type=ActionItemType.REVIEW.value,
-            title=f"Review Assessment: {assessment.name}",
+            action_type=ActionItemType.APPROVAL.value,
+            title=f"Approve Assessment: {assessment.name}",
             description=f"AI review completed. Risk Score: {review.risk_score:.1f} ({review.risk_level})",
             status=ActionItemStatus.PENDING.value,
             priority=ActionItemPriority.HIGH.value if review.risk_level in ["high", "critical"] else ActionItemPriority.MEDIUM.value,
             due_date=None,
-            source_type="assessment_review",
+            source_type="assessment_approval",
             source_id=review.id,
             action_url=f"/assessments/review/{review.id}",
             item_metadata={
@@ -3332,13 +3428,13 @@ async def _notify_reviewers_on_submission(
         tenant_id=assignment.tenant_id,
         assigned_to=assigned_to,
         assigned_by=submitted_by.id,
-        action_type=ActionItemType.REVIEW.value,  # Use REVIEW type so it shows in approver inbox
-        title=f"Review Assessment: {assessment.name}",
+        action_type=ActionItemType.APPROVAL.value,  # Use APPROVAL type for approval workflow
+        title=f"Approve Assessment: {assessment.name}",
         description=f"Assessment submitted by {vendor_name}" + (f" for agent {agent_name}" if agent_name else "") + ". Click to review responses and approve.",
         status=ActionItemStatus.PENDING.value,
         priority=ActionItemPriority.HIGH.value if assignment.due_date and assignment.due_date < datetime.utcnow() else ActionItemPriority.MEDIUM.value,
         due_date=assignment.due_date,
-        source_type="assessment_assignment",
+        source_type="assessment_approval",
         source_id=assignment.id,
         action_url=f"/assessments/review/{assignment.id}",  # Open the approver screen with submission view (AssessmentApprover component)
         item_metadata={
@@ -3356,7 +3452,7 @@ async def _notify_reviewers_on_submission(
     )
     db.add(action_item)
     action_items_created = 1
-    logger.info(f"Created single review action item for assignment {assignment.id}. Assigned to {assigned_to}. Action URL: /assessments/review/{assignment.id}")
+    logger.info(f"Created single approval action item for assignment {assignment.id}. Assigned to {assigned_to}. Action URL: /assessments/review/{assignment.id}")
 
     # Send email notifications to all reviewers (even though we only created one action item)
     # The action item will be visible to all approvers in the tenant (for tenant_admin role)
@@ -3868,7 +3964,8 @@ async def get_assignment_responses(
             responses[question_id_str] = {
                 "value": qr.value if qr.value is not None else None,
                 "comment": qr.comment if qr.comment is not None else None,
-                "documents": qr.documents if qr.documents is not None else []
+                "documents": qr.documents if qr.documents is not None else [],
+                "ai_evaluation": qr.ai_evaluation if qr.ai_evaluation is not None else None  # Include AI evaluation
             }
         
         return {
@@ -6272,34 +6369,29 @@ async def submit_final_decision(
     assignment.status = new_assignment_status
     assignment.updated_at = datetime.utcnow()
     
-    # Update action items to completed when assessment is approved/denied
+    # Update THIS APPROVER's action item to completed when they approve/deny
+    # CRITICAL: Only mark THIS approver's action item as completed, not all approvers
+    # Other approvers' action items remain PENDING until they complete their review
     from app.models.action_item import ActionItem, ActionItemType, ActionItemStatus
     if decision in ["accepted", "denied"]:
-        # Mark all approval action items for this assignment as completed
-        approval_action_items = db.query(ActionItem).filter(
+        # Mark only THIS approver's action item as completed
+        current_approver_action_item = db.query(ActionItem).filter(
             ActionItem.source_id == assignment_id,
             ActionItem.source_type == "assessment_approval",
             ActionItem.action_type == ActionItemType.APPROVAL,
+            ActionItem.assigned_to == current_user.id,  # Only THIS approver's item
             ActionItem.status.in_([ActionItemStatus.PENDING.value, ActionItemStatus.IN_PROGRESS.value])
-        ).all()
+        ).first()
         
-        for item in approval_action_items:
-            item.status = ActionItemStatus.COMPLETED.value
-            item.completed_at = datetime.utcnow()
-            logger.info(f"Marked approval action item {item.id} as completed for assignment {assignment_id}")
+        if current_approver_action_item:
+            current_approver_action_item.status = ActionItemStatus.COMPLETED.value
+            current_approver_action_item.completed_at = datetime.utcnow()
+            logger.info(f"Marked approver {current_user.id}'s action item {current_approver_action_item.id} as completed for assignment {assignment_id} (decision: {decision})")
+        else:
+            logger.warning(f"No pending action item found for approver {current_user.id} and assignment {assignment_id}")
         
-        # Also mark any review action items as completed
-        review_action_items = db.query(ActionItem).filter(
-            ActionItem.source_id == assignment_id,
-            ActionItem.source_type.in_(["assessment_review", "assessment_assignment"]),
-            ActionItem.action_type.in_([ActionItemType.REVIEW.value, ActionItemType.APPROVAL.value]),
-            ActionItem.status.in_([ActionItemStatus.PENDING.value, ActionItemStatus.IN_PROGRESS.value])
-        ).all()
-        
-        for item in review_action_items:
-            item.status = ActionItemStatus.COMPLETED.value
-            item.completed_at = datetime.utcnow()
-            logger.info(f"Marked review action item {item.id} as completed for assignment {assignment_id}")
+        # Only mark ALL action items as completed if this is the final step and assignment is fully approved/rejected
+        # (This happens when assignment.status changes to "approved"/"rejected" - handled separately)
 
     # Create audit record
     audit = AssessmentReviewAudit(

@@ -36,6 +36,22 @@ class AiGrcAgent(BaseAgenticAgent):
         """
         start_time = time.time()
         
+        # Ensure context is initialized
+        if context is None:
+            context = {}
+        
+        # If context doesn't have tenant_id, try to get it from agent
+        if not context.get("tenant_id"):
+            try:
+                agent_tenant_id = self._get_tenant_id()
+                if agent_tenant_id:
+                    context["tenant_id"] = str(agent_tenant_id)
+                    logger.info(f"🔍 Added tenant_id to context from agent: {agent_tenant_id}")
+            except Exception as e:
+                logger.warning(f"Could not get tenant_id from agent: {e}")
+        
+        logger.info(f"🔍 Executing skill '{skill}' with context: {context}, input_data keys: {list(input_data.keys())}")
+        
         try:
             if skill == AgentSkill.REALTIME_RISK_ANALYSIS.value:
                 result = await self._realtime_risk_analysis(input_data, context)
@@ -217,7 +233,11 @@ class AiGrcAgent(BaseAgenticAgent):
                 tenant_id = agent.tenant_id
         else:
             # Fallback to agent's tenant_id
-            tenant_id = self._get_tenant_id()
+            try:
+                tenant_id = self._get_tenant_id()
+            except Exception as e:
+                logger.warning(f"Could not get tenant_id from agent: {e}")
+                tenant_id = None
         
         tprm_requirements = []
         if tenant_id:
@@ -226,8 +246,17 @@ class AiGrcAgent(BaseAgenticAgent):
                 SubmissionRequirement.tenant_id == tenant_id
             ).all()
         
+        # Ensure tenant_id is set
+        if not tenant_id:
+            logger.error(f"❌ Cannot proceed with TPRM analysis: tenant_id is None. vendor_id={vendor_id}, agent_id={agent_id}, context={context}")
+            raise ValueError("Tenant ID is required for TPRM analysis. Please ensure vendor or agent has a valid tenant_id, or provide tenant_id in context.")
+        
+        logger.info(f"🔍 TPRM analysis for tenant_id: {tenant_id}, vendor_id: {vendor_id}, agent_id: {agent_id}")
+        logger.info(f"   Input data keys: {list(input_data.keys())}, send_questionnaire: {input_data.get('send_questionnaire', 'NOT SET')}")
+        
         # Check if questionnaire should be sent
         send_questionnaire = input_data.get("send_questionnaire", False)
+        logger.info(f"   send_questionnaire value: {send_questionnaire} (type: {type(send_questionnaire)})")
         questionnaire_sent = False
         assessment_assignment_id = None
         email_sent = False
@@ -240,42 +269,55 @@ class AiGrcAgent(BaseAgenticAgent):
             from app.models.assessment import Assessment, AssessmentType, AssessmentStatus
             
             # Find or create TPRM assessment
-            # First try: name contains TPRM, status active, and is_active=True
-            assessment = self.db.query(Assessment).filter(
-                Assessment.name.ilike("%TPRM%"),
+            # Log tenant_id for debugging
+            logger.info(f"🔍 Searching for TPRM assessment for tenant_id: {tenant_id} (type: {type(tenant_id)})")
+            logger.info(f"   AssessmentType.TPRM.value: {AssessmentType.TPRM.value}")
+            logger.info(f"   AssessmentStatus.ACTIVE.value: {AssessmentStatus.ACTIVE.value}")
+            
+            # First try: assessment_type is TPRM, status active, and is_active=True (most specific)
+            query1 = self.db.query(Assessment).filter(
+                Assessment.assessment_type == AssessmentType.TPRM.value,
                 Assessment.tenant_id == tenant_id,
                 Assessment.status == AssessmentStatus.ACTIVE.value,
                 Assessment.is_active == True
-            ).first()
+            )
+            logger.info(f"   Query 1: Found {query1.count()} assessments")
+            assessment = query1.order_by(Assessment.created_at.desc()).first()
             
             if not assessment:
-                # Second try: assessment_type is TPRM, status active, and is_active=True
-                assessment = self.db.query(Assessment).filter(
+                # Second try: assessment_type is TPRM and is_active=True (ignore status)
+                query2 = self.db.query(Assessment).filter(
                     Assessment.assessment_type == AssessmentType.TPRM.value,
+                    Assessment.tenant_id == tenant_id,
+                    Assessment.is_active == True
+                )
+                logger.info(f"   Query 2: Found {query2.count()} assessments")
+                assessment = query2.order_by(Assessment.created_at.desc()).first()
+            
+            if not assessment:
+                # Third try: name contains TPRM, status active, and is_active=True
+                query3 = self.db.query(Assessment).filter(
+                    Assessment.name.ilike("%TPRM%"),
                     Assessment.tenant_id == tenant_id,
                     Assessment.status == AssessmentStatus.ACTIVE.value,
                     Assessment.is_active == True
-                ).first()
-            
-            if not assessment:
-                # Third try: assessment_type is TPRM and is_active=True (ignore status)
-                assessment = self.db.query(Assessment).filter(
-                    Assessment.assessment_type == AssessmentType.TPRM.value,
-                    Assessment.tenant_id == tenant_id,
-                    Assessment.is_active == True
-                ).order_by(Assessment.created_at.desc()).first()
+                )
+                logger.info(f"   Query 3: Found {query3.count()} assessments")
+                assessment = query3.order_by(Assessment.created_at.desc()).first()
             
             if not assessment:
                 # Fourth try: name contains TPRM and is_active=True (ignore status)
-                assessment = self.db.query(Assessment).filter(
+                query4 = self.db.query(Assessment).filter(
                     Assessment.name.ilike("%TPRM%"),
                     Assessment.tenant_id == tenant_id,
                     Assessment.is_active == True
-                ).order_by(Assessment.created_at.desc()).first()
+                )
+                logger.info(f"   Query 4: Found {query4.count()} assessments")
+                assessment = query4.order_by(Assessment.created_at.desc()).first()
             
             # Log what we found for debugging
             if assessment:
-                logger.info(f"Found TPRM assessment: id={assessment.id}, name={assessment.name}, type={assessment.assessment_type}, status={assessment.status}, is_active={assessment.is_active}")
+                logger.info(f"✅ Found TPRM assessment: id={assessment.id}, name={assessment.name}, type={assessment.assessment_type}, status={assessment.status}, is_active={assessment.is_active}, tenant_id={assessment.tenant_id}")
             else:
                 # Log all TPRM assessments for this tenant to help debug
                 all_tprm = self.db.query(Assessment).filter(
@@ -283,9 +325,17 @@ class AiGrcAgent(BaseAgenticAgent):
                 ).filter(
                     (Assessment.name.ilike("%TPRM%")) | (Assessment.assessment_type == AssessmentType.TPRM.value)
                 ).all()
-                logger.warning(f"No active TPRM assessment found for tenant {tenant_id}. Found {len(all_tprm)} TPRM-related assessments:")
+                logger.warning(f"❌ No active TPRM assessment found for tenant {tenant_id}. Found {len(all_tprm)} TPRM-related assessments:")
                 for a in all_tprm:
-                    logger.warning(f"  - id={a.id}, name={a.name}, type={a.assessment_type}, status={a.status}, is_active={a.is_active}")
+                    logger.warning(f"  - id={a.id}, name={a.name}, type={a.assessment_type}, status={a.status}, is_active={a.is_active}, tenant_id={a.tenant_id}")
+                
+                # Also check if there are any TPRM assessments at all (for debugging)
+                all_tprm_any_tenant = self.db.query(Assessment).filter(
+                    (Assessment.name.ilike("%TPRM%")) | (Assessment.assessment_type == AssessmentType.TPRM.value)
+                ).all()
+                logger.info(f"📊 Total TPRM assessments in system (all tenants): {len(all_tprm_any_tenant)}")
+                if len(all_tprm_any_tenant) > 0:
+                    logger.info(f"   Active TPRM assessments: {[a.id for a in all_tprm_any_tenant if a.is_active]}")
             
             if assessment:
                 assessment_service = AssessmentService(self.db)
@@ -459,7 +509,7 @@ class AiGrcAgent(BaseAgenticAgent):
                 "Email notification will be sent automatically to vendor's email (requires SMTP configuration in /integrations page)"
             ],
             "error": "No active TPRM assessment found. Please create a TPRM assessment in Assessment Management first." if (send_questionnaire and not questionnaire_sent) else None,
-            "warning": "No active TPRM assessment found. Please create a TPRM assessment in Assessment Management to send questionnaires." if (send_questionnaire and not questionnaire_sent) else None,
+            "warning": "No active TPRM assessment found. Please create a TPRM assessment in Assessment Management to send questionnaires." if (send_questionnaire and not questionnaire_sent and assessment is None) else None,
             "requires_tprm_assessment": send_questionnaire and not questionnaire_sent,
             "debug_info": {
                 "send_questionnaire_requested": send_questionnaire,

@@ -4,6 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { authApi } from '../lib/auth'
 import { questionLibraryApi, QuestionLibrary as QuestionLibraryType, AssessmentType } from '../lib/assessments'
 import { masterDataListsApi, MasterDataValue } from '../lib/masterDataLists'
+import { frameworksApi, ComplianceFramework } from '../lib/frameworks'
 import Layout from '../components/Layout'
 import { ArrowLeft, Save, Plus, X, Search, ChevronDown, Check } from 'lucide-react'
 import { showToast } from '../utils/toast'
@@ -63,26 +64,41 @@ export default function QuestionLibraryEdit() {
     response_type: 'Text',
     is_required: false,
     options: [] as Array<{ value: string; label: string }>,
-    type_of_control: 'multi_select', // New field: Type of Control
+    compliance_framework_ids: [] as string[],
+    risk_framework_ids: [] as string[],
   })
   const [assessmentTypeSearchOpen, setAssessmentTypeSearchOpen] = useState(false)
   const [assessmentTypeSearchTerm, setAssessmentTypeSearchTerm] = useState('')
   const assessmentTypeDropdownRef = useRef<HTMLDivElement>(null)
+  const [complianceFrameworkSearchOpen, setComplianceFrameworkSearchOpen] = useState(false)
+  const [complianceFrameworkSearchTerm, setComplianceFrameworkSearchTerm] = useState('')
+  const complianceFrameworkDropdownRef = useRef<HTMLDivElement>(null)
+  const [riskFrameworkSearchOpen, setRiskFrameworkSearchOpen] = useState(false)
+  const [riskFrameworkSearchTerm, setRiskFrameworkSearchTerm] = useState('')
+  const riskFrameworkDropdownRef = useRef<HTMLDivElement>(null)
 
-  // Close dropdown when clicking outside
+  // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (assessmentTypeDropdownRef.current && !assessmentTypeDropdownRef.current.contains(event.target as Node)) {
         setAssessmentTypeSearchOpen(false)
         setAssessmentTypeSearchTerm('')
       }
+      if (complianceFrameworkDropdownRef.current && !complianceFrameworkDropdownRef.current.contains(event.target as Node)) {
+        setComplianceFrameworkSearchOpen(false)
+        setComplianceFrameworkSearchTerm('')
+      }
+      if (riskFrameworkDropdownRef.current && !riskFrameworkDropdownRef.current.contains(event.target as Node)) {
+        setRiskFrameworkSearchOpen(false)
+        setRiskFrameworkSearchTerm('')
+      }
     }
 
-    if (assessmentTypeSearchOpen) {
+    if (assessmentTypeSearchOpen || complianceFrameworkSearchOpen || riskFrameworkSearchOpen) {
       document.addEventListener('mousedown', handleClickOutside)
       return () => document.removeEventListener('mousedown', handleClickOutside)
     }
-  }, [assessmentTypeSearchOpen])
+  }, [assessmentTypeSearchOpen, complianceFrameworkSearchOpen, riskFrameworkSearchOpen])
 
   useEffect(() => {
     authApi.getCurrentUser()
@@ -109,6 +125,14 @@ export default function QuestionLibraryEdit() {
     ? assessmentTypesData.map((v: MasterDataValue) => ({ value: v.value as AssessmentType, label: v.label }))
     : ASSESSMENT_TYPES_FALLBACK
 
+  // Fetch compliance and risk frameworks
+  const { data: frameworks = [] } = useQuery({
+    queryKey: ['compliance-frameworks'],
+    queryFn: () => frameworksApi.list(),
+    enabled: !!user,
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+  })
+
   // Fetch the question to edit
   const { data: question, isLoading: questionLoading } = useQuery({
     queryKey: ['question-library', id],
@@ -117,10 +141,26 @@ export default function QuestionLibraryEdit() {
       const questions = await questionLibraryApi.list({})
       const found = questions.find(q => q.id === id)
       if (!found) throw new Error('Question not found')
+      console.log('Fetched question:', {
+        id: found.id,
+        title: found.title,
+        compliance_framework_ids: found.compliance_framework_ids,
+        risk_framework_ids: found.risk_framework_ids,
+        fullQuestion: found
+      })
       return found
     },
     enabled: !!id && !!user?.tenant_id,
   })
+
+  // Helper function to auto-map response_type based on field_type
+  const getResponseTypeForFieldType = (fieldType: string): string => {
+    if (fieldType === 'file') return 'File'
+    if (fieldType === 'number') return 'Number'
+    if (fieldType === 'date') return 'Date'
+    if (fieldType === 'url') return 'URL'
+    return 'Text' // Default for text, textarea, email, select, multi_select, radio, checkbox
+  }
 
   // Populate form when question is loaded
   useEffect(() => {
@@ -132,6 +172,28 @@ export default function QuestionLibraryEdit() {
           ? [question.assessment_type] 
           : ['tprm']
       
+      // Ensure response_type is set (required field)
+      const responseType = question.response_type || getResponseTypeForFieldType(question.field_type)
+      
+      // Ensure framework IDs are arrays
+      const complianceIds = Array.isArray(question.compliance_framework_ids) 
+        ? question.compliance_framework_ids 
+        : question.compliance_framework_ids 
+          ? [question.compliance_framework_ids] 
+          : []
+      
+      const riskIds = Array.isArray(question.risk_framework_ids) 
+        ? question.risk_framework_ids 
+        : question.risk_framework_ids 
+          ? [question.risk_framework_ids] 
+          : []
+      
+      console.log('Loading question with framework IDs:', {
+        compliance: complianceIds,
+        risk: riskIds,
+        question: question.title
+      })
+      
       setFormData({
         title: question.title,
         question_text: question.question_text,
@@ -139,10 +201,11 @@ export default function QuestionLibraryEdit() {
         assessment_type: assessmentTypes as AssessmentType[],
         category: question.category || '',
         field_type: question.field_type,
-        response_type: question.response_type,
+        response_type: responseType,
         is_required: question.is_required,
         options: question.options || [],
-        type_of_control: (question as any).type_of_control || 'multi_select',
+        compliance_framework_ids: complianceIds,
+        risk_framework_ids: riskIds,
       })
     }
   }, [question])
@@ -167,6 +230,9 @@ export default function QuestionLibraryEdit() {
   const handleUpdate = () => {
     if (!id) return
     
+    // Ensure response_type is set (required field)
+    const responseType = formData.response_type || getResponseTypeForFieldType(formData.field_type)
+    
     // Prepare update data - only include fields that have changed or are required
     const updateData: Partial<QuestionLibraryType> = {
       title: formData.title,
@@ -175,15 +241,16 @@ export default function QuestionLibraryEdit() {
       assessment_type: formData.assessment_type, // Ensure it's an array
       category: formData.category || undefined,
       field_type: formData.field_type,
-      response_type: formData.response_type,
+      response_type: responseType, // Always include response_type (required)
       is_required: formData.is_required,
       options: formData.options && formData.options.length > 0 ? formData.options : undefined,
-      type_of_control: formData.type_of_control,
+      compliance_framework_ids: formData.compliance_framework_ids.length > 0 ? formData.compliance_framework_ids : undefined,
+      risk_framework_ids: formData.risk_framework_ids.length > 0 ? formData.risk_framework_ids : undefined,
     }
     
-    // Remove undefined values to avoid sending them
+    // Remove undefined values to avoid sending them (but keep response_type)
     Object.keys(updateData).forEach(key => {
-      if (updateData[key as keyof typeof updateData] === undefined) {
+      if (key !== 'response_type' && updateData[key as keyof typeof updateData] === undefined) {
         delete updateData[key as keyof typeof updateData]
       }
     })
@@ -419,34 +486,38 @@ export default function QuestionLibraryEdit() {
                 </select>
               </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Input Configuration Section */}
+            <div className="border-t border-gray-200 pt-6">
+              <h3 className="text-sm font-semibold text-gray-900 mb-4">Input Configuration</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-semibold text-gray-900 mb-2">Type of Control</label>
-                <select
-                  value={formData.type_of_control}
-                  onChange={(e) => setFormData({ ...formData, type_of_control: e.target.value })}
-                  className="w-full px-4 py-2.5 text-sm rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                >
-                  <option value="single_select">Single Select</option>
-                  <option value="multi_select">Multi Select</option>
-                  <option value="checkbox">Checkbox</option>
-                  <option value="radio">Radio</option>
-                </select>
-                <p className="text-xs text-gray-500 mt-1">Controls how assessment types are displayed/selected</p>
-              </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-semibold text-gray-900 mb-2">Field Type *</label>
+                <label className="block text-sm font-semibold text-gray-900 mb-2">
+                  Input Control * 
+                  <span className="text-xs font-normal text-gray-500 ml-2">(What UI element users see: text box, radio buttons, file upload, etc.)</span>
+                </label>
                 <select
                   value={formData.field_type}
                   onChange={(e) => {
                     const newFieldType = e.target.value
+                    // Auto-map response_type based on field_type
+                    let newResponseType = formData.response_type
+                    if (newFieldType === 'file') {
+                      newResponseType = 'File'
+                    } else if (newFieldType === 'number') {
+                      newResponseType = 'Number'
+                    } else if (newFieldType === 'date') {
+                      newResponseType = 'Date'
+                    } else if (newFieldType === 'url') {
+                      newResponseType = 'URL'
+                    } else if (['text', 'textarea', 'email', 'select', 'multi_select', 'radio', 'checkbox'].includes(newFieldType)) {
+                      newResponseType = 'Text'
+                    }
+                    
                     // Reset options if switching away from option-based field types
                     if (!['select', 'multi_select', 'radio', 'checkbox'].includes(newFieldType)) {
-                      setFormData({ ...formData, field_type: newFieldType, options: [] })
+                      setFormData({ ...formData, field_type: newFieldType, response_type: newResponseType, options: [] })
                     } else {
-                      setFormData({ ...formData, field_type: newFieldType })
+                      setFormData({ ...formData, field_type: newFieldType, response_type: newResponseType })
                     }
                   }}
                   className="w-full px-4 py-2.5 text-sm rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
@@ -455,22 +526,55 @@ export default function QuestionLibraryEdit() {
                     <option key={type.value} value={type.value}>{type.label}</option>
                   ))}
                 </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  {formData.field_type === 'text' && 'Single-line text input'}
+                  {formData.field_type === 'textarea' && 'Multi-line text input'}
+                  {formData.field_type === 'number' && 'Numeric input'}
+                  {formData.field_type === 'email' && 'Email address input'}
+                  {formData.field_type === 'url' && 'URL input'}
+                  {formData.field_type === 'select' && 'Dropdown selection (single choice)'}
+                  {formData.field_type === 'multi_select' && 'Multi-select dropdown (multiple choices)'}
+                  {formData.field_type === 'radio' && 'Radio buttons (single choice, e.g., Yes/No)'}
+                  {formData.field_type === 'checkbox' && 'Checkboxes (multiple choices)'}
+                  {formData.field_type === 'date' && 'Date picker'}
+                  {formData.field_type === 'file' && 'File upload'}
+                </p>
               </div>
-              {/* Response Type only for text-based fields */}
-              {['text', 'textarea', 'email', 'url', 'number'].includes(formData.field_type) && (
-                <div>
-                  <label className="block text-sm font-semibold text-gray-900 mb-2">Response Type *</label>
-                  <select
-                    value={formData.response_type}
-                    onChange={(e) => setFormData({ ...formData, response_type: e.target.value })}
-                    className="w-full px-4 py-2.5 text-sm rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                  >
-                    {RESPONSE_TYPES.map(type => (
-                      <option key={type.value} value={type.value}>{type.label}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
+              
+              <div>
+                <label className="block text-sm font-semibold text-gray-900 mb-2">
+                  Data Type * 
+                  <span className="text-xs font-normal text-gray-500 ml-2">(How the answer is stored: Text, File, Number, Date, URL)</span>
+                </label>
+                <select
+                  value={formData.response_type}
+                  onChange={(e) => setFormData({ ...formData, response_type: e.target.value })}
+                  disabled={['file', 'number', 'date'].includes(formData.field_type)}
+                  className={`w-full px-4 py-2.5 text-sm rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 ${
+                    ['file', 'number', 'date'].includes(formData.field_type) ? 'bg-gray-100 cursor-not-allowed' : ''
+                  }`}
+                >
+                  {RESPONSE_TYPES.map(type => (
+                    <option key={type.value} value={type.value}>{type.label}</option>
+                  ))}
+                </select>
+                {['file', 'number', 'date'].includes(formData.field_type) && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Response type is automatically set based on field type
+                  </p>
+                )}
+                {formData.field_type === 'url' && formData.response_type !== 'URL' && (
+                  <p className="text-xs text-amber-600 mt-1">
+                    ⚠️ Recommended: Set response type to "URL" for URL fields
+                  </p>
+                )}
+                {['select', 'multi_select', 'radio', 'checkbox'].includes(formData.field_type) && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Selected option values are stored as text (or array for multi-select/checkbox)
+                  </p>
+                )}
+              </div>
+              </div>
             </div>
             
             {/* Options section for select, multi_select, radio, checkbox */}
@@ -541,7 +645,231 @@ export default function QuestionLibraryEdit() {
                 </div>
               </div>
             )}
-            <div>
+            
+            {/* Compliance & Risk Frameworks Section */}
+            <div className="border-t border-gray-200 pt-6">
+              <h3 className="text-sm font-semibold text-gray-900 mb-4">Compliance & Risk Frameworks</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Compliance Frameworks */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-900 mb-2">
+                    Compliance Frameworks
+                    <span className="text-xs font-normal text-gray-500 ml-2">(Which compliance frameworks this question addresses)</span>
+                  </label>
+                  <div className="relative" ref={complianceFrameworkDropdownRef}>
+                    <button
+                      type="button"
+                      onClick={() => setComplianceFrameworkSearchOpen(!complianceFrameworkSearchOpen)}
+                      className="w-full px-4 py-2.5 text-sm text-left rounded-lg border border-gray-300 bg-white hover:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 flex items-center justify-between"
+                    >
+                      <span className="text-gray-700">
+                        {formData.compliance_framework_ids.length > 0
+                          ? `${formData.compliance_framework_ids.length} selected`
+                          : 'Select frameworks...'}
+                      </span>
+                      <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${complianceFrameworkSearchOpen ? 'transform rotate-180' : ''}`} />
+                    </button>
+                    {complianceFrameworkSearchOpen && (
+                      <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-64 overflow-hidden">
+                        <div className="p-2 border-b border-gray-200">
+                          <div className="relative">
+                            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                            <input
+                              type="text"
+                              value={complianceFrameworkSearchTerm}
+                              onChange={(e) => setComplianceFrameworkSearchTerm(e.target.value)}
+                              placeholder="Search frameworks..."
+                              className="w-full pl-8 pr-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                          </div>
+                        </div>
+                        <div className="max-h-48 overflow-y-auto">
+                          {frameworks
+                            .filter(fw => fw.name.toLowerCase().includes(complianceFrameworkSearchTerm.toLowerCase()))
+                            .map(framework => {
+                              const isSelected = formData.compliance_framework_ids.includes(framework.id)
+                              return (
+                                <label
+                                  key={framework.id}
+                                  className="flex items-center gap-2 px-4 py-2 hover:bg-gray-50 cursor-pointer"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={isSelected}
+                                    onChange={(e) => {
+                                      if (e.target.checked) {
+                                        setFormData({
+                                          ...formData,
+                                          compliance_framework_ids: [...formData.compliance_framework_ids, framework.id]
+                                        })
+                                      } else {
+                                        setFormData({
+                                          ...formData,
+                                          compliance_framework_ids: formData.compliance_framework_ids.filter(id => id !== framework.id)
+                                        })
+                                      }
+                                    }}
+                                    className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-2 focus:ring-indigo-500"
+                                  />
+                                  <span className="text-sm text-gray-700 flex-1">{framework.name}</span>
+                                  {isSelected && <Check className="w-4 h-4 text-indigo-600" />}
+                                </label>
+                              )
+                            })}
+                          {frameworks.filter(fw => fw.name.toLowerCase().includes(complianceFrameworkSearchTerm.toLowerCase())).length === 0 && (
+                            <div className="px-4 py-8 text-center text-sm text-gray-500">
+                              No frameworks found
+                            </div>
+                          )}
+                        </div>
+                        {formData.compliance_framework_ids.length > 0 && (
+                          <div className="p-2 border-t border-gray-200 bg-gray-50">
+                            <div className="flex flex-wrap gap-1">
+                              {formData.compliance_framework_ids.map(fwId => {
+                                const framework = frameworks.find(fw => fw.id === fwId)
+                                return framework ? (
+                                  <span
+                                    key={fwId}
+                                    className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-indigo-100 text-indigo-700 rounded"
+                                  >
+                                    {framework.name}
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        setFormData({
+                                          ...formData,
+                                          compliance_framework_ids: formData.compliance_framework_ids.filter(id => id !== fwId)
+                                        })
+                                      }}
+                                      className="hover:text-indigo-900"
+                                    >
+                                      <X className="w-3 h-3" />
+                                    </button>
+                                  </span>
+                                ) : null
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                
+                {/* Risk Frameworks */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-900 mb-2">
+                    Risk Frameworks
+                    <span className="text-xs font-normal text-gray-500 ml-2">(Which risk frameworks this question addresses)</span>
+                  </label>
+                  <div className="relative" ref={riskFrameworkDropdownRef}>
+                    <button
+                      type="button"
+                      onClick={() => setRiskFrameworkSearchOpen(!riskFrameworkSearchOpen)}
+                      className="w-full px-4 py-2.5 text-sm text-left rounded-lg border border-gray-300 bg-white hover:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 flex items-center justify-between"
+                    >
+                      <span className="text-gray-700">
+                        {formData.risk_framework_ids.length > 0
+                          ? `${formData.risk_framework_ids.length} selected`
+                          : 'Select frameworks...'}
+                      </span>
+                      <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${riskFrameworkSearchOpen ? 'transform rotate-180' : ''}`} />
+                    </button>
+                    {riskFrameworkSearchOpen && (
+                      <div className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-64 overflow-hidden">
+                        <div className="p-2 border-b border-gray-200">
+                          <div className="relative">
+                            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                            <input
+                              type="text"
+                              value={riskFrameworkSearchTerm}
+                              onChange={(e) => setRiskFrameworkSearchTerm(e.target.value)}
+                              placeholder="Search frameworks..."
+                              className="w-full pl-8 pr-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                          </div>
+                        </div>
+                        <div className="max-h-48 overflow-y-auto">
+                          {frameworks
+                            .filter(fw => fw.name.toLowerCase().includes(riskFrameworkSearchTerm.toLowerCase()))
+                            .map(framework => {
+                              const isSelected = formData.risk_framework_ids.includes(framework.id)
+                              return (
+                                <label
+                                  key={framework.id}
+                                  className="flex items-center gap-2 px-4 py-2 hover:bg-gray-50 cursor-pointer"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={isSelected}
+                                    onChange={(e) => {
+                                      if (e.target.checked) {
+                                        setFormData({
+                                          ...formData,
+                                          risk_framework_ids: [...formData.risk_framework_ids, framework.id]
+                                        })
+                                      } else {
+                                        setFormData({
+                                          ...formData,
+                                          risk_framework_ids: formData.risk_framework_ids.filter(id => id !== framework.id)
+                                        })
+                                      }
+                                    }}
+                                    className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-2 focus:ring-indigo-500"
+                                  />
+                                  <span className="text-sm text-gray-700 flex-1">{framework.name}</span>
+                                  {isSelected && <Check className="w-4 h-4 text-indigo-600" />}
+                                </label>
+                              )
+                            })}
+                          {frameworks.filter(fw => fw.name.toLowerCase().includes(riskFrameworkSearchTerm.toLowerCase())).length === 0 && (
+                            <div className="px-4 py-8 text-center text-sm text-gray-500">
+                              No frameworks found
+                            </div>
+                          )}
+                        </div>
+                        {formData.risk_framework_ids.length > 0 && (
+                          <div className="p-2 border-t border-gray-200 bg-gray-50">
+                            <div className="flex flex-wrap gap-1">
+                              {formData.risk_framework_ids.map(fwId => {
+                                const framework = frameworks.find(fw => fw.id === fwId)
+                                return framework ? (
+                                  <span
+                                    key={fwId}
+                                    className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-orange-100 text-orange-700 rounded"
+                                  >
+                                    {framework.name}
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        setFormData({
+                                          ...formData,
+                                          risk_framework_ids: formData.risk_framework_ids.filter(id => id !== fwId)
+                                        })
+                                      }}
+                                      className="hover:text-orange-900"
+                                    >
+                                      <X className="w-3 h-3" />
+                                    </button>
+                                  </span>
+                                ) : null
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Required Field */}
+            <div className="border-t border-gray-200 pt-6">
               <label className="flex items-center gap-3 cursor-pointer">
                 <input
                   type="checkbox"
@@ -549,7 +877,8 @@ export default function QuestionLibraryEdit() {
                   onChange={(e) => setFormData({ ...formData, is_required: e.target.checked })}
                   className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-2 focus:ring-indigo-500"
                 />
-                <span className="text-sm font-semibold text-gray-900">Required</span>
+                <span className="text-sm font-semibold text-gray-900">Required Question</span>
+                <span className="text-xs text-gray-500">(Vendor must answer this question)</span>
               </label>
             </div>
           </div>
@@ -567,6 +896,7 @@ export default function QuestionLibraryEdit() {
               disabled={
                 !formData.title || 
                 !formData.question_text || 
+                !formData.response_type ||
                 formData.assessment_type.length === 0 || 
                 (['select', 'multi_select', 'radio', 'checkbox'].includes(formData.field_type) && formData.options.length === 0) ||
                 (['select', 'multi_select', 'radio', 'checkbox'].includes(formData.field_type) && formData.options.some(opt => !opt.value || !opt.label)) ||

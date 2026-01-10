@@ -183,6 +183,25 @@ async def list_frameworks(
     
     frameworks = query.order_by(ComplianceFramework.name).all()
     
+    # Convert to response models
+    result = []
+    for framework in frameworks:
+        try:
+            result.append(FrameworkResponse(
+                id=str(framework.id),
+                name=framework.name,
+                code=framework.code,
+                description=framework.description,
+                region=framework.region,
+                category=framework.category,
+                version=framework.version,
+                status=framework.status,
+                is_active=framework.is_active,
+            ))
+        except Exception as e:
+            logger.error(f"Error serializing framework {framework.id}: {e}", exc_info=True)
+            continue
+    
     # Filter by tenant industry
     if current_user.tenant_id:
         from app.models.tenant import Tenant
@@ -198,26 +217,34 @@ async def list_frameworks(
         
         if tenant_industry:
             filtered_frameworks = []
-            for framework in frameworks:
+            for framework in result:
+                # Find the original framework object to check applicable_industries
+                original_fw = next((fw for fw in frameworks if str(fw.id) == framework.id), None)
+                if not original_fw:
+                    continue
                 # If framework has no applicable_industries set, show it (backward compatibility)
-                if not framework.applicable_industries:
+                if not original_fw.applicable_industries:
                     filtered_frameworks.append(framework)
                 # If framework applies to all industries
-                elif "all" in framework.applicable_industries:
+                elif "all" in original_fw.applicable_industries:
                     filtered_frameworks.append(framework)
                 # If framework applies to tenant's industry
-                elif tenant_industry in framework.applicable_industries:
+                elif tenant_industry in original_fw.applicable_industries:
                     filtered_frameworks.append(framework)
-            frameworks = filtered_frameworks
+            result = filtered_frameworks
         else:
             # If tenant has no industry set, only show frameworks that apply to all or have no industry filter
             filtered_frameworks = []
-            for framework in frameworks:
-                if not framework.applicable_industries or "all" in framework.applicable_industries:
+            for framework in result:
+                # Find the original framework object to check applicable_industries
+                original_fw = next((fw for fw in frameworks if str(fw.id) == framework.id), None)
+                if not original_fw:
+                    continue
+                if not original_fw.applicable_industries or "all" in original_fw.applicable_industries:
                     filtered_frameworks.append(framework)
-            frameworks = filtered_frameworks
+            result = filtered_frameworks
     
-    return frameworks
+    return result
 
 
 @router.get("/agents/{agent_id}/requirements", response_model=List[RequirementTreeResponse])

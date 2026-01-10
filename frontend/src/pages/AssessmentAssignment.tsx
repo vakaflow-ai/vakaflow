@@ -597,22 +597,113 @@ export default function AssessmentAssignmentPage() {
                             </td>
                             <td className="px-4 py-3">
                               {isReadOnly ? (
-                                <div className="text-sm text-gray-900 whitespace-pre-wrap max-w-md">
+                                <div className="text-sm text-gray-900 max-w-md">
                                   {(() => {
                                     // Format answer based on question type for display
                                     if (question.response_type === 'File' || question.field_type === 'file') {
                                       // Show file names if files are uploaded
                                       if (response.documents && response.documents.length > 0) {
-                                        return response.documents.map((doc: any, idx: number) => (
-                                          <div key={idx} className="flex items-center gap-2 mb-1">
-                                            <FileText className="w-4 h-4 text-gray-500" />
-                                            <span>{doc.name || doc.path || `File ${idx + 1}`}</span>
+                                        return (
+                                          <div className="space-y-1">
+                                            {response.documents.map((doc: any, idx: number) => (
+                                              <div key={idx} className="flex items-center gap-2">
+                                                <FileText className="w-4 h-4 text-gray-500 flex-shrink-0" />
+                                                <span className="text-gray-700">{doc.name || doc.path || `File ${idx + 1}`}</span>
+                                                {doc.size && (
+                                                  <span className="text-xs text-gray-500">
+                                                    ({(doc.size / 1024).toFixed(1)} KB)
+                                                  </span>
+                                                )}
+                                              </div>
+                                            ))}
                                           </div>
-                                        ))
+                                        )
                                       }
                                       return <span className="text-gray-400 italic">No file uploaded</span>
                                     }
-                                    return vendorAnswer || <span className="text-gray-400 italic">No answer provided</span>
+                                    
+                                    // Handle URL type
+                                    if (question.response_type === 'URL' || question.field_type === 'url') {
+                                      if (vendorAnswer) {
+                                        return (
+                                          <a 
+                                            href={vendorAnswer} 
+                                            target="_blank" 
+                                            rel="noopener noreferrer" 
+                                            className="text-blue-600 hover:underline break-all"
+                                          >
+                                            {vendorAnswer}
+                                          </a>
+                                        )
+                                      }
+                                      return <span className="text-gray-400 italic">No URL provided</span>
+                                    }
+                                    
+                                    // Handle number type
+                                    if (question.response_type === 'Number' || question.field_type === 'number') {
+                                      return vendorAnswer ? (
+                                        <span className="font-mono">{vendorAnswer}</span>
+                                      ) : (
+                                        <span className="text-gray-400 italic">No number provided</span>
+                                      )
+                                    }
+                                    
+                                    // Handle date type
+                                    if (question.response_type === 'Date' || question.field_type === 'date') {
+                                      return vendorAnswer ? (
+                                        <span>{vendorAnswer}</span>
+                                      ) : (
+                                        <span className="text-gray-400 italic">No date provided</span>
+                                      )
+                                    }
+                                    
+                                    // Handle radio/select - show selected option label
+                                    if ((question.field_type === 'radio' || question.field_type === 'select') && question.options) {
+                                      if (vendorAnswer) {
+                                        const selectedOption = question.options.find((opt: any) => {
+                                          const optValue = typeof opt === 'string' ? opt : opt.value
+                                          return optValue === vendorAnswer
+                                        })
+                                        if (selectedOption) {
+                                          const optLabel = typeof selectedOption === 'string' ? selectedOption : selectedOption.label || selectedOption.value
+                                          return <span className="font-medium">{optLabel}</span>
+                                        }
+                                      }
+                                      return <span className="text-gray-400 italic">No selection made</span>
+                                    }
+                                    
+                                    // Handle checkbox/multi-select - show selected option labels
+                                    if ((question.field_type === 'checkbox' || question.field_type === 'multi_select') && question.options) {
+                                      if (vendorAnswer) {
+                                        const selectedValues = Array.isArray(response.value) ? response.value : [response.value].filter(Boolean)
+                                        if (selectedValues.length > 0) {
+                                          const selectedLabels = selectedValues.map((val: any) => {
+                                            const opt = question.options.find((opt: any) => {
+                                              const optValue = typeof opt === 'string' ? opt : opt.value
+                                              return optValue === val
+                                            })
+                                            return opt ? (typeof opt === 'string' ? opt : opt.label || opt.value) : val
+                                          })
+                                          return (
+                                            <div className="flex flex-wrap gap-1">
+                                              {selectedLabels.map((label: string, idx: number) => (
+                                                <span key={idx} className="inline-flex items-center px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs font-medium">
+                                                  {label}
+                                                </span>
+                                              ))}
+                                            </div>
+                                          )
+                                        }
+                                      }
+                                      return <span className="text-gray-400 italic">No selections made</span>
+                                    }
+                                    
+                                    // Default: text/textarea - show with proper formatting
+                                    return vendorAnswer ? (
+                                      <div className="whitespace-pre-wrap leading-relaxed">{vendorAnswer}</div>
+                                    ) : (
+                                      <span className="text-gray-400 italic">No answer provided</span>
+                                    )
                                   })()}
                                 </div>
                               ) : (
@@ -690,27 +781,78 @@ export default function AssessmentAssignmentPage() {
                                           value={response.value || ''}
                                           onChange={(e) => handleResponseChange(question.id, e.target.value)}
                                           disabled={isReadOnly}
-                                          placeholder="Enter your response..."
+                                          placeholder="Enter your detailed response..."
                                           rows={4}
                                           className="w-full px-3 py-2 rounded-md border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
                                         />
                                       )
                                     }
                                     
-                                    // Handle Yes/No options (radio buttons)
-                                    if (question.field_type === 'radio' || (question.options && question.options.length === 2 && 
-                                        question.options.some((opt: any) => {
-                                          const val = typeof opt === 'string' ? opt.toLowerCase() : opt.value?.toLowerCase()
-                                          return val === 'yes' || val === 'no'
-                                        }))) {
+                                    // Handle number type
+                                    if (question.field_type === 'number' || question.response_type === 'Number') {
                                       return (
-                                        <div className="flex gap-4">
-                                          {question.options?.map((opt: any) => {
+                                        <Input
+                                          type="number"
+                                          value={response.value || ''}
+                                          onChange={(e) => handleResponseChange(question.id, e.target.value ? parseFloat(e.target.value) : '')}
+                                          disabled={isReadOnly}
+                                          placeholder="Enter a number..."
+                                          className="w-full"
+                                        />
+                                      )
+                                    }
+                                    
+                                    // Handle date type
+                                    if (question.field_type === 'date' || question.response_type === 'Date') {
+                                      return (
+                                        <Input
+                                          type="date"
+                                          value={response.value || ''}
+                                          onChange={(e) => handleResponseChange(question.id, e.target.value)}
+                                          disabled={isReadOnly}
+                                          className="w-full"
+                                        />
+                                      )
+                                    }
+                                    
+                                    // Handle email type
+                                    if (question.field_type === 'email') {
+                                      return (
+                                        <Input
+                                          type="email"
+                                          value={response.value || ''}
+                                          onChange={(e) => handleResponseChange(question.id, e.target.value)}
+                                          disabled={isReadOnly}
+                                          placeholder="Enter email address..."
+                                          className="w-full"
+                                        />
+                                      )
+                                    }
+                                    
+                                    // Handle URL type
+                                    if (question.field_type === 'url' || question.response_type === 'URL') {
+                                      return (
+                                        <Input
+                                          type="url"
+                                          value={response.value || ''}
+                                          onChange={(e) => handleResponseChange(question.id, e.target.value)}
+                                          disabled={isReadOnly}
+                                          placeholder="Enter URL (e.g., https://example.com)..."
+                                          className="w-full"
+                                        />
+                                      )
+                                    }
+                                    
+                                    // Handle radio buttons (including Yes/No)
+                                    if (question.field_type === 'radio' && question.options && question.options.length > 0) {
+                                      return (
+                                        <div className="flex flex-wrap gap-4">
+                                          {question.options.map((opt: any) => {
                                             const optValue = typeof opt === 'string' ? opt : opt.value
-                                            const optLabel = typeof opt === 'string' ? opt : opt.label
+                                            const optLabel = typeof opt === 'string' ? opt : opt.label || optValue
                                             const isSelected = response.value === optValue
                                             return (
-                                              <label key={optValue} className="flex items-center gap-2 text-sm cursor-pointer">
+                                              <label key={optValue} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-gray-50 px-3 py-2 rounded transition-colors">
                                                 <input
                                                   type="radio"
                                                   name={`question-${question.id}`}
@@ -720,7 +862,7 @@ export default function AssessmentAssignmentPage() {
                                                   disabled={isReadOnly}
                                                   className="w-4 h-4 text-indigo-600 border-gray-300 focus:ring-indigo-500"
                                                 />
-                                                <span>{optLabel}</span>
+                                                <span className="text-gray-700">{optLabel}</span>
                                               </label>
                                             )
                                           })}
@@ -735,12 +877,12 @@ export default function AssessmentAssignmentPage() {
                                           value={response.value || ''}
                                           onChange={(e) => handleResponseChange(question.id, e.target.value)}
                                           disabled={isReadOnly}
-                                          className="w-full px-3 py-2 rounded-md border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50"
+                                          className="w-full px-3 py-2 rounded-md border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed bg-white"
                                         >
                                           <option value="">Select an option...</option>
                                           {question.options?.map((opt: any) => {
                                             const optValue = typeof opt === 'string' ? opt : opt.value
-                                            const optLabel = typeof opt === 'string' ? opt : opt.label
+                                            const optLabel = typeof opt === 'string' ? opt : opt.label || optValue
                                             return (
                                               <option key={optValue} value={optValue}>{optLabel}</option>
                                             )
@@ -752,36 +894,40 @@ export default function AssessmentAssignmentPage() {
                                     // Handle checkbox/multi-select
                                     if (question.field_type === 'checkbox' || question.field_type === 'multi_select') {
                                       return (
-                                        <div className="space-y-2">
-                                          {question.options?.map((opt: any) => {
-                                            const optValue = typeof opt === 'string' ? opt : opt.value
-                                            const optLabel = typeof opt === 'string' ? opt : opt.label
-                                            const isChecked = Array.isArray(response.value) 
-                                              ? response.value.includes(optValue)
-                                              : response.value === optValue
-                                            return (
-                                              <label key={optValue} className="flex items-center gap-2 text-sm cursor-pointer">
-                                                <input
-                                                  type="checkbox"
-                                                  checked={isChecked}
-                                                  onChange={(e) => {
-                                                    if (question.field_type === 'multi_select') {
-                                                      const currentValues = Array.isArray(response.value) ? response.value : []
-                                                      const newValues = e.target.checked
-                                                        ? [...currentValues, optValue]
-                                                        : currentValues.filter((v: any) => v !== optValue)
-                                                      handleResponseChange(question.id, newValues)
-                                                    } else {
-                                                      handleResponseChange(question.id, e.target.checked ? optValue : '')
-                                                    }
-                                                  }}
-                                                  disabled={isReadOnly}
-                                                  className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
-                                                />
-                                                <span>{optLabel}</span>
-                                              </label>
-                                            )
-                                          })}
+                                        <div className="space-y-2 border border-gray-200 rounded-md p-3 bg-gray-50">
+                                          {question.options && question.options.length > 0 ? (
+                                            question.options.map((opt: any) => {
+                                              const optValue = typeof opt === 'string' ? opt : opt.value
+                                              const optLabel = typeof opt === 'string' ? opt : opt.label || optValue
+                                              const isChecked = Array.isArray(response.value) 
+                                                ? response.value.includes(optValue)
+                                                : response.value === optValue
+                                              return (
+                                                <label key={optValue} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-white px-2 py-1 rounded transition-colors">
+                                                  <input
+                                                    type="checkbox"
+                                                    checked={isChecked}
+                                                    onChange={(e) => {
+                                                      if (question.field_type === 'multi_select') {
+                                                        const currentValues = Array.isArray(response.value) ? response.value : (response.value ? [response.value] : [])
+                                                        const newValues = e.target.checked
+                                                          ? [...currentValues, optValue]
+                                                          : currentValues.filter((v: any) => v !== optValue)
+                                                        handleResponseChange(question.id, newValues.length > 0 ? newValues : '')
+                                                      } else {
+                                                        handleResponseChange(question.id, e.target.checked ? optValue : '')
+                                                      }
+                                                    }}
+                                                    disabled={isReadOnly}
+                                                    className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                                                  />
+                                                  <span className="text-gray-700">{optLabel}</span>
+                                                </label>
+                                              )
+                                            })
+                                          ) : (
+                                            <p className="text-xs text-gray-500 italic">No options configured for this question</p>
+                                          )}
                                         </div>
                                       )
                                     }
@@ -789,6 +935,7 @@ export default function AssessmentAssignmentPage() {
                                     // Default: text input
                                     return (
                                       <Input
+                                        type="text"
                                         value={response.value || ''}
                                         onChange={(e) => handleResponseChange(question.id, e.target.value)}
                                         disabled={isReadOnly}

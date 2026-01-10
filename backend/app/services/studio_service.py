@@ -450,7 +450,8 @@ class StudioService:
         source: str,
         skill: str,
         input_data: Dict[str, Any],
-        mcp_connection_id: Optional[UUID] = None
+        mcp_connection_id: Optional[UUID] = None,
+        triggered_by: Optional[UUID] = None
     ) -> Dict[str, Any]:
         """
         Execute an agent skill from Studio
@@ -693,10 +694,24 @@ class StudioService:
                         "Please ensure vendor_id is provided when executing TPRM from Studio."
                     )
                 
-                result = await agent.execute_skill(skill, input_data)
-                execution_time = time.time() - start_time
-                logger.info(f"Skill execution completed in {execution_time:.2f}s")
-                return result
+                # Build context for agent execution (includes tenant_id and triggered_by)
+                agent_context = {
+                    "tenant_id": str(tenant_id),
+                }
+                if triggered_by:
+                    agent_context["triggered_by"] = str(triggered_by)
+                
+                logger.info(f"🔍 Executing agent skill '{skill}' with context: tenant_id={tenant_id}, triggered_by={triggered_by}")
+                try:
+                    result = await agent.execute_skill(skill, input_data, context=agent_context)
+                    execution_time = time.time() - start_time
+                    logger.info(f"Skill execution completed in {execution_time:.2f}s")
+                    return result
+                except Exception as e:
+                    execution_time = time.time() - start_time
+                    logger.error(f"❌ Agent skill execution failed after {execution_time:.2f}s: {type(e).__name__}: {str(e)}", exc_info=True)
+                    logger.error(f"   Skill: {skill}, Agent: {agent.name}, Context: {agent_context}, Input keys: {list(input_data.keys())}")
+                    raise
         
             elif source == AgentSource.EXTERNAL.value:
                 # Execute external agent via MCP

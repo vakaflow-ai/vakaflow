@@ -27,7 +27,7 @@ class QuestionLibrary(Base):
     __tablename__ = "question_library"
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False, index=True)
+    tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=True, index=True)  # null = platform-wide question
     
     # Human-readable question ID (e.g., Q-SEC-01, Q-COM-02)
     question_id = Column(String(50), nullable=True, index=True, unique=False)  # Unique per tenant, not globally
@@ -49,10 +49,23 @@ class QuestionLibrary(Base):
     # Requirement Mapping
     # Questions can satisfy requirements (compliance requirements/objectives)
     requirement_ids = Column(JSON, nullable=True)  # Array of requirement IDs this question satisfies
-    compliance_framework_ids = Column(JSON, nullable=True)  # Array of framework IDs this question certifies
+    compliance_framework_ids = Column(JSON, nullable=True)  # Array of compliance framework IDs this question certifies
+    risk_framework_ids = Column(JSON, nullable=True)  # Array of risk framework IDs this question addresses
     
-    # Industry Applicability
+    # Industry and Vendor Applicability
     applicable_industries = Column(JSON, nullable=True)  # Array of industries (e.g., ["healthcare", "finance", "all"])
+    applicable_vendor_types = Column(JSON, nullable=True)  # Array of vendor types (e.g., ["ai_vendor", "saas_vendor", "service_provider", "cloud_provider", "all"])
+    
+    # Pass/Fail Criteria
+    # JSON structure defining when a response is considered "pass" or "fail"
+    # Example: {
+    #   "type": "exact_match" | "contains" | "range" | "file_uploaded" | "custom",
+    #   "pass_condition": "yes" | ["yes", "approved"] | {"min": 80, "max": 100} | true | "custom_function",
+    #   "fail_condition": "no" | ["no", "rejected"] | {"min": 0, "max": 50} | false,
+    #   "case_sensitive": false,
+    #   "custom_evaluator": "function_name"  # Optional: custom evaluation function
+    # }
+    pass_fail_criteria = Column(JSON, nullable=True)  # Pass/fail evaluation criteria
     
     # Metadata
     created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)

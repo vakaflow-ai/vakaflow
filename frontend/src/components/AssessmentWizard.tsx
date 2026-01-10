@@ -99,6 +99,7 @@ export default function AssessmentWizard({ onClose, onSuccess, userId, initialAs
     responseType: true,
     required: true,
     fieldType: false,
+    frameworks: true, // Show frameworks by default for compliance/risk teams
   })
   // Pagination for questions table
   const [questionsPage, setQuestionsPage] = useState(1)
@@ -1751,10 +1752,11 @@ export default function AssessmentWizard({ onClose, onSuccess, userId, initialAs
                           <div className="relative">
                             <button
                               onClick={() => {
-                                // Toggle column visibility dropdown (simplified - just toggle fieldType for now)
+                                // Toggle column visibility for fieldType and frameworks
                                 setQuestionColumnVisibility(prev => ({
                                   ...prev,
-                                  fieldType: !prev.fieldType
+                                  fieldType: !prev.fieldType,
+                                  frameworks: !prev.frameworks
                                 }))
                               }}
                               className="flex items-center gap-2 px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
@@ -1904,6 +1906,11 @@ export default function AssessmentWizard({ onClose, onSuccess, userId, initialAs
                                         Required
                                       </th>
                                     )}
+                                    {questionColumnVisibility.frameworks && (
+                                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 tracking-tight">
+                                        Frameworks
+                                      </th>
+                                    )}
                                   </tr>
                                 </thead>
                                 <tbody className="bg-white divide-y divide-gray-200">
@@ -1976,7 +1983,7 @@ export default function AssessmentWizard({ onClose, onSuccess, userId, initialAs
                                       {questionColumnVisibility.responseType && (
                                         <td className="px-4 py-3 whitespace-nowrap">
                                           <span className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded">
-                                            {q.response_type}
+                                            {q.response_type || 'Text'}
                                           </span>
                                         </td>
                                       )}
@@ -1996,6 +2003,26 @@ export default function AssessmentWizard({ onClose, onSuccess, userId, initialAs
                                               Optional
                                             </span>
                                           )}
+                                        </td>
+                                      )}
+                                      {questionColumnVisibility.frameworks && (
+                                        <td className="px-4 py-3">
+                                          <div className="flex flex-wrap gap-1">
+                                            {q.compliance_framework_ids && q.compliance_framework_ids.length > 0 && (
+                                              <span className="text-xs px-2 py-0.5 bg-purple-100 text-purple-800 rounded" title="Compliance Frameworks">
+                                                C: {q.compliance_framework_ids.length}
+                                              </span>
+                                            )}
+                                            {q.risk_framework_ids && q.risk_framework_ids.length > 0 && (
+                                              <span className="text-xs px-2 py-0.5 bg-orange-100 text-orange-800 rounded" title="Risk Frameworks">
+                                                R: {q.risk_framework_ids.length}
+                                              </span>
+                                            )}
+                                            {(!q.compliance_framework_ids || q.compliance_framework_ids.length === 0) && 
+                                             (!q.risk_framework_ids || q.risk_framework_ids.length === 0) && (
+                                              <span className="text-xs text-gray-400 italic">-</span>
+                                            )}
+                                          </div>
                                         </td>
                                       )}
                                     </tr>
@@ -2254,7 +2281,7 @@ export default function AssessmentWizard({ onClose, onSuccess, userId, initialAs
                                         question_text: libQ.question_text,
                                         description: libQ.description,
                                         field_type: libQ.field_type,
-                                        response_type: libQ.response_type,
+                                        response_type: libQ.response_type || 'Text', // Ensure response_type is always set
                                         category: libQ.category,
                                         is_required: libQ.is_required,
                                         options: libQ.options,
