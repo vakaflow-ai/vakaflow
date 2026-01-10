@@ -61,6 +61,14 @@ export default function AssessmentAssignmentPage() {
     queryKey: ['assessment-assignment', id],
     queryFn: () => assessmentsApi.getAssignmentStatus(id!),
     enabled: !!id,
+    retry: (failureCount, error: any) => {
+      // Don't retry on 404 errors (assignment doesn't exist)
+      if (error?.response?.status === 404) {
+        return false
+      }
+      // Retry other errors up to 2 times
+      return failureCount < 2
+    },
   })
 
   // Transform status response to assignment-like object for compatibility
@@ -326,9 +334,13 @@ export default function AssessmentAssignmentPage() {
   }
 
   if (assignmentError || !assignment) {
-    const errorMessage = assignmentError 
-      ? (assignmentError as any)?.response?.data?.detail || 'Failed to load assignment'
-      : 'Assessment assignment not found'
+    const error = assignmentError as any
+    const is404 = error?.response?.status === 404
+    const errorMessage = error?.response?.data?.detail || error?.message || 'Failed to load assignment'
+    
+    // Check if the ID might be a question response ID (they often have a different format)
+    // Question response IDs are UUIDs but the route /assessment_question_responses/:id suggests this might be one
+    const mightBeQuestionResponseId = window.location.pathname.includes('assessment_question_responses')
     
     return (
       <Layout user={user}>
@@ -343,8 +355,34 @@ export default function AssessmentAssignmentPage() {
           </Button>
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{errorMessage}</AlertDescription>
+            <AlertDescription>
+              {is404 
+                ? mightBeQuestionResponseId
+                  ? `The ID "${id}" appears to be a question response ID, not an assignment ID. Please use the assignment ID to access the assessment. You can find the assignment ID from the assessments list or from your action items.`
+                  : `Assessment assignment not found. The assignment ID "${id}" may not exist or you may not have access to it.`
+                : errorMessage
+              }
+            </AlertDescription>
           </Alert>
+          {is404 && (
+            <div className="mt-4 p-4 bg-muted rounded-md">
+              <p className="text-sm text-muted-foreground mb-2">
+                {mightBeQuestionResponseId 
+                  ? "Question response IDs cannot be used to access assessments. Please use the assignment ID instead."
+                  : "If you believe this is an error, please contact your administrator or try navigating from the assessments list."
+                }
+              </p>
+              {mightBeQuestionResponseId && (
+                <Button
+                  variant="outline"
+                  onClick={() => navigate('/my-actions')}
+                  className="mt-2"
+                >
+                  Go to My Actions
+                </Button>
+              )}
+            </div>
+          )}
         </div>
       </Layout>
     )

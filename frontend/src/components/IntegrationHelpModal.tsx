@@ -54,7 +54,7 @@ export default function IntegrationHelpModal({ provider, isOpen, onClose }: Inte
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full h-[90vh] flex flex-col my-auto mx-auto overflow-hidden">
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
           <h2 className="text-2xl font-medium">
             {guide?.name || 'Integration Help'}
@@ -69,7 +69,7 @@ export default function IntegrationHelpModal({ provider, isOpen, onClose }: Inte
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-scroll overflow-x-hidden p-6" style={{ maxHeight: 'calc(90vh - 140px)' }}>
           {loading && (
             <div className="text-center py-12">
               <div className="text-muted-foreground">Loading help guide...</div>

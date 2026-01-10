@@ -83,9 +83,9 @@ export default function CommentDialog({
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-      <MaterialCard elevation={24} className="max-w-md w-full border-none overflow-hidden">
+      <MaterialCard elevation={24} className="max-w-md w-full h-[90vh] border-none overflow-hidden flex flex-col my-auto mx-auto" style={{ overflow: 'hidden' }}>
         {/* Header */}
-        <div className="p-6 border-b bg-surface-variant/10 flex items-center justify-between">
+        <div className="p-6 border-b bg-surface-variant/10 flex items-center justify-between flex-shrink-0">
           <h2 className="text-xl font-medium text-gray-900">{title}</h2>
           <MaterialButton
             variant="text"
@@ -98,7 +98,8 @@ export default function CommentDialog({
         </div>
 
         {/* Content */}
-        <div className="p-6 space-y-4 bg-background">
+        <div className="flex-1 overflow-y-scroll overflow-x-hidden bg-background" style={{ maxHeight: 'calc(90vh - 140px)' }}>
+          <div className="p-6 space-y-4">
           <div>
             <MaterialInput
               label={label}
@@ -111,24 +112,25 @@ export default function CommentDialog({
               style={{ minHeight: '100px' }}
             />
           </div>
-
-          {/* Actions */}
-          <div className="flex gap-3 justify-end pt-2">
-            <MaterialButton
-              variant="outlined"
-              onClick={handleClose}
-            >
-              Cancel
-            </MaterialButton>
-            <MaterialButton
-              variant="contained"
-              color="primary"
-              onClick={handleSubmit}
-              disabled={required && !comment.trim()}
-            >
-              {actionLabel}
-            </MaterialButton>
           </div>
+        </div>
+
+        {/* Actions - Fixed */}
+        <div className="flex gap-3 justify-end p-6 border-t border-gray-200 flex-shrink-0 bg-white">
+          <MaterialButton
+            variant="outlined"
+            onClick={handleClose}
+          >
+            Cancel
+          </MaterialButton>
+          <MaterialButton
+            variant="contained"
+            color="primary"
+            onClick={handleSubmit}
+            disabled={required && !comment.trim()}
+          >
+            {actionLabel}
+          </MaterialButton>
         </div>
       </MaterialCard>
     </div>

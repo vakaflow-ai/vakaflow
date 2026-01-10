@@ -10,7 +10,7 @@ interface FlowDetailsModalProps {
 export default function FlowDetailsModal({ flow, onClose, onEdit, onExecute }: FlowDetailsModalProps) {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl h-[90vh] flex flex-col my-auto mx-auto overflow-hidden">
         <div className="px-6 py-2 border-b border-gray-200 flex items-center justify-between">
           <div>
             <h2 className="text-2xl font-semibold text-gray-900">{flow.name}</h2>
@@ -28,7 +28,7 @@ export default function FlowDetailsModal({ flow, onClose, onEdit, onExecute }: F
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-scroll overflow-x-hidden p-6" style={{ maxHeight: 'calc(90vh - 140px)' }}>
           <div className="grid grid-cols-2 gap-4 mb-6">
             <div>
               <p className="text-sm font-medium text-gray-700">Status</p>

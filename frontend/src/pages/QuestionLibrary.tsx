@@ -657,31 +657,31 @@ export default function QuestionLibrary() {
                               .map(type => {
                                 const isSelected = formData.assessment_type.includes(type.value)
                                 return (
-                                  <label
-                                    key={type.value}
+                          <label
+                            key={type.value}
                                     className="flex items-center gap-2 px-4 py-2 hover:bg-gray-50 cursor-pointer"
-                                  >
-                                    <input
-                                      type="checkbox"
+                          >
+                            <input
+                              type="checkbox"
                                       checked={isSelected}
-                                      onChange={(e) => {
-                                        if (e.target.checked) {
-                                          setFormData({
-                                            ...formData,
-                                            assessment_type: [...formData.assessment_type, type.value]
-                                          })
-                                        } else {
-                                          setFormData({
-                                            ...formData,
-                                            assessment_type: formData.assessment_type.filter(t => t !== type.value)
-                                          })
-                                        }
-                                      }}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setFormData({
+                                    ...formData,
+                                    assessment_type: [...formData.assessment_type, type.value]
+                                  })
+                                } else {
+                                  setFormData({
+                                    ...formData,
+                                    assessment_type: formData.assessment_type.filter(t => t !== type.value)
+                                  })
+                                }
+                              }}
                                       className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-2 focus:ring-indigo-500"
-                                    />
+                            />
                                     <span className="text-sm text-gray-700 flex-1">{type.label}</span>
                                     {isSelected && <Check className="w-4 h-4 text-indigo-600" />}
-                                  </label>
+                          </label>
                                 )
                               })}
                             {ASSESSMENT_TYPES.filter(type => 
@@ -689,7 +689,7 @@ export default function QuestionLibrary() {
                             ).length === 0 && (
                               <div className="px-4 py-8 text-center text-sm text-gray-500">
                                 No assessment types found
-                              </div>
+                      </div>
                             )}
                           </div>
                           {formData.assessment_type.length > 0 && (
@@ -782,24 +782,24 @@ export default function QuestionLibrary() {
                   </div>
                   {/* Response Type only for text-based fields */}
                   {['text', 'textarea', 'email', 'url', 'number'].includes(formData.field_type) && (
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-900 mb-2">Response Type *</label>
-                      <select
-                        value={formData.response_type}
-                        onChange={(e) => setFormData({ ...formData, response_type: e.target.value })}
-                        className="w-full px-4 py-2.5 text-sm rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                      >
-                        {RESPONSE_TYPES.map(type => (
-                          <option key={type.value} value={type.value}>{type.label}</option>
-                        ))}
-                      </select>
-                    </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-900 mb-2">Response Type *</label>
+                    <select
+                      value={formData.response_type}
+                      onChange={(e) => setFormData({ ...formData, response_type: e.target.value })}
+                      className="w-full px-4 py-2.5 text-sm rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                    >
+                      {RESPONSE_TYPES.map(type => (
+                        <option key={type.value} value={type.value}>{type.label}</option>
+                      ))}
+                    </select>
+                  </div>
                   )}
                 </div>
                 
                 {/* Options section for select, multi_select, radio, checkbox */}
                 {['select', 'multi_select', 'radio', 'checkbox'].includes(formData.field_type) && (
-                  <div>
+                <div>
                     <label className="block text-sm font-semibold text-gray-900 mb-2">
                       Options *
                       <span className="text-xs font-normal text-gray-500 ml-2">
@@ -810,7 +810,7 @@ export default function QuestionLibrary() {
                       <div className="space-y-3">
                         {formData.options.map((option, index) => (
                           <div key={index} className="flex gap-2 items-center">
-                            <input
+                    <input
                               type="text"
                               value={option.value}
                               onChange={(e) => {
@@ -832,7 +832,7 @@ export default function QuestionLibrary() {
                               className="flex-1 px-3 py-2 text-sm rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                               placeholder="Label (e.g., Yes, No, Maybe)"
                             />
-                            <button
+                <button
                               type="button"
                               onClick={() => {
                                 const newOptions = formData.options.filter((_, i) => i !== index)
@@ -842,16 +842,16 @@ export default function QuestionLibrary() {
                               title="Remove option"
                             >
                               <X className="w-4 h-4" />
-                            </button>
-                          </div>
+                </button>
+              </div>
                         ))}
-                        <button
+                <button 
                           type="button"
                           onClick={() => {
-                            setFormData({
-                              ...formData,
+                                  setFormData({
+                                    ...formData,
                               options: [...formData.options, { value: '', label: '' }]
-                            })
+                                  })
                           }}
                           className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition-colors"
                         >
@@ -860,10 +860,10 @@ export default function QuestionLibrary() {
                         </button>
                         {formData.options.length === 0 && (
                           <p className="text-xs text-red-600 mt-2">At least one option is required for {formData.field_type}</p>
-                        )}
-                      </div>
-                    </div>
+                    )}
                   </div>
+                  </div>
+                </div>
                 )}
                 
                 <div>
@@ -877,7 +877,7 @@ export default function QuestionLibrary() {
                     <span className="text-sm font-semibold text-gray-900">Required</span>
                   </label>
                 </div>
-                </div>
+              </div>
               </div>
               <div className="flex gap-3 justify-end p-6 pt-4 border-t border-gray-200 flex-shrink-0 bg-white">
                 <button

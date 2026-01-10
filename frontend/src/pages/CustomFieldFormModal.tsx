@@ -89,8 +89,9 @@ export default function CustomFieldFormModal({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-md shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="p-6 border-b sticky top-0 bg-white z-10 flex items-center justify-between">
+      <div className="bg-white rounded-md shadow-2xl max-w-2xl w-full h-[90vh] flex flex-col my-auto mx-auto overflow-hidden">
+        {/* Header - Fixed */}
+        <div className="p-6 border-b border-gray-200 flex items-center justify-between flex-shrink-0 bg-white">
           <div>
             <h3 className="text-xl font-semibold text-gray-900">{isEditing ? 'Edit' : 'Create'} Field Definition</h3>
             <p className="text-sm text-gray-500 mt-1">
@@ -102,7 +103,9 @@ export default function CustomFieldFormModal({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+        {/* Content - Scrollable */}
+        <div className="flex-1 overflow-y-scroll overflow-x-hidden" style={{ maxHeight: 'calc(90vh - 140px)' }}>
+          <form id="custom-field-form" onSubmit={handleSubmit} className="p-6 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="enterprise-form-field">
               <label className="enterprise-label">
@@ -347,22 +350,30 @@ export default function CustomFieldFormModal({
             </div>
           )}
 
-          <div className="flex justify-end gap-3 pt-6 border-t sticky bottom-0 bg-white z-10">
-            <MaterialButton
-              type="button"
-              variant="text"
-              color="gray"
-              onClick={onCancel}
-            >
-              Cancel
-            </MaterialButton>
-            <MaterialButton
-              type="submit"
-            >
-              {isEditing ? 'Save Changes' : 'Create Field Definition'}
-            </MaterialButton>
-          </div>
-        </form>
+          </form>
+        </div>
+
+        {/* Footer - Fixed */}
+        <div className="flex justify-end gap-3 p-6 border-t border-gray-200 flex-shrink-0 bg-white">
+          <MaterialButton
+            type="button"
+            variant="text"
+            color="gray"
+            onClick={onCancel}
+          >
+            Cancel
+          </MaterialButton>
+          <MaterialButton
+            onClick={() => {
+              const form = document.getElementById('custom-field-form') as HTMLFormElement
+              if (form) {
+                form.requestSubmit()
+              }
+            }}
+          >
+            {isEditing ? 'Save Changes' : 'Create Field Definition'}
+          </MaterialButton>
+        </div>
       </div>
     </div>
   )

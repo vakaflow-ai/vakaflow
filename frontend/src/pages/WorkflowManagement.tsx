@@ -1116,9 +1116,10 @@ export default function WorkflowManagement() {
 
         {/* Step Details Modal */}
         {showStepDetails && selectedStep && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setShowStepDetails(false)}>
-            <div className="bg-white rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-              <div className="flex items-center justify-between mb-4">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={() => setShowStepDetails(false)}>
+            <div className="bg-white rounded-lg max-w-2xl w-full h-[90vh] flex flex-col my-auto mx-auto overflow-hidden" onClick={(e) => e.stopPropagation()}>
+              {/* Header - Fixed */}
+              <div className="flex items-center justify-between p-6 border-b border-gray-200 flex-shrink-0">
                 <h2 className="text-2xl font-medium">Step Details</h2>
                 <button
                   onClick={() => setShowStepDetails(false)}
@@ -1130,7 +1131,9 @@ export default function WorkflowManagement() {
                 </button>
               </div>
               
-              <div className="space-y-4">
+              {/* Content - Scrollable */}
+              <div className="flex-1 overflow-y-scroll overflow-x-hidden" style={{ maxHeight: 'calc(90vh - 140px)' }}>
+                <div className="p-6 space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Step Number</label>
                   <div className="text-lg font-medium">{selectedStep.step_number}</div>
@@ -1183,6 +1186,7 @@ export default function WorkflowManagement() {
                     </pre>
                   </div>
                 )}
+                </div>
               </div>
             </div>
           </div>

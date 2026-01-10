@@ -2392,12 +2392,15 @@ async def _assign_human_reviewers(
             reviewers.append(owner)
         
         if assessment.team_ids:
-            team_members = db.query(User).filter(
-                User.id.in_([UUID(tid) for tid in assessment.team_ids if tid]),
-                User.tenant_id == assignment.tenant_id,
-                User.is_active == True
-            ).all()
-            reviewers.extend(team_members)
+            # Ensure team_ids is a list and not None
+            team_ids_list = assessment.team_ids if isinstance(assessment.team_ids, list) else []
+            if team_ids_list:
+                team_members = db.query(User).filter(
+                    User.id.in_([UUID(tid) for tid in team_ids_list if tid]),
+                    User.tenant_id == assignment.tenant_id,
+                    User.is_active == True
+                ).all()
+                reviewers.extend(team_members)
     
     # Remove duplicates
     reviewer_ids = set()
@@ -2891,13 +2894,16 @@ async def _trigger_assessment_approval_workflow(
 
     # Add team members who are approvers
     if assessment.team_ids:
-        team_members = db.query(User).filter(
-            User.id.in_([UUID(tid) for tid in assessment.team_ids if tid]),
-            User.tenant_id == assignment.tenant_id,
-            User.is_active == True,
-            User.role.in_([UserRole.APPROVER, UserRole.TENANT_ADMIN, UserRole.PLATFORM_ADMIN])
-        ).all()
-        approvers.extend(team_members)
+        # Ensure team_ids is a list and not None
+        team_ids_list = assessment.team_ids if isinstance(assessment.team_ids, list) else []
+        if team_ids_list:
+            team_members = db.query(User).filter(
+                User.id.in_([UUID(tid) for tid in team_ids_list if tid]),
+                User.tenant_id == assignment.tenant_id,
+                User.is_active == True,
+                User.role.in_([UserRole.APPROVER, UserRole.TENANT_ADMIN, UserRole.PLATFORM_ADMIN])
+            ).all()
+            approvers.extend(team_members)
 
     # Add role-based approvers (optimized: combine queries where possible)
     # Include tenant-specific approvers and platform admins
@@ -3236,12 +3242,15 @@ async def _notify_reviewers_on_submission(
 
     # Add team members if specified
     if assessment.team_ids:
-        team_members = db.query(User).filter(
-            User.id.in_([UUID(tid) for tid in assessment.team_ids if tid]),
-            User.tenant_id == assignment.tenant_id,
-            User.is_active == True
-        ).all()
-        reviewers.extend(team_members)
+        # Ensure team_ids is a list and not None
+        team_ids_list = assessment.team_ids if isinstance(assessment.team_ids, list) else []
+        if team_ids_list:
+            team_members = db.query(User).filter(
+                User.id.in_([UUID(tid) for tid in team_ids_list if tid]),
+                User.tenant_id == assignment.tenant_id,
+                User.is_active == True
+            ).all()
+            reviewers.extend(team_members)
 
     # Add role-based reviewers (security_reviewer, compliance_reviewer, etc.)
     from app.models.user import UserRole

@@ -171,8 +171,8 @@ export default function AgentSettingsModal({ agent, onClose, onSave }: AgentSett
   const canEditCore = !isVakaAgent  // VAKA agents have read-only core properties
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col my-auto">
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl h-[90vh] flex flex-col my-auto mx-auto overflow-hidden">
         {/* Header */}
         <div className="px-6 py-4 border-b border-gray-200 flex items-start justify-between flex-shrink-0">
           <div className="flex-1 min-w-0 pr-4">
@@ -198,13 +198,14 @@ export default function AgentSettingsModal({ agent, onClose, onSave }: AgentSett
         </div>
 
         {/* Content - Scrollable */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden p-6 space-y-6 min-h-0">
+        <div className="flex-1 overflow-y-scroll overflow-x-hidden" style={{ maxHeight: 'calc(90vh - 140px)' }}>
+          <div className="p-6 space-y-6">
           {/* Basic Information */}
-          <div>
-            <h3 className="text-sm font-medium text-gray-900 mb-3">Basic Information</h3>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+          <div className="w-full">
+            <h3 className="text-sm font-medium text-gray-900 mb-4">Basic Information</h3>
+            <div className="space-y-4 w-full">
+              <div className="w-full">
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
                   Name {canEditCore ? '*' : '(Read-only)'}
                 </label>
                 <input
@@ -212,48 +213,48 @@ export default function AgentSettingsModal({ agent, onClose, onSave }: AgentSett
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   disabled={!canEditCore}
-                  className={`w-full min-w-0 px-3 py-2 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  className={`w-full px-3 py-2 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                     errors.name ? 'border-red-500' : 'border-gray-300'
-                  } ${!canEditCore ? 'bg-gray-100 cursor-not-allowed' : ''}`}
+                  } ${!canEditCore ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'}`}
                 />
-                {errors.name && <p className="text-xs text-red-500 mt-1">{errors.name}</p>}
+                {errors.name && <p className="text-xs text-red-500 mt-1.5">{errors.name}</p>}
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+              <div className="w-full">
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
                   Description
                 </label>
                 <textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   rows={3}
-                  className="w-full min-w-0 px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y bg-white"
                   placeholder="Agent description..."
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+              <div className="w-full">
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
                   Category
                 </label>
                 <input
                   type="text"
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
-                  className="w-full min-w-0 px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                   placeholder="e.g., GRC, Assessment, Vendor Management"
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+              <div className="w-full">
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
                   Icon URL
                 </label>
                 <input
                   type="url"
                   value={iconUrl}
                   onChange={(e) => setIconUrl(e.target.value)}
-                  className="w-full min-w-0 px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                   placeholder="https://example.com/icon.png"
                 />
               </div>
@@ -261,16 +262,16 @@ export default function AgentSettingsModal({ agent, onClose, onSave }: AgentSett
           </div>
 
           {/* Tags */}
-          <div>
-            <h3 className="text-sm font-medium text-gray-900 mb-3">Tags</h3>
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
+          <div className="w-full border-t border-gray-200 pt-6">
+            <h3 className="text-sm font-medium text-gray-900 mb-4">Tags</h3>
+            <div className="space-y-2 w-full">
+              <div className="flex items-center gap-2 w-full">
                 <input
                   type="text"
                   value={tagInput}
                   onChange={(e) => setTagInput(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddTag())}
-                  className="flex-1 min-w-0 px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                   placeholder="Add a tag..."
                 />
                 <button
@@ -281,7 +282,7 @@ export default function AgentSettingsModal({ agent, onClose, onSave }: AgentSett
                 </button>
               </div>
               {tags.length > 0 && (
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-2 w-full">
                   {tags.map((tag, idx) => (
                     <span
                       key={idx}
@@ -302,10 +303,10 @@ export default function AgentSettingsModal({ agent, onClose, onSave }: AgentSett
           </div>
 
           {/* Availability & Features */}
-          <div>
-            <h3 className="text-sm font-medium text-gray-900 mb-3">Availability & Features</h3>
-            <div className="space-y-3">
-              <label className="flex items-center">
+          <div className="w-full border-t border-gray-200 pt-6">
+            <h3 className="text-sm font-medium text-gray-900 mb-4">Availability & Features</h3>
+            <div className="space-y-3 w-full">
+              <label className="flex items-center w-full">
                 <input
                   type="checkbox"
                   checked={isAvailable}
@@ -315,7 +316,7 @@ export default function AgentSettingsModal({ agent, onClose, onSave }: AgentSett
                 <span className="text-sm text-gray-700 font-normal">Available for use in flows</span>
               </label>
 
-              <label className="flex items-center">
+              <label className="flex items-center w-full">
                 <input
                   type="checkbox"
                   checked={isFeatured}
@@ -328,17 +329,17 @@ export default function AgentSettingsModal({ agent, onClose, onSave }: AgentSett
           </div>
 
           {/* Master Data Attributes */}
-          <div>
-            <h3 className="text-sm font-medium text-gray-900 mb-3">Master Data Attributes</h3>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+          <div className="w-full border-t border-gray-200 pt-6">
+            <h3 className="text-sm font-medium text-gray-900 mb-4">Master Data Attributes</h3>
+            <div className="space-y-4 w-full">
+              <div className="w-full">
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
                   Owner
                 </label>
                 <select
                   value={ownerId}
                   onChange={(e) => setOwnerId(e.target.value)}
-                  className="w-full min-w-0 px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                 >
                   <option value="">No Owner</option>
                   {users?.map((user) => (
@@ -348,22 +349,22 @@ export default function AgentSettingsModal({ agent, onClose, onSave }: AgentSett
                   ))}
                 </select>
                 {ownerId && users && (
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-gray-500 mt-1.5">
                     {users.find(u => u.id === ownerId)?.department && 
                       `Department: ${users.find(u => u.id === ownerId)?.department}`}
                   </p>
                 )}
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+              <div className="w-full">
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
                   Department
                 </label>
-                <div className="flex flex-col sm:flex-row gap-2">
+                <div className="flex flex-col sm:flex-row gap-2 w-full">
                   <select
                     value={department}
                     onChange={(e) => setDepartment(e.target.value)}
-                    className="flex-1 min-w-0 px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                   >
                     <option value="">Select or enter custom</option>
                     {departments.map((dept) => (
@@ -377,7 +378,7 @@ export default function AgentSettingsModal({ agent, onClose, onSave }: AgentSett
                     value={departments.includes(department) ? '' : department}
                     onChange={(e) => setDepartment(e.target.value)}
                     placeholder="Or enter custom"
-                    className="flex-1 min-w-0 px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                     onFocus={(e) => {
                       // Clear if it's a selected value from dropdown
                       if (departments.includes(department)) {
@@ -386,20 +387,20 @@ export default function AgentSettingsModal({ agent, onClose, onSave }: AgentSett
                     }}
                   />
                 </div>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-gray-500 mt-1.5">
                   Select from existing departments or enter a custom value
                 </p>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+              <div className="w-full">
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
                   Organization
                 </label>
-                <div className="flex flex-col sm:flex-row gap-2">
+                <div className="flex flex-col sm:flex-row gap-2 w-full">
                   <select
                     value={organization}
                     onChange={(e) => setOrganization(e.target.value)}
-                    className="flex-1 min-w-0 px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                   >
                     <option value="">Select or enter custom</option>
                     {organizations.map((org) => (
@@ -413,7 +414,7 @@ export default function AgentSettingsModal({ agent, onClose, onSave }: AgentSett
                     value={organizations.includes(organization) ? '' : organization}
                     onChange={(e) => setOrganization(e.target.value)}
                     placeholder="Or enter custom"
-                    className="flex-1 min-w-0 px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                     onFocus={(e) => {
                       // Clear if it's a selected value from dropdown
                       if (organizations.includes(organization)) {
@@ -422,13 +423,13 @@ export default function AgentSettingsModal({ agent, onClose, onSave }: AgentSett
                     }}
                   />
                 </div>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-gray-500 mt-1.5">
                   Select from existing organizations or enter a custom value
                 </p>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+              <div className="w-full">
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
                   Custom Master Data Attributes (JSON)
                 </label>
                 <textarea
@@ -444,15 +445,15 @@ export default function AgentSettingsModal({ agent, onClose, onSave }: AgentSett
                     }
                   }}
                   rows={4}
-                  className={`w-full min-w-0 px-3 py-2 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono resize-y ${
+                  className={`w-full px-3 py-2 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono resize-y ${
                     errors.masterDataAttributes ? 'border-red-500' : 'border-gray-300'
                   }`}
                   placeholder='{"business_unit": "Engineering", "location": "US-West", "cost_center": "CC-1234"}'
                 />
                 {errors.masterDataAttributes && (
-                  <p className="text-xs text-red-500 mt-1">{errors.masterDataAttributes}</p>
+                  <p className="text-xs text-red-500 mt-1.5">{errors.masterDataAttributes}</p>
                 )}
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-gray-500 mt-1.5">
                   Additional master data attributes as key-value pairs (JSON format)
                 </p>
               </div>
@@ -460,8 +461,8 @@ export default function AgentSettingsModal({ agent, onClose, onSave }: AgentSett
           </div>
 
           {/* Capabilities */}
-          <div>
-            <h3 className="text-sm font-medium text-gray-900 mb-3">Capabilities (JSON)</h3>
+          <div className="w-full border-t border-gray-200 pt-6">
+            <h3 className="text-sm font-medium text-gray-900 mb-4">Capabilities (JSON)</h3>
             <textarea
               value={capabilitiesJson}
               onChange={(e) => handleCapabilitiesChange(e.target.value)}
@@ -480,8 +481,8 @@ export default function AgentSettingsModal({ agent, onClose, onSave }: AgentSett
           </div>
 
           {/* Read-only Information */}
-          <div className="border-t border-gray-200 pt-4">
-            <h3 className="text-sm font-medium text-gray-900 mb-3">System Information (Read-only)</h3>
+          <div className="w-full border-t border-gray-200 pt-6">
+            <h3 className="text-sm font-medium text-gray-900 mb-4">System Information (Read-only)</h3>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-gray-600">Agent Type:</span>
@@ -533,6 +534,7 @@ export default function AgentSettingsModal({ agent, onClose, onSave }: AgentSett
               <p className="text-sm text-red-600">{errors.save}</p>
             </div>
           )}
+          </div>
         </div>
 
         {/* Footer - Fixed */}

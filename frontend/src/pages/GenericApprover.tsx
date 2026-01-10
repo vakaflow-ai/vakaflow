@@ -1023,30 +1023,32 @@ export default function GenericApproverPage({}: GenericApproverPageProps) {
 
         {/* Forward Dialog */}
         {showForwardDialog && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg shadow-xl max-w-sm w-full mx-4 max-h-[85vh] overflow-y-auto">
-              <div className="p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <h2 className="text-sm font-semibold text-gray-900">
-                    {forwardQuestionIds.length > 0 
-                      ? `Forward ${forwardQuestionIds.length} Question${forwardQuestionIds.length > 1 ? 's' : ''}`
-                      : 'Forward Assessment'}
-                  </h2>
-                  <button
-                    onClick={() => {
-                      setShowForwardDialog(false)
-                      setForwardUserId('')
-                      setForwardComment('')
-                      setForwardQuestionIds([])
-                      setForwardUserSearch('')
-                    }}
-                    className="text-gray-400 hover:text-gray-600"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl max-w-md w-full h-[90vh] flex flex-col my-auto mx-auto overflow-hidden">
+              {/* Header - Fixed */}
+              <div className="flex items-center justify-between p-4 border-b border-gray-200 flex-shrink-0">
+                <h2 className="text-sm font-semibold text-gray-900">
+                  {forwardQuestionIds.length > 0 
+                    ? `Forward ${forwardQuestionIds.length} Question${forwardQuestionIds.length > 1 ? 's' : ''}`
+                    : 'Forward Assessment'}
+                </h2>
+                <button
+                  onClick={() => {
+                    setShowForwardDialog(false)
+                    setForwardUserId('')
+                    setForwardComment('')
+                    setForwardQuestionIds([])
+                    setForwardUserSearch('')
+                  }}
+                  className="text-gray-400 hover:text-gray-600 flex-shrink-0"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
 
-                <div className="space-y-3">
+              {/* Content - Scrollable */}
+              <div className="flex-1 overflow-y-scroll overflow-x-hidden" style={{ maxHeight: 'calc(90vh - 140px)' }}>
+                <div className="p-4 space-y-3">
                   {/* User Search */}
                   <div>
                     <label className="block text-xs font-medium text-gray-700 mb-1.5">
@@ -1114,29 +1116,30 @@ export default function GenericApproverPage({}: GenericApproverPageProps) {
                     />
                   </div>
 
-                  {/* Action Buttons */}
-                  <div className="flex gap-2 pt-2">
-                    <button
-                      onClick={() => {
-                        setShowForwardDialog(false)
-                        setForwardUserId('')
-                        setForwardComment('')
-                        setForwardQuestionIds([])
-                        setForwardUserSearch('')
-                      }}
-                      className="flex-1 px-3 py-1.5 text-xs font-medium border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={handleForwardSubmit}
-                      disabled={!forwardUserId || forwardMutation.isPending}
-                      className="flex-1 px-3 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    >
-                      {forwardMutation.isPending ? 'Forwarding...' : 'Forward'}
-                    </button>
-                  </div>
                 </div>
+              </div>
+
+              {/* Footer - Fixed */}
+              <div className="flex gap-2 p-4 border-t border-gray-200 flex-shrink-0 bg-white">
+                <button
+                  onClick={() => {
+                    setShowForwardDialog(false)
+                    setForwardUserId('')
+                    setForwardComment('')
+                    setForwardQuestionIds([])
+                    setForwardUserSearch('')
+                  }}
+                  className="flex-1 px-3 py-1.5 text-xs font-medium border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleForwardSubmit}
+                  disabled={!forwardUserId || forwardMutation.isPending}
+                  className="flex-1 px-3 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {forwardMutation.isPending ? 'Forwarding...' : 'Forward'}
+                </button>
               </div>
             </div>
           </div>

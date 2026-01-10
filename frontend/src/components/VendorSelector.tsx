@@ -127,30 +127,30 @@ export default function VendorSelector({
   }
 
   return (
-    <div className="space-y-3 w-full min-w-0">
+    <div className="space-y-3 w-full">
       {/* Filters */}
-      <div className="space-y-2 p-3 bg-gray-50 rounded-md border border-gray-200">
+      <div className="space-y-2 p-3 bg-gray-50 rounded-md border border-gray-200 w-full">
         <div className="text-xs font-medium text-gray-700 mb-2">Filter Vendors</div>
         
         {/* Search */}
-        <div>
+        <div className="w-full">
           <input
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Search vendors by name..."
-            className="unified-search w-full min-w-0"
+            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
           />
         </div>
 
         {/* Category Filter */}
         {categories.length > 0 && (
-          <div>
+          <div className="w-full">
             <label className="block text-xs text-gray-600 mb-1">By Category</label>
             <select
               value={filterCategory}
               onChange={(e) => setFilterCategory(e.target.value)}
-              className="unified-select w-full min-w-0"
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
             >
               <option value="">All Categories</option>
               {categories.map(cat => (
@@ -162,12 +162,12 @@ export default function VendorSelector({
 
         {/* Agent Type Filter */}
         {agentTypes.length > 0 && (
-          <div>
+          <div className="w-full">
             <label className="block text-xs text-gray-600 mb-1">By Agent Type</label>
             <select
               value={filterAgentType}
               onChange={(e) => setFilterAgentType(e.target.value)}
-              className="unified-select w-full min-w-0"
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
             >
               <option value="">All Agent Types</option>
               {agentTypes.map(type => (
@@ -194,7 +194,7 @@ export default function VendorSelector({
       </div>
 
       {/* Vendor List */}
-      <div className="border border-gray-200 rounded-md max-h-64 overflow-y-auto">
+      <div className="w-full border border-gray-200 rounded-md max-h-64 overflow-y-auto">
         {filteredVendors.length === 0 ? (
           <div className="p-4 text-sm text-gray-500 text-center">
             {searchTerm || filterCategory || filterAgentType 
@@ -270,11 +270,11 @@ export default function VendorSelector({
 
       {/* Selected Vendors Summary */}
       {selectedVendors.length > 0 && (
-        <div className="p-2 bg-blue-50 border border-blue-400 rounded-md">
+        <div className="p-2 bg-blue-50 border border-blue-400 rounded-md w-full">
           <div className="text-xs font-medium text-blue-900 mb-1">
             Selected: {selectedVendors.length} vendor{selectedVendors.length !== 1 ? 's' : ''}
           </div>
-          <div className="flex flex-wrap gap-1">
+          <div className="flex flex-wrap gap-1 w-full">
             {selectedVendors.map(vendorId => {
               const vendor = vendorsData?.find(v => v.id === vendorId)
               return vendor ? (

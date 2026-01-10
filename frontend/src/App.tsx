@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from 'react-hot-toast'
 
@@ -72,6 +72,16 @@ import Entities from './pages/Entities'
 import SuppliersMasterView from './pages/SuppliersMasterView'
 
 const queryClient = new QueryClient()
+
+// Component to handle redirect from old route format
+// Note: This route accepts either assignment IDs or question response IDs
+// If it's a question response ID, it will show an error that the assignment wasn't found
+function AssessmentAssignmentRedirect() {
+  const { id } = useParams<{ id: string }>()
+  // Try to redirect to the assignment page
+  // If the ID is actually a question response ID, the AssignmentAssignmentPage will show an appropriate error
+  return <Navigate to={`/assessments/assignments/${id}`} replace />
+}
 
 function App() {
   // Branding is now handled by Layout.tsx based on user role
@@ -158,6 +168,8 @@ function App() {
           <Route path="/approver/:sourceType/:sourceId" element={<GenericApprover />} />
           <Route path="/assessments/assignments/:id" element={<AssessmentAssignmentPage />} />
           <Route path="/assessments/:id" element={<AssessmentAssignmentPage />} />
+          {/* Redirect old route format to new format */}
+          <Route path="/assessment_question_responses/:id" element={<AssessmentAssignmentRedirect />} />
           <Route path="/my-assessments" element={<MyAssessments />} />
           <Route path="/assessments" element={<Navigate to="/admin/assessments" replace />} />
           <Route path="/admin/form-designer" element={<FormDesignerList />} />

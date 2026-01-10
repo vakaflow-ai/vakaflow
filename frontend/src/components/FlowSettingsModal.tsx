@@ -139,7 +139,7 @@ export default function FlowSettingsModal({ flow, onClose, onSave, onDelete }: F
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl h-[90vh] flex flex-col my-auto mx-auto overflow-hidden">
         {/* Header */}
         <div className="px-6 py-2 border-b border-gray-200 flex items-center justify-between flex-shrink-0">
           <div>
@@ -159,7 +159,7 @@ export default function FlowSettingsModal({ flow, onClose, onSave, onDelete }: F
         </div>
 
         {/* Content - Scrollable */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        <div className="flex-1 overflow-y-scroll overflow-x-hidden p-6 space-y-6" style={{ maxHeight: 'calc(90vh - 140px)' }}>
           {/* Basic Information */}
           <div>
             <h3 className="text-sm font-medium text-gray-900 mb-3">Basic Information</h3>
@@ -465,8 +465,8 @@ export default function FlowSettingsModal({ flow, onClose, onSave, onDelete }: F
 
         {/* Delete Confirmation Modal */}
         {showDeleteConfirm && (
-          <div className="fixed inset-0 bg-black bg-opacity-70 z-[60] flex items-center justify-center">
-            <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
+          <div className="fixed inset-0 bg-black bg-opacity-70 z-[60] flex items-center justify-center p-4 overflow-y-auto">
+            <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full max-h-[90vh] my-auto mx-auto">
               <h3 className="text-lg font-medium text-gray-900 mb-2">Delete Flow</h3>
               <p className="text-sm text-gray-600 mb-4">
                 Are you sure you want to delete "{flow.name}"? This action cannot be undone and will delete all associated executions.

@@ -224,8 +224,8 @@ export default function SkillInputForm({ skill, agentType, value, onChange }: Sk
   if (fields.length === 0) {
     // Fallback to JSON editor for unknown skills
     return (
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+      <div className="w-full">
+        <label className="block text-sm font-medium text-gray-700 mb-2">
           Input Data (JSON)
         </label>
         <textarea
@@ -239,11 +239,11 @@ export default function SkillInputForm({ skill, agentType, value, onChange }: Sk
               // Invalid JSON, ignore
             }
           }}
-          className="w-full min-w-0 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-xs resize-y"
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-xs resize-y bg-white"
           rows={6}
           placeholder='{"field": "value"}'
         />
-        <p className="mt-1 text-xs text-gray-500">
+        <p className="mt-2 text-xs text-gray-500">
           Enter JSON input data for the skill. Use $&#123;trigger_data.field&#125; for dynamic values.
         </p>
       </div>
@@ -273,25 +273,26 @@ export default function SkillInputForm({ skill, agentType, value, onChange }: Sk
   const skillDescription = getSkillDescription(skill)
 
   return (
-    <div className="space-y-4 w-full min-w-0">
+    <div className="w-full space-y-4">
       {skillDescription && (
-        <div className="p-3 bg-blue-50 border border-blue-400 rounded-md">
+        <div className="p-3 bg-blue-50 border border-blue-400 rounded-md w-full">
           <p className="text-sm text-blue-900">{skillDescription}</p>
         </div>
       )}
+      
       {fields.map((field) => {
         const fieldValue = formData[field.name] || ''
         const isUsingTrigger = useTriggerData[field.name] || fieldValue.toString().startsWith('${trigger_data.')
         
         return (
-          <div key={field.name}>
-            <div className="flex items-center justify-between mb-1">
+          <div key={field.name} className="w-full">
+            <div className="flex items-center justify-between mb-2">
               <label className="block text-sm font-medium text-gray-700">
                 {field.label}
                 {field.required && <span className="text-red-500 ml-1">*</span>}
               </label>
               {(field.type === 'select' || field.type === 'text' || field.type === 'number') && (
-                <label className="flex items-center text-xs text-gray-500">
+                <label className="flex items-center text-xs text-gray-500 whitespace-nowrap ml-2">
                   <input
                     type="checkbox"
                     checked={isUsingTrigger}
@@ -309,89 +310,95 @@ export default function SkillInputForm({ skill, agentType, value, onChange }: Sk
               )}
             </div>
 
-            {isUsingTrigger ? (
-              <div className="space-y-2">
+            <div className="w-full">
+              {isUsingTrigger ? (
+                <div className="space-y-2 w-full">
+                  <input
+                    type="text"
+                    value={fieldValue}
+                    onChange={(e) => handleFieldChange(field.name, e.target.value, true)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm bg-white"
+                    placeholder={`\${trigger_data.${field.name}}`}
+                  />
+                  <p className="text-xs text-gray-500">
+                    This will use dynamic data from flow execution context
+                  </p>
+                </div>
+              ) : field.type === 'agent_selector' ? (
+                <div className="w-full">
+                  <AgentSelector
+                    value={fieldValue}
+                    onChange={(value) => handleFieldChange(field.name, value)}
+                    required={field.required}
+                    helpText={field.helpText}
+                    allowMultiple={true}
+                  />
+                </div>
+              ) : field.type === 'vendor_selector' ? (
+                <div className="w-full">
+                  <VendorSelector
+                    value={fieldValue}
+                    onChange={(value) => handleFieldChange(field.name, value)}
+                    required={field.required}
+                    helpText={field.helpText}
+                    allowMultiple={field.allowMultiple || false}
+                  />
+                </div>
+              ) : field.type === 'select' ? (
+                <select
+                  value={fieldValue}
+                  onChange={(e) => handleFieldChange(field.name, e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                  required={field.required}
+                >
+                  <option value="">Select {field.label.toLowerCase()}...</option>
+                  {getFieldOptions(field).map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              ) : field.type === 'text' ? (
                 <input
                   type="text"
                   value={fieldValue}
-                  onChange={(e) => handleFieldChange(field.name, e.target.value, true)}
-                  className="w-full min-w-0 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
-                  placeholder={`\${trigger_data.${field.name}}`}
+                  onChange={(e) => handleFieldChange(field.name, e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                  placeholder={field.placeholder}
+                  required={field.required}
                 />
-                <p className="text-xs text-gray-500">
-                  This will use dynamic data from flow execution context
-                </p>
-              </div>
-            ) : field.type === 'agent_selector' ? (
-              <AgentSelector
-                value={fieldValue}
-                onChange={(value) => handleFieldChange(field.name, value)}
-                required={field.required}
-                helpText={field.helpText}
-                allowMultiple={true}
-              />
-            ) : field.type === 'vendor_selector' ? (
-              <VendorSelector
-                value={fieldValue}
-                onChange={(value) => handleFieldChange(field.name, value)}
-                required={field.required}
-                helpText={field.helpText}
-                allowMultiple={field.allowMultiple || false}
-              />
-            ) : field.type === 'select' ? (
-              <select
-                value={fieldValue}
-                onChange={(e) => handleFieldChange(field.name, e.target.value)}
-                className="w-full min-w-0 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required={field.required}
-              >
-                <option value="">Select {field.label.toLowerCase()}...</option>
-                {getFieldOptions(field).map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            ) : field.type === 'text' ? (
-              <input
-                type="text"
-                value={fieldValue}
-                onChange={(e) => handleFieldChange(field.name, e.target.value)}
-                className="w-full min-w-0 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder={field.placeholder}
-                required={field.required}
-              />
-            ) : field.type === 'number' ? (
-              <input
-                type="number"
-                value={fieldValue}
-                onChange={(e) => handleFieldChange(field.name, parseInt(e.target.value) || 0)}
-                className="w-full min-w-0 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required={field.required}
-              />
-            ) : field.type === 'boolean' ? (
-              <label className="flex items-center">
+              ) : field.type === 'number' ? (
                 <input
-                  type="checkbox"
-                  checked={fieldValue || false}
-                  onChange={(e) => handleFieldChange(field.name, e.target.checked)}
-                  className="mr-2 h-4 w-4"
+                  type="number"
+                  value={fieldValue}
+                  onChange={(e) => handleFieldChange(field.name, parseInt(e.target.value) || 0)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                  required={field.required}
                 />
-                <span className="text-sm text-gray-700">Enable {field.label.toLowerCase()}</span>
-              </label>
-            ) : null}
+              ) : field.type === 'boolean' ? (
+                <label className="flex items-center w-full">
+                  <input
+                    type="checkbox"
+                    checked={fieldValue || false}
+                    onChange={(e) => handleFieldChange(field.name, e.target.checked)}
+                    className="mr-2 h-4 w-4"
+                  />
+                  <span className="text-sm text-gray-700">Enable {field.label.toLowerCase()}</span>
+                </label>
+              ) : null}
+            </div>
 
             {field.helpText && (
-              <p className="mt-1 text-xs text-gray-500">{field.helpText}</p>
+              <p className="mt-2 text-xs text-gray-500">{field.helpText}</p>
             )}
           </div>
         )
       })}
 
       {/* Show generated JSON for reference */}
-      <div className="mt-4 p-3 bg-gray-50 border border-gray-200 rounded">
-        <p className="text-xs font-medium text-gray-700 mb-1">Generated Input Data:</p>
-        <pre className="text-xs text-gray-600 overflow-x-auto">
+      <div className="mt-6 p-3 bg-gray-50 border border-gray-200 rounded w-full overflow-hidden">
+        <p className="text-xs font-medium text-gray-700 mb-2">Generated Input Data:</p>
+        <pre className="text-xs text-gray-600 overflow-x-auto whitespace-pre-wrap break-words w-full">
           {JSON.stringify(formData, null, 2)}
         </pre>
       </div>
