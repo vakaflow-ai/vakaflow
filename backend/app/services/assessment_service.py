@@ -660,7 +660,7 @@ class AssessmentService:
             assignment_dict['agent_id'] = UUID(assignment_dict['agent_id']) if isinstance(assignment_dict['agent_id'], str) else assignment_dict['agent_id']
         
         # Extract status to avoid duplicate keyword argument
-        status = assignment_dict.pop('status', 'pending')
+            status = assignment_dict.pop('status', 'pending')
         
         # Remove fields that are passed explicitly
         assignment_dict.pop('assessment_id', None)

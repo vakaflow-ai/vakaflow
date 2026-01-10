@@ -25,6 +25,7 @@ from app.services.assessment_template_service import AssessmentTemplateService
 from app.models.assessment_template import AssessmentTemplate
 from app.core.audit import audit_service, AuditAction
 import logging
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -1375,7 +1376,7 @@ async def create_assignment(
                     action_type=ActionItemType.ASSESSMENT.value,
                     title=f"Complete Assessment: {assessment.name}",
                     description=f"Assessment has been assigned to you. Please complete all questions by the due date." + (f" Due: {assignment.due_date.strftime('%Y-%m-%d')}" if assignment.due_date else ""),
-                    status=ActionItemStatus.PENDING.value,
+                    status=ActionItemStatus.PENDING,
                     priority=ActionItemPriority.HIGH.value if assignment.due_date and assignment.due_date < datetime.utcnow() + timedelta(days=7) else ActionItemPriority.MEDIUM.value,
                     due_date=assignment.due_date,
                     source_type="assessment_assignment",
@@ -1896,6 +1897,11 @@ async def save_assessment_responses(
             if not assignment.completed_at:
                 assignment.completed_at = datetime.utcnow()
                 logger.info(f"✅ Set completed_at timestamp for assignment {assignment_id}")
+            
+            # CRITICAL: Flush assignment status to database BEFORE creating approval action items
+            # This ensures the assignment.status is 'completed' when the approval workflow checks it
+            db.flush()
+            logger.info(f"✅ Flushed assignment {assignment_id} status='completed' to database before triggering approval workflow")
             
             # Generate human-readable workflow ticket ID (e.g., ASMT-2026-017)
             if not assignment.workflow_ticket_id:
@@ -3048,7 +3054,7 @@ async def _trigger_assessment_approval_workflow(
                 "approval_required": True,
                 "vendor_completed": True,  # Flag: Vendor has completed the assessment
                 "ready_for_approval": True,  # Flag: Assessment is ready for approver review
-                "assignment_status": "completed",  # Explicit assignment status when action item is created
+                "assignment_status": assignment.status,
                 "workflow_ticket_id": assignment.workflow_ticket_id  # Human-readable ticket ID (e.g., ASMT-2026-017)
             }
         )

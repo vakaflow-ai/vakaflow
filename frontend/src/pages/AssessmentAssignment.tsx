@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
@@ -13,7 +13,7 @@ import { showToast } from '../utils/toast'
 import { 
   FileText, CheckCircle2, AlertCircle, Loader2, Save, ArrowLeft, 
   Upload, X, CheckCircle, XCircle, Clock, AlertTriangle, 
-  MessageSquare, Send, User, Search
+  MessageSquare, Send, User, Search, ChevronDown, UserPlus
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -31,6 +31,27 @@ export default function AssessmentAssignmentPage() {
   const [responses, setResponses] = useState<Record<string, QuestionResponse>>({})
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [editingAssignee, setEditingAssignee] = useState<string | null>(null)
+  const [assigneeSearchQuery, setAssigneeSearchQuery] = useState<Record<string, string>>({})
+  const [assigneeDropdownOpen, setAssigneeDropdownOpen] = useState<Record<string, boolean>>({})
+  const assigneeDropdownRefs = useRef<Record<string, HTMLDivElement | null>>({})
+
+  // Close assignee dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      Object.entries(assigneeDropdownRefs.current).forEach(([questionId, ref]) => {
+        if (ref && !ref.contains(event.target as Node)) {
+          setAssigneeDropdownOpen(prev => ({ ...prev, [questionId]: false }))
+          setAssigneeSearchQuery(prev => ({ ...prev, [questionId]: '' }))
+        }
+      })
+    }
+
+    if (Object.values(assigneeDropdownOpen).some(open => open)) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [assigneeDropdownOpen])
 
   useEffect(() => {
     authApi.getCurrentUser().then(setUser).catch(() => navigate('/login'))
@@ -54,19 +75,13 @@ export default function AssessmentAssignmentPage() {
     due_date: assignmentStatus.due_date,
   } : null
   
-  // Debug: Log raw API response
-  if (assignmentStatus) {
-    console.log('Raw Assignment Status API Response:', {
-      rawStatus: assignmentStatus.status,
-      statusType: typeof assignmentStatus.status,
-      fullResponse: assignmentStatus
-    })
-  }
+  // Removed debug logs for performance
 
   const { data: questions = [], isLoading: questionsLoading } = useQuery({
     queryKey: ['assessment-questions', assignmentStatus?.assessment_id],
     queryFn: () => assessmentsApi.getAssignmentQuestions(id!),
     enabled: !!id && !!assignmentStatus?.assessment_id,
+    staleTime: 60000, // Cache for 1 minute
   })
 
   // Load existing responses
@@ -74,6 +89,15 @@ export default function AssessmentAssignmentPage() {
     queryKey: ['assessment-responses', id],
     queryFn: () => assessmentsApi.getAssignmentResponses(id!),
     enabled: !!id && !!assignmentStatus,
+    staleTime: 30000, // Cache for 30 seconds
+  })
+
+  // Load question owners/assignees
+  const { data: questionOwners = {} } = useQuery({
+    queryKey: ['assessment-question-owners', id],
+    queryFn: () => assessmentsApi.getQuestionOwners(id!),
+    enabled: !!id && !!assignmentStatus,
+    staleTime: 30000, // Cache for 30 seconds
   })
 
   // Initialize responses from existing data
@@ -153,6 +177,91 @@ export default function AssessmentAssignmentPage() {
     submitMutation.mutate(formattedResponses)
   }
 
+  // Debounced search query state
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState<Record<string, string>>({})
+  
+  // Debounce search queries
+  useEffect(() => {
+    const timers: Record<string, NodeJS.Timeout> = {}
+    Object.entries(assigneeSearchQuery).forEach(([questionId, query]) => {
+      if (timers[questionId]) clearTimeout(timers[questionId])
+      timers[questionId] = setTimeout(() => {
+        setDebouncedSearchQuery(prev => ({ ...prev, [questionId]: query }))
+      }, 300) // 300ms debounce
+    })
+    return () => {
+      Object.values(timers).forEach(timer => clearTimeout(timer))
+    }
+  }, [assigneeSearchQuery])
+
+  // Search vendor users for assignment (with debouncing)
+  const activeSearchQuery = React.useMemo(() => {
+    const openDropdowns = Object.entries(assigneeDropdownOpen)
+      .filter(([_, isOpen]) => isOpen)
+      .map(([qId, _]) => debouncedSearchQuery[qId] || '')
+    return openDropdowns[0] || ''
+  }, [assigneeDropdownOpen, debouncedSearchQuery])
+
+  const { data: vendorUsers = [] } = useQuery({
+    queryKey: ['vendor-users', id, activeSearchQuery],
+    queryFn: () => assessmentsApi.searchVendorUsers(id!, activeSearchQuery || undefined),
+    enabled: !!id && !!assignmentStatus && Object.values(assigneeDropdownOpen).some(open => open),
+    staleTime: 30000, // Cache for 30 seconds
+  })
+
+  // Assign question owner mutation with optimistic updates
+  const assignOwnerMutation = useMutation({
+    mutationFn: ({ questionId, ownerData }: { questionId: string; ownerData: { owner_id?: string; owner_email?: string; owner_name?: string } }) => {
+      return assessmentsApi.assignQuestionOwner(id!, questionId, ownerData)
+    },
+    onMutate: async ({ questionId, ownerData }) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['assessment-question-owners', id] })
+      
+      // Snapshot previous value
+      const previousOwners = queryClient.getQueryData(['assessment-question-owners', id])
+      
+      // Optimistically update
+      queryClient.setQueryData(['assessment-question-owners', id], (old: any) => {
+        if (!old) return old
+        const newOwners = { ...old }
+        // We'll update this with the actual response data
+        return newOwners
+      })
+      
+      return { previousOwners }
+    },
+    onSuccess: (data, variables) => {
+      showToast.success(`Question assigned to ${data.owner_name}`)
+      // Update the cache with the actual response
+      queryClient.setQueryData(['assessment-question-owners', id], (old: any) => {
+        if (!old) return { [variables.questionId]: { id: data.owner_id, name: data.owner_name, email: data.owner_email, assigned_at: data.assigned_at } }
+        return {
+          ...old,
+          [variables.questionId]: { id: data.owner_id, name: data.owner_name, email: data.owner_email, assigned_at: data.assigned_at }
+        }
+      })
+      setAssigneeDropdownOpen(prev => ({ ...prev, [variables.questionId]: false }))
+      setAssigneeSearchQuery(prev => ({ ...prev, [variables.questionId]: '' }))
+      setDebouncedSearchQuery(prev => ({ ...prev, [variables.questionId]: '' }))
+    },
+    onError: (err: any, variables, context) => {
+      // Rollback on error
+      if (context?.previousOwners) {
+        queryClient.setQueryData(['assessment-question-owners', id], context.previousOwners)
+      }
+      showToast.error(err.message || 'Failed to assign question')
+    },
+  })
+
+  const handleAssignQuestion = (questionId: string, ownerId?: string, ownerEmail?: string, ownerName?: string) => {
+    if (ownerId) {
+      assignOwnerMutation.mutate({ questionId, ownerData: { owner_id: ownerId } })
+    } else if (ownerEmail) {
+      assignOwnerMutation.mutate({ questionId, ownerData: { owner_email: ownerEmail, owner_name: ownerName } })
+    }
+  }
+
   // Determine user roles first
   const isVendor = user?.role === 'vendor_user'
   const isApprover = ['approver', 'tenant_admin', 'platform_admin'].includes(user?.role)
@@ -186,29 +295,7 @@ export default function AssessmentAssignmentPage() {
     enabled: !!id && !!assignmentStatus && isReadOnly,
   })
   
-  // Debug: Log status to help troubleshoot
-  if (assignment) {
-    console.log('🔍 Assessment Assignment Debug:', {
-      rawStatus,
-      normalizedStatus,
-      isReadOnly,
-      isVendor,
-      editableStatuses,
-      readonlyStatuses,
-      isInEditable: editableStatuses.includes(normalizedStatus),
-      isInReadonly: readonlyStatuses.includes(normalizedStatus),
-      statusCheck: {
-        isPending: normalizedStatus === 'pending',
-        isInProgress: normalizedStatus === 'in_progress',
-        isCompleted: normalizedStatus === 'completed',
-        isApproved: normalizedStatus === 'approved',
-        isRejected: normalizedStatus === 'rejected',
-        isNeedsRevision: normalizedStatus === 'needs_revision'
-      },
-      assignmentId: assignment.id,
-      assessmentName: assignment.assessment_name
-    })
-  }
+  // Removed debug logs for performance
   
   // Approvers and reviewers should NOT fill out assessments - they only review/approve completed ones
   // If an approver/reviewer tries to access an assignment, always redirect to approver view
@@ -313,137 +400,499 @@ export default function AssessmentAssignmentPage() {
         {/* Questions Table */}
         <Card>
           <CardHeader>
-            <CardTitle>Questions</CardTitle>
-            <CardDescription>Answer all required questions to complete the assessment</CardDescription>
+            <CardTitle>Assessment Questionnaire</CardTitle>
+            <CardDescription>Total Questions: {questions.length}</CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-6">
-              {questions.map((question, index) => {
-                // Use string ID for lookup to match API response format (question IDs are UUIDs stored as strings)
-                const questionIdStr = String(question.id)
-                const response = responses[questionIdStr] || responses[question.id] || { value: '' }
-                const hasResponse = response.value !== undefined && response.value !== null && response.value !== ''
-                
-                // Get review comment for this question (if read-only)
-                const questionReview = questionReviewsData?.question_reviews?.[questionIdStr] || questionReviewsData?.question_reviews?.[question.id]
-                const reviewerComment = questionReview?.reviewer_comment
-                const vendorComment = questionReview?.vendor_comment
-                const reviewStatus = questionReview?.status
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="border-b border-gray-200 bg-gray-50">
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Question</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Assignee</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Vendor Answer</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Comments</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">Attachments</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {(() => {
+                    // Group questions by category/section
+                    const groupedQuestions: Record<string, typeof questions> = {}
+                    questions.forEach(q => {
+                      const category = q.category || q.section || 'Uncategorized'
+                      if (!groupedQuestions[category]) {
+                        groupedQuestions[category] = []
+                      }
+                      groupedQuestions[category].push(q)
+                    })
 
-                return (
-                  <div key={question.id} className="space-y-3 pb-6 border-b last:border-0">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <Label className="text-base font-semibold">
-                          {index + 1}. {question.question_text}
-                          {question.is_required && <span className="text-destructive ml-1">*</span>}
-                        </Label>
-                        {question.description && (
-                          <p className="text-sm text-muted-foreground mt-1">{question.description}</p>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {reviewStatus && isReadOnly && (
-                          <span className={cn(
-                            "text-xs px-2 py-1 rounded-full font-medium",
-                            reviewStatus === 'pass' && "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-                            reviewStatus === 'fail' && "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
-                            reviewStatus === 'in_progress' && "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
-                            reviewStatus === 'pending' && "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200"
-                          )}>
-                            {reviewStatus === 'pass' && '✓ Passed'}
-                            {reviewStatus === 'fail' && '✗ Failed'}
-                            {reviewStatus === 'in_progress' && '⏳ In Progress'}
-                            {reviewStatus === 'pending' && '⏸ Pending'}
-                          </span>
-                        )}
-                        {hasResponse && (
-                          <CheckCircle className="h-5 w-5 text-primary flex-shrink-0" />
-                        )}
-                      </div>
-                    </div>
+                    const rows: JSX.Element[] = []
+                    Object.entries(groupedQuestions).forEach(([category, categoryQuestions]) => {
+                      // Add category header row
+                      rows.push(
+                        <tr key={`category-${category}`} className="bg-gray-100">
+                          <td colSpan={5} className="px-4 py-3 text-sm font-semibold text-gray-900">
+                            {category}
+                          </td>
+                        </tr>
+                      )
 
-                    <div className="space-y-2">
-                      {question.field_type === 'textarea' ? (
-                        <textarea
-                          value={response.value || ''}
-                          onChange={(e) => handleResponseChange(question.id, e.target.value)}
-                          disabled={isReadOnly}
-                          placeholder="Enter your response..."
-                          className="w-full min-h-[120px] px-3 py-2 rounded-md border border-border bg-background text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0 focus-visible:border-ring disabled:opacity-50 disabled:cursor-not-allowed transition-colors hover:border-ring/50"
-                        />
-                      ) : (
-                        <Input
-                          value={response.value || ''}
-                          onChange={(e) => handleResponseChange(question.id, e.target.value)}
-                          disabled={isReadOnly}
-                          placeholder="Enter your response or paste a URL"
-                          className="bg-background text-foreground"
-                        />
-                      )}
-                      
-                      {/* Show vendor comment if exists */}
-                      {response.comment && (
-                        <div className="mt-2 p-3 bg-muted rounded-md">
-                          <p className="text-xs text-muted-foreground mb-1">Vendor Comment:</p>
-                          <p className="text-sm">{response.comment}</p>
-                        </div>
-                      )}
-                    </div>
+                      // Add question rows for this category
+                      categoryQuestions.forEach((question, index) => {
+                        const questionIdStr = String(question.id)
+                        const response = responses[questionIdStr] || responses[question.id] || { value: '', comment: '', documents: [] }
+                        const hasResponse = response.value !== undefined && response.value !== null && response.value !== ''
+                        
+                        // Get assignee/owner for this question
+                        const owner = questionOwners[questionIdStr] || questionOwners[question.id]
+                        const assigneeName = owner?.name || 'Unassigned'
+                        const assigneeEmail = owner?.email || ''
+                        
+                        // Get review comment for this question (if read-only)
+                        const questionReview = questionReviewsData?.question_reviews?.[questionIdStr] || questionReviewsData?.question_reviews?.[question.id]
+                        const reviewerComment = questionReview?.reviewer_comment
+                        const vendorComment = questionReview?.vendor_comment || response.comment
+                        const reviewStatus = questionReview?.status
 
-                    {/* Review Comments (for read-only approved/completed assignments) */}
-                    {isReadOnly && (reviewerComment || vendorComment) && (
-                      <div className="mt-3 space-y-2">
-                        {reviewerComment && (
-                          <div className="p-3 bg-blue-50 dark:bg-blue-950 rounded-md border border-blue-200 dark:border-blue-800">
-                            <div className="flex items-start gap-2">
-                              <MessageSquare className="h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
-                              <div className="flex-1">
-                                <p className="text-xs font-medium text-blue-900 dark:text-blue-100 mb-1">Reviewer Comment:</p>
-                                <p className="text-sm text-blue-800 dark:text-blue-200">{reviewerComment}</p>
-                                {questionReview?.reviewed_at && (
-                                  <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-                                    Reviewed on {new Date(questionReview.reviewed_at).toLocaleString()}
-                                  </p>
+                        // Format vendor answer for display
+                        const formatVendorAnswer = (value: any): string => {
+                          if (value === null || value === undefined || value === '') return ''
+                          if (typeof value === 'string') return value
+                          if (Array.isArray(value)) return value.join(', ')
+                          return String(value)
+                        }
+
+                        const vendorAnswer = formatVendorAnswer(response.value)
+
+                        rows.push(
+                          <tr key={question.id} className="hover:bg-gray-50">
+                            <td className="px-4 py-3">
+                              <div className="space-y-1">
+                                <div className="text-sm font-medium text-gray-900">
+                                  {question.question_text || question.title}
+                                  {question.is_required && <span className="text-red-600 ml-1">*</span>}
+                                </div>
+                                {question.description && (
+                                  <div className="text-xs text-gray-500">{question.description}</div>
                                 )}
                               </div>
-                            </div>
-                          </div>
-                        )}
-                        {vendorComment && (
-                          <div className="p-3 bg-green-50 dark:bg-green-950 rounded-md border border-green-200 dark:border-green-800">
-                            <div className="flex items-start gap-2">
-                              <User className="h-4 w-4 text-green-600 dark:text-green-400 mt-0.5 flex-shrink-0" />
-                              <div className="flex-1">
-                                <p className="text-xs font-medium text-green-900 dark:text-green-100 mb-1">Vendor Response:</p>
-                                <p className="text-sm text-green-800 dark:text-green-200">{vendorComment}</p>
+                            </td>
+                            <td className="px-4 py-3">
+                              {isReadOnly ? (
+                                <div className="text-sm text-gray-700">
+                                  {assigneeName}
+                                  {assigneeEmail && (
+                                    <div className="text-xs text-gray-500">{assigneeEmail}</div>
+                                  )}
+                                </div>
+                              ) : (
+                                <div 
+                                  className="relative"
+                                  ref={(el) => {
+                                    assigneeDropdownRefs.current[questionIdStr] = el
+                                  }}
+                                >
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setAssigneeDropdownOpen(prev => ({
+                                        ...prev,
+                                        [questionIdStr]: !prev[questionIdStr]
+                                      }))
+                                      if (!assigneeDropdownOpen[questionIdStr]) {
+                                        setAssigneeSearchQuery(prev => ({ ...prev, [questionIdStr]: '' }))
+                                      }
+                                    }}
+                                    className="w-full text-left px-3 py-2 rounded-md border border-gray-300 bg-white text-sm hover:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 flex items-center justify-between"
+                                  >
+                                    <span className="text-gray-700 truncate">
+                                      {assigneeName}
+                                      {assigneeEmail && <span className="text-gray-500 ml-1">({assigneeEmail})</span>}
+                                    </span>
+                                    <ChevronDown className={`w-4 h-4 text-gray-500 flex-shrink-0 transition-transform ${assigneeDropdownOpen[questionIdStr] ? 'transform rotate-180' : ''}`} />
+                                  </button>
+                                  
+                                  {assigneeDropdownOpen[questionIdStr] && (
+                                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-hidden">
+                                      <div className="p-2 border-b border-gray-200">
+                                        <div className="relative">
+                                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                          <input
+                                            type="text"
+                                            value={assigneeSearchQuery[questionIdStr] || ''}
+                                            onChange={(e) => {
+                                              setAssigneeSearchQuery(prev => ({
+                                                ...prev,
+                                                [questionIdStr]: e.target.value
+                                              }))
+                                            }}
+                                            placeholder="Search users..."
+                                            className="w-full pl-10 pr-4 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                            autoFocus
+                                          />
+                                        </div>
+                                      </div>
+                                      <div className="max-h-48 overflow-y-auto">
+                                        {vendorUsers.length > 0 ? (
+                                          vendorUsers.map((vendorUser: any) => (
+                                            <button
+                                              key={vendorUser.id}
+                                              type="button"
+                                              onClick={() => handleAssignQuestion(questionIdStr, vendorUser.id)}
+                                              className="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm"
+                                            >
+                                              <div className="font-medium text-gray-900">{vendorUser.name}</div>
+                                              <div className="text-xs text-gray-500">{vendorUser.email}</div>
+                                            </button>
+                                          ))
+                                        ) : (
+                                          <div className="px-4 py-8 text-center text-sm text-gray-500">
+                                            {activeSearchQuery ? 'No users found' : 'Start typing to search users...'}
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
+                              {isReadOnly ? (
+                                <div className="text-sm text-gray-900 whitespace-pre-wrap max-w-md">
+                                  {(() => {
+                                    // Format answer based on question type for display
+                                    if (question.response_type === 'File' || question.field_type === 'file') {
+                                      // Show file names if files are uploaded
+                                      if (response.documents && response.documents.length > 0) {
+                                        return response.documents.map((doc: any, idx: number) => (
+                                          <div key={idx} className="flex items-center gap-2 mb-1">
+                                            <FileText className="w-4 h-4 text-gray-500" />
+                                            <span>{doc.name || doc.path || `File ${idx + 1}`}</span>
+                                          </div>
+                                        ))
+                                      }
+                                      return <span className="text-gray-400 italic">No file uploaded</span>
+                                    }
+                                    return vendorAnswer || <span className="text-gray-400 italic">No answer provided</span>
+                                  })()}
+                                </div>
+                              ) : (
+                                <div className="space-y-2">
+                                  {(() => {
+                                    // Handle file upload type
+                                    if (question.response_type === 'File' || question.field_type === 'file') {
+                                      return (
+                                        <div className="space-y-2">
+                                          {response.documents && response.documents.length > 0 && (
+                                            <div className="space-y-1">
+                                              {response.documents.map((doc: any, docIndex: number) => (
+                                                <div key={docIndex} className="flex items-center gap-2 text-sm bg-gray-50 p-2 rounded">
+                                                  <FileText className="w-4 h-4 text-gray-500" />
+                                                  <span className="text-gray-700 flex-1">{doc.name || doc.path || `Document ${docIndex + 1}`}</span>
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                      const questionIdStr = String(question.id)
+                                                      const newDocs = response.documents.filter((_: any, i: number) => i !== docIndex)
+                                                      setResponses(prev => ({
+                                                        ...prev,
+                                                        [questionIdStr]: { ...prev[questionIdStr] || {}, documents: newDocs }
+                                                      }))
+                                                    }}
+                                                    className="text-red-600 hover:text-red-800"
+                                                  >
+                                                    <X className="w-4 h-4" />
+                                                  </button>
+                                                </div>
+                                              ))}
+                                            </div>
+                                          )}
+                                          <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => {
+                                              const input = document.createElement('input')
+                                              input.type = 'file'
+                                              input.multiple = true
+                                              input.onchange = (e: any) => {
+                                                const files = Array.from(e.target.files || [])
+                                                const questionIdStr = String(question.id)
+                                                const newDocs = files.map((file: File) => ({
+                                                  name: file.name,
+                                                  file,
+                                                  id: `${Date.now()}-${Math.random()}`,
+                                                  size: file.size,
+                                                  type: file.type
+                                                }))
+                                                setResponses(prev => ({
+                                                  ...prev,
+                                                  [questionIdStr]: {
+                                                    ...prev[questionIdStr] || {},
+                                                    documents: [...(prev[questionIdStr]?.documents || []), ...newDocs]
+                                                  }
+                                                }))
+                                              }
+                                              input.click()
+                                            }}
+                                            className="w-full"
+                                          >
+                                            <Upload className="w-4 h-4 mr-2" />
+                                            Upload File
+                                          </Button>
+                                        </div>
+                                      )
+                                    }
+                                    
+                                    // Handle textarea type
+                                    if (question.field_type === 'textarea') {
+                                      return (
+                                        <textarea
+                                          value={response.value || ''}
+                                          onChange={(e) => handleResponseChange(question.id, e.target.value)}
+                                          disabled={isReadOnly}
+                                          placeholder="Enter your response..."
+                                          rows={4}
+                                          className="w-full px-3 py-2 rounded-md border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        />
+                                      )
+                                    }
+                                    
+                                    // Handle Yes/No options (radio buttons)
+                                    if (question.field_type === 'radio' || (question.options && question.options.length === 2 && 
+                                        question.options.some((opt: any) => {
+                                          const val = typeof opt === 'string' ? opt.toLowerCase() : opt.value?.toLowerCase()
+                                          return val === 'yes' || val === 'no'
+                                        }))) {
+                                      return (
+                                        <div className="flex gap-4">
+                                          {question.options?.map((opt: any) => {
+                                            const optValue = typeof opt === 'string' ? opt : opt.value
+                                            const optLabel = typeof opt === 'string' ? opt : opt.label
+                                            const isSelected = response.value === optValue
+                                            return (
+                                              <label key={optValue} className="flex items-center gap-2 text-sm cursor-pointer">
+                                                <input
+                                                  type="radio"
+                                                  name={`question-${question.id}`}
+                                                  value={optValue}
+                                                  checked={isSelected}
+                                                  onChange={(e) => handleResponseChange(question.id, e.target.value)}
+                                                  disabled={isReadOnly}
+                                                  className="w-4 h-4 text-indigo-600 border-gray-300 focus:ring-indigo-500"
+                                                />
+                                                <span>{optLabel}</span>
+                                              </label>
+                                            )
+                                          })}
+                                        </div>
+                                      )
+                                    }
+                                    
+                                    // Handle select/dropdown
+                                    if (question.field_type === 'select') {
+                                      return (
+                                        <select
+                                          value={response.value || ''}
+                                          onChange={(e) => handleResponseChange(question.id, e.target.value)}
+                                          disabled={isReadOnly}
+                                          className="w-full px-3 py-2 rounded-md border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50"
+                                        >
+                                          <option value="">Select an option...</option>
+                                          {question.options?.map((opt: any) => {
+                                            const optValue = typeof opt === 'string' ? opt : opt.value
+                                            const optLabel = typeof opt === 'string' ? opt : opt.label
+                                            return (
+                                              <option key={optValue} value={optValue}>{optLabel}</option>
+                                            )
+                                          })}
+                                        </select>
+                                      )
+                                    }
+                                    
+                                    // Handle checkbox/multi-select
+                                    if (question.field_type === 'checkbox' || question.field_type === 'multi_select') {
+                                      return (
+                                        <div className="space-y-2">
+                                          {question.options?.map((opt: any) => {
+                                            const optValue = typeof opt === 'string' ? opt : opt.value
+                                            const optLabel = typeof opt === 'string' ? opt : opt.label
+                                            const isChecked = Array.isArray(response.value) 
+                                              ? response.value.includes(optValue)
+                                              : response.value === optValue
+                                            return (
+                                              <label key={optValue} className="flex items-center gap-2 text-sm cursor-pointer">
+                                                <input
+                                                  type="checkbox"
+                                                  checked={isChecked}
+                                                  onChange={(e) => {
+                                                    if (question.field_type === 'multi_select') {
+                                                      const currentValues = Array.isArray(response.value) ? response.value : []
+                                                      const newValues = e.target.checked
+                                                        ? [...currentValues, optValue]
+                                                        : currentValues.filter((v: any) => v !== optValue)
+                                                      handleResponseChange(question.id, newValues)
+                                                    } else {
+                                                      handleResponseChange(question.id, e.target.checked ? optValue : '')
+                                                    }
+                                                  }}
+                                                  disabled={isReadOnly}
+                                                  className="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                                                />
+                                                <span>{optLabel}</span>
+                                              </label>
+                                            )
+                                          })}
+                                        </div>
+                                      )
+                                    }
+                                    
+                                    // Default: text input
+                                    return (
+                                      <Input
+                                        value={response.value || ''}
+                                        onChange={(e) => handleResponseChange(question.id, e.target.value)}
+                                        disabled={isReadOnly}
+                                        placeholder="Enter your response..."
+                                        className="w-full"
+                                      />
+                                    )
+                                  })()}
+                                </div>
+                              )}
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="space-y-2">
+                                {isReadOnly ? (
+                                  <>
+                                    {vendorComment && (
+                                      <div className="text-sm text-gray-900 whitespace-pre-wrap max-w-md">
+                                        {vendorComment}
+                                      </div>
+                                    )}
+                                    {reviewerComment && (
+                                      <div className="text-sm text-blue-700 whitespace-pre-wrap max-w-md">
+                                        <div className="font-medium mb-1">Reviewer:</div>
+                                        {reviewerComment}
+                                      </div>
+                                    )}
+                                    {!vendorComment && !reviewerComment && (
+                                      <span className="text-gray-400 text-sm italic">No comments</span>
+                                    )}
+                                  </>
+                                ) : (
+                                  <textarea
+                                    value={response.comment || ''}
+                                    onChange={(e) => {
+                                      const questionIdStr = String(question.id)
+                                      setResponses(prev => ({
+                                        ...prev,
+                                        [questionIdStr]: { ...prev[questionIdStr] || {}, comment: e.target.value }
+                                      }))
+                                    }}
+                                    disabled={isReadOnly}
+                                    placeholder="Add a comment..."
+                                    className="w-full min-h-[80px] px-3 py-2 rounded-md border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50"
+                                  />
+                                )}
                               </div>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="space-y-2">
+                                {(() => {
+                                  // For file type questions, attachments are shown in the vendor answer column
+                                  const isFileType = question.response_type === 'File' || question.field_type === 'file'
+                                  
+                                  // Show attachments that are not part of the answer (supporting documents)
+                                  const supportingDocs = isFileType ? [] : (response.documents || [])
+                                  
+                                  if (supportingDocs.length > 0) {
+                                    return (
+                                      <div className="space-y-1">
+                                        {supportingDocs.map((doc: any, docIndex: number) => (
+                                          <div key={docIndex} className="flex items-center gap-2 text-sm">
+                                            <FileText className="w-4 h-4 text-gray-500" />
+                                            <span className="text-gray-700">{doc.name || doc.path || `Document ${docIndex + 1}`}</span>
+                                            {doc.size && (
+                                              <span className="text-xs text-gray-500">
+                                                ({(doc.size / 1024).toFixed(1)} KB)
+                                              </span>
+                                            )}
+                                            {!isReadOnly && (
+                                              <button
+                                                type="button"
+                                                onClick={() => {
+                                                  const questionIdStr = String(question.id)
+                                                  const newDocs = supportingDocs.filter((_: any, i: number) => i !== docIndex)
+                                                  setResponses(prev => ({
+                                                    ...prev,
+                                                    [questionIdStr]: { ...prev[questionIdStr] || {}, documents: newDocs }
+                                                  }))
+                                                }}
+                                                className="text-red-600 hover:text-red-800 ml-auto"
+                                              >
+                                                <X className="w-4 h-4" />
+                                              </button>
+                                            )}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )
+                                  }
+                                  
+                                  if (isFileType) {
+                                    return <span className="text-gray-400 text-sm italic">Files shown in answer column</span>
+                                  }
+                                  
+                                  return <span className="text-gray-400 text-sm italic">No attachments</span>
+                                })()}
+                                {!isReadOnly && question.response_type !== 'File' && question.field_type !== 'file' && (
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                      const input = document.createElement('input')
+                                      input.type = 'file'
+                                      input.multiple = true
+                                      input.onchange = (e: any) => {
+                                        const files = Array.from(e.target.files || [])
+                                        const questionIdStr = String(question.id)
+                                        const newDocs = files.map((file: File) => ({
+                                          name: file.name,
+                                          file,
+                                          id: `${Date.now()}-${Math.random()}`,
+                                          size: file.size,
+                                          type: file.type
+                                        }))
+                                        setResponses(prev => ({
+                                          ...prev,
+                                          [questionIdStr]: {
+                                            ...prev[questionIdStr] || {},
+                                            documents: [...(prev[questionIdStr]?.documents || []), ...newDocs]
+                                          }
+                                        }))
+                                      }
+                                      input.click()
+                                    }}
+                                    className="mt-2"
+                                  >
+                                    <Upload className="w-4 h-4 mr-2" />
+                                    Upload Supporting Document
+                                  </Button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        )
+                      })
+                    })
 
-                    {/* Actions for Reviewers/Approvers */}
-                    {(isReviewer || isApprover) && isReadOnly && (
-                      <div className="flex items-center gap-2 pt-2">
-                        <Button variant="outline" size="sm" className="border-border hover:bg-muted hover:border-primary/50">
-                          <CheckCircle className="h-4 w-4 mr-2" />
-                          Accept
-                        </Button>
-                        <Button variant="outline" size="sm" className="border-border hover:bg-muted hover:border-destructive/50">
-                          <XCircle className="h-4 w-4 mr-2" />
-                          Deny
-                        </Button>
-                        <Button variant="outline" size="sm" className="border-border hover:bg-muted hover:border-primary/50">
-                          <MessageSquare className="h-4 w-4 mr-2" />
-                          More Info
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
+                    return rows
+                  })()}
+                </tbody>
+              </table>
             </div>
           </CardContent>
         </Card>
