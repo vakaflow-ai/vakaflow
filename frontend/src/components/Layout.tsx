@@ -378,9 +378,6 @@ export default function Layout({ children, user }: LayoutProps) {
     if (isAdmin && checkPermission('/form-designer')) {
       workflowItems.push({ path: '/form-designer', label: 'Form Designer', icon: DocumentTextIcon, show: true })
     }
-    if (isAdmin && checkPermission('/entities')) {
-      workflowItems.push({ path: '/entities', label: 'Business Process Designer', icon: DatabaseIcon, show: true })
-    }
     if (isAdmin && checkPermission('/studio')) {
       workflowItems.push({ path: '/studio', label: 'Studio', icon: CogIcon, show: true })
     }

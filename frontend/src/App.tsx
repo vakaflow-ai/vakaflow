@@ -70,7 +70,6 @@ import CVESettings from './pages/CVESettings'
 import VendorSecurity from './pages/VendorSecurity'
 import CustomFields from './pages/CustomFields'
 import MyAssessments from './pages/MyAssessments'
-import Entities from './pages/Entities'
 import SuppliersMasterView from './pages/SuppliersMasterView'
 import VendorProfile from './pages/VendorProfile'
 import PlatformArchitecture from './pages/PlatformArchitecture'
@@ -193,7 +192,6 @@ function App() {
           <Route path="/admin/form-designer/new" element={<FormDesignerEditor />} />
           <Route path="/admin/form-designer/:id" element={<FormDesignerEditor />} />
           <Route path="/admin/master-data" element={<MasterData />} />
-          <Route path="/entities" element={<Entities />} />
           <Route path="/suppliers-master" element={<SuppliersMasterView />} />
           <Route path="/vendors/:vendorId" element={<VendorProfile />} />
           <Route path="/suppliers-master/:vendorId" element={<VendorProfile />} />
