@@ -242,6 +242,8 @@ function App() {
           <Route path="/trust-center/:vendorIdentifier" element={<TrustCenter />} />
           <Route path="/my-interests" element={<MyInterests />} />
           <Route path="/my-following" element={<MyFollowing />} />
+          {/* Tenant slug route - must be last to avoid conflicts */}
+          <Route path="/:tenantSlug" element={<Login />} />
         </Routes>
       </BrowserRouter>
       </DialogProvider>

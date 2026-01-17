@@ -17,6 +17,7 @@ from app.api.v1.auth import get_current_user
 from app.core.feature_gating import FeatureGate
 from app.core.config import settings
 from app.core.security_middleware import sanitize_input
+from app.services.email_service import email_service
 
 router = APIRouter(prefix="/tenants", tags=["tenants"])
 
@@ -309,6 +310,20 @@ async def create_tenant(
     # Get features (optimized - pass tenant to avoid re-query)
     features = FeatureGate.get_tenant_features(db, str(tenant.id), tenant=tenant)
     
+    # Send onboarding notification
+    if tenant.contact_email:
+        await email_service.send_tenant_onboarding_notification(
+            to_email=tenant.contact_email,
+            tenant_name=tenant.name,
+            action="created",
+            details={
+                "License Tier": tenant.license_tier,
+                "Status": tenant.status,
+                "Max Agents": tenant.max_agents or "Unlimited",
+                "Max Users": tenant.max_users or "Unlimited"
+            }
+        )
+
     return TenantResponse(
         id=str(tenant.id),
         name=tenant.name,
@@ -476,6 +491,20 @@ async def update_my_tenant(
     db.commit()
     db.refresh(tenant)
     
+    # Send onboarding notification for updates
+    if tenant.contact_email:
+        await email_service.send_tenant_onboarding_notification(
+            to_email=tenant.contact_email,
+            tenant_name=tenant.name,
+            action="updated",
+            details={
+                "License Tier": tenant.license_tier,
+                "Status": tenant.status,
+                "Max Agents": tenant.max_agents or "Unlimited",
+                "Max Users": tenant.max_users or "Unlimited"
+            }
+        )
+
     return TenantResponse(
         id=str(tenant.id),
         name=tenant.name,
@@ -1107,4 +1136,3 @@ async def update_tenant_branding(
         website=tenant.website,
         created_at=tenant.created_at
     )
-

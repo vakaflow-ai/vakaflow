@@ -481,8 +481,127 @@ export default function TenantManagement() {
             </MaterialCard>
           </div>
         )}
+
+        {/* Edit Tenant Modal - Material Design */}
+        {showEditModal && selectedTenant && (
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in duration-200">
+            <MaterialCard elevation={24} className="max-w-2xl w-full mx-4 border-none overflow-hidden flex flex-col max-h-[90vh]">
+              <div className="p-6 border-b bg-surface-variant/10 flex items-center justify-between">
+                <h2 className="text-xl font-medium text-gray-900">Edit Tenant - {selectedTenant.name}</h2>
+                <MaterialButton variant="text" size="small" onClick={() => setShowEditModal(false)} className="!p-2 text-gray-600">
+                  <XIcon className="w-6 h-6" />
+                </MaterialButton>
+              </div>
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (selectedTenant) {
+                    updateMutation.mutate({
+                      id: selectedTenant.id,
+                      data: {
+                        name: selectedTenant.name,
+                        status: selectedTenant.status,
+                        license_tier: selectedTenant.license_tier,
+                        max_agents: selectedTenant.max_agents,
+                        max_users: selectedTenant.max_users,
+                        contact_email: selectedTenant.contact_email,
+                        contact_name: selectedTenant.contact_name,
+                      }
+                    });
+                  }
+                }}
+                className="p-6 space-y-5 bg-background overflow-y-auto"
+              >
+                <MaterialInput
+                  label="Company Name *"
+                  type="text"
+                  required
+                  value={selectedTenant?.name || ''}
+                  onChange={(e) => setSelectedTenant({ ...selectedTenant!, name: e.target.value })}
+                />
+                <MaterialInput
+                  label="Slug *"
+                  type="text"
+                  required
+                  value={selectedTenant?.slug || ''}
+                  onChange={(e) => setSelectedTenant({ ...selectedTenant!, slug: e.target.value })}
+                />
+                <MaterialInput
+                  label="Contact Email"
+                  type="email"
+                  value={selectedTenant?.contact_email || ''}
+                  onChange={(e) => setSelectedTenant({ ...selectedTenant!, contact_email: e.target.value })}
+                />
+                <MaterialInput
+                  label="Contact Name"
+                  type="text"
+                  value={selectedTenant?.contact_name || ''}
+                  onChange={(e) => setSelectedTenant({ ...selectedTenant!, contact_name: e.target.value })}
+                />
+                <div className="space-y-1">
+                  <label className="block text-xs font-medium text-gray-500 tracking-tight ml-1">Status</label>
+                  <select
+                    className="compact-input w-full"
+                    value={selectedTenant?.status || ''}
+                    onChange={(e) => setSelectedTenant({ ...selectedTenant!, status: e.target.value })}
+                  >
+                    <option value="pending">Pending</option>
+                    <option value="active">Active</option>
+                    <option value="suspended">Suspended</option>
+                    <option value="cancelled">Cancelled</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="block text-xs font-medium text-gray-500 tracking-tight ml-1">License Tier</label>
+                  <select
+                    className="compact-input w-full"
+                    value={selectedTenant?.license_tier || ''}
+                    onChange={(e) => setSelectedTenant({ ...selectedTenant!, license_tier: e.target.value })}
+                  >
+                    <option value="trial">Trial</option>
+                    <option value="basic">Basic</option>
+                    <option value="professional">Professional</option>
+                    <option value="enterprise">Enterprise</option>
+                  </select>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <MaterialInput
+                    label="Max Agents"
+                    type="number"
+                    value={selectedTenant?.max_agents?.toString() || ''}
+                    onChange={(e) => setSelectedTenant({ ...selectedTenant!, max_agents: e.target.value ? parseInt(e.target.value) : undefined })}
+                    placeholder="Unlimited"
+                  />
+                  <MaterialInput
+                    label="Max Users"
+                    type="number"
+                    value={selectedTenant?.max_users?.toString() || ''}
+                    onChange={(e) => setSelectedTenant({ ...selectedTenant!, max_users: e.target.value ? parseInt(e.target.value) : undefined })}
+                    placeholder="Unlimited"
+                  />
+                </div>
+                <div className="flex gap-3 justify-end pt-4 border-t bg-surface-variant/5 -mx-6 -mb-6 p-6 mt-6">
+                  <MaterialButton
+                    variant="text"
+                    type="button"
+                    onClick={() => setShowEditModal(false)}
+                    className="text-gray-600"
+                  >
+                    Cancel
+                  </MaterialButton>
+                  <MaterialButton
+                    type="submit"
+                    disabled={updateMutation.isPending}
+                    className="shadow-md-elevation-4"
+                  >
+                    {updateMutation.isPending ? 'Updating...' : 'Update Tenant'}
+                  </MaterialButton>
+                </div>
+              </form>
+            </MaterialCard>
+          </div>
+        )}
       </div>
     </Layout>
   )
 }
-

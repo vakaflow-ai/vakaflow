@@ -395,6 +395,58 @@ class EmailService:
         sent, _ = await self.send_email(to_email, subject, html_body, text_body)
         return sent
     
+    async def send_tenant_onboarding_notification(
+        self,
+        to_email: str,
+        tenant_name: str,
+        action: str = "created",
+        details: Optional[Dict[str, Any]] = None
+    ) -> bool:
+        """Send tenant onboarding notification"""
+        subject = f"Tenant Onboarding Update: {tenant_name} - {action.title()}"
+        
+        details_html = ""
+        details_text = ""
+        if details:
+            details_html = "<ul>"
+            for key, value in details.items():
+                details_html += f"<li><strong>{key}:</strong> {value}</li>"
+                details_text += f"- {key}: {value}\n"
+            details_html += "</ul>"
+        
+        html_body = f"""
+        <html>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+                <h2 style="color: #2563eb;">Tenant Onboarding Update</h2>
+                <p>Hello,</p>
+                <p>The tenant <strong>{tenant_name}</strong> has been <strong>{action}</strong>.</p>
+                
+                <div style="background-color: #f9fafb; padding: 15px; border-radius: 5px; margin: 20px 0;">
+                    <h3 style="color: #1e40af; margin-top: 0;">Details</h3>
+                    {details_html}
+                </div>
+                
+                <p>You can access the platform here: <a href="{os.getenv('FRONTEND_URL', 'http://localhost:3000')}">{os.getenv('FRONTEND_URL', 'http://localhost:3000')}</a></p>
+            </div>
+        </body>
+        </html>
+        """
+        
+        text_body = f"""
+        Tenant Onboarding Update
+        
+        The tenant {tenant_name} has been {action}.
+        
+        Details:
+        {details_text}
+        
+        Access the platform: {os.getenv('FRONTEND_URL', 'http://localhost:3000')}
+        """
+        
+        sent, _ = await self.send_email(to_email, subject, html_body, text_body)
+        return sent
+
     async def send_otp_email(
         self,
         to_email: str,
@@ -467,4 +519,3 @@ class EmailService:
 
 # Global email service instance
 email_service = EmailService()
-
