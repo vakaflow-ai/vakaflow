@@ -2,15 +2,18 @@ import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { vendorsApi, TrustCenter, TrustCenterUpdate } from '../lib/vendors'
 import TrustCenterLayout from '../components/TrustCenterLayout'
-import { Shield, Save, Plus, X, ExternalLink, Copy, Check, Link as LinkIcon, Award, FileText, Users, Building2, Palette, Lock } from 'lucide-react'
+import Layout from '../components/Layout'
+import { Shield, Save, Plus, X, ExternalLink, Copy, Check, Link as LinkIcon, Award, FileText, Users, Building2, Palette, Lock, Eye } from 'lucide-react'
 import { authApi } from '../lib/auth'
 import { showToast } from '../utils/toast'
 import { useNavigate } from 'react-router-dom'
 import { MaterialInput, MaterialButton, MaterialChip } from '../components/material'
+import { useDialogContext } from '../contexts/DialogContext'
 
 export default function VendorTrustCenterManagement() {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
+  const dialog = useDialogContext()
   const [user, setUser] = useState<any>(null)
   const [copied, setCopied] = useState(false)
 
@@ -97,9 +100,23 @@ export default function VendorTrustCenterManagement() {
     updateMutation.mutate(formData)
   }
 
-  const addCustomerLogo = () => {
-    const name = prompt('Enter customer name:')
-    const logoUrl = prompt('Enter logo URL:')
+  const addCustomerLogo = async () => {
+    const name = await dialog.prompt({
+      title: 'Add Customer Logo',
+      message: 'Enter customer information',
+      label: 'Customer Name',
+      placeholder: 'Enter customer name...',
+      required: true
+    })
+    if (!name) return
+
+    const logoUrl = await dialog.prompt({
+      title: 'Add Customer Logo',
+      message: 'Enter the logo URL',
+      label: 'Logo URL',
+      placeholder: 'https://example.com/logo.png',
+      required: true
+    })
     if (name && logoUrl) {
       setFormData({
         ...formData,
@@ -114,10 +131,32 @@ export default function VendorTrustCenterManagement() {
     setFormData({ ...formData, customer_logos: logos })
   }
 
-  const addCertification = () => {
-    const type = prompt('Enter certification type (e.g., SOC 2, ISO 27001):')
-    const name = prompt('Enter certification name:')
-    const logoUrl = prompt('Enter certification logo URL (optional):')
+  const addCertification = async () => {
+    const type = await dialog.prompt({
+      title: 'Add Certification',
+      message: 'Enter certification details',
+      label: 'Certification Type',
+      placeholder: 'e.g., SOC 2, ISO 27001',
+      required: true
+    })
+    if (!type) return
+
+    const name = await dialog.prompt({
+      title: 'Add Certification',
+      message: 'Enter the certification name',
+      label: 'Certification Name',
+      placeholder: 'Enter certification name...',
+      required: true
+    })
+    if (!name) return
+
+    const logoUrl = await dialog.prompt({
+      title: 'Add Certification',
+      message: 'Enter the certification logo URL (optional)',
+      label: 'Logo URL',
+      placeholder: 'https://example.com/logo.png',
+      required: false
+    })
     if (type && name) {
       setFormData({
         ...formData,
@@ -140,10 +179,32 @@ export default function VendorTrustCenterManagement() {
     setFormData({ ...formData, compliance_certifications: certs })
   }
 
-  const addDocument = () => {
-    const name = prompt('Enter document name:')
-    const type = prompt('Enter document type:')
-    const url = prompt('Enter document URL:')
+  const addDocument = async () => {
+    const name = await dialog.prompt({
+      title: 'Add Document',
+      message: 'Enter document information',
+      label: 'Document Name',
+      placeholder: 'Enter document name...',
+      required: true
+    })
+    if (!name) return
+
+    const type = await dialog.prompt({
+      title: 'Add Document',
+      message: 'Enter the document type',
+      label: 'Document Type',
+      placeholder: 'e.g., Policy, Report, Whitepaper',
+      required: true
+    })
+    if (!type) return
+
+    const url = await dialog.prompt({
+      title: 'Add Document',
+      message: 'Enter the document URL',
+      label: 'Document URL',
+      placeholder: 'https://example.com/document.pdf',
+      required: true
+    })
     if (name && type && url) {
       setFormData({
         ...formData,
@@ -167,10 +228,32 @@ export default function VendorTrustCenterManagement() {
     setFormData({ ...formData, published_documents: docs })
   }
 
-  const addArtifact = () => {
-    const name = prompt('Enter artifact name:')
-    const type = prompt('Enter artifact type:')
-    const url = prompt('Enter artifact URL:')
+  const addArtifact = async () => {
+    const name = await dialog.prompt({
+      title: 'Add Artifact',
+      message: 'Enter artifact information',
+      label: 'Artifact Name',
+      placeholder: 'Enter artifact name...',
+      required: true
+    })
+    if (!name) return
+
+    const type = await dialog.prompt({
+      title: 'Add Artifact',
+      message: 'Enter the artifact type',
+      label: 'Artifact Type',
+      placeholder: 'e.g., Report, Certificate, Assessment',
+      required: true
+    })
+    if (!type) return
+
+    const url = await dialog.prompt({
+      title: 'Add Artifact',
+      message: 'Enter the artifact URL',
+      label: 'Artifact URL',
+      placeholder: 'https://example.com/artifact.pdf',
+      required: true
+    })
     if (name && type && url) {
       setFormData({
         ...formData,
@@ -694,44 +777,53 @@ export default function VendorTrustCenterManagement() {
   ]
 
   return (
-    <form onSubmit={handleSubmit}>
-      <TrustCenterLayout
-        vendorName={vendorName}
-        sections={sections}
-        branding={trustCenter?.branding}
-        onPreview={() => {
-          if (trustCenter?.public_url) {
-            window.open(trustCenter.public_url, '_blank')
-          } else {
-            showToast.error('Trust center not published yet')
-          }
-        }}
-        onChangeLog={() => {
-          // Navigate to changelog tab if needed
-          showToast.info('Change log coming soon')
-        }}
-        onSettings={() => {
-          // Already on settings page
-          showToast.info('You are on the settings page')
-        }}
-        searchPlaceholder="Q Search content"
-      />
-      {/* Floating Save Button - Material Design */}
-      <div className="fixed bottom-10 right-10 z-50">
-        <button
-          type="submit"
-          disabled={updateMutation.isPending}
-          className="px-8 py-2 rounded-[2rem] font-bold flex items-center gap-3 disabled:opacity-50 shadow-2xl transition-all hover:scale-105 active:scale-95 group"
-          style={{
-            backgroundColor: trustCenter?.branding?.button_primary_color || trustCenter?.branding?.primary_color || '#1a1c1e',
-            color: trustCenter?.branding?.button_primary_text_color || '#ffffff'
+    <Layout user={user}>
+      <form onSubmit={handleSubmit} className="h-full">
+        <TrustCenterLayout
+          vendorName={vendorName}
+          sections={sections}
+          branding={trustCenter?.branding}
+          useBranding={false} // Management page uses default colors
+          showSidebar={false} // Hide TrustCenterLayout sidebar, use main Layout sidebar instead
+          onPreview={() => {
+            if (trustCenter?.public_url) {
+              window.open(trustCenter.public_url, '_blank')
+            } else {
+              showToast.error('Trust center not published yet')
+            }
           }}
-        >
-          <Save className="w-5 h-5 group-hover:rotate-12 transition-transform" />
-          <span className="tracking-tight">{updateMutation.isPending ? 'Synchronizing...' : 'Save Configuration'}</span>
-        </button>
-      </div>
-    </form>
+          searchPlaceholder="Q Search content"
+        />
+        {/* Floating Action Buttons - Aligned together */}
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3">
+          {trustCenter?.public_url && (
+            <MaterialButton
+              variant="outlined"
+              size="small"
+              onClick={() => {
+                if (trustCenter?.public_url) {
+                  window.open(trustCenter.public_url, '_blank')
+                } else {
+                  showToast.error('Trust center not published yet')
+                }
+              }}
+              className="px-6 py-2 rounded-[2rem] font-medium flex items-center gap-2 border-gray-300 text-gray-700 bg-white hover:bg-gray-50 shadow-lg transition-all hover:scale-105"
+              startIcon={<Eye className="w-4 h-4" />}
+            >
+              Live Preview
+            </MaterialButton>
+          )}
+          <button
+            type="submit"
+            disabled={updateMutation.isPending}
+            className="px-8 py-2 rounded-[2rem] font-bold flex items-center gap-3 disabled:opacity-50 shadow-2xl transition-all hover:scale-105 active:scale-95 group bg-blue-600 text-white hover:bg-blue-700"
+          >
+            <Save className="w-5 h-5 group-hover:rotate-12 transition-transform" />
+            <span className="tracking-tight">{updateMutation.isPending ? 'Synchronizing...' : 'Save Configuration'}</span>
+          </button>
+        </div>
+      </form>
+    </Layout>
   )
 }
 

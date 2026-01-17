@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Toaster } from 'react-hot-toast'
+import { DialogProvider } from './contexts/DialogContext'
 
 // Pages
 import Login from './pages/Login'
@@ -13,6 +14,7 @@ import AdminDashboard from './pages/AdminDashboard'
 import AnalyticsDashboard from './pages/AnalyticsDashboard'
 import AIPostureDashboard from './pages/AIPostureDashboard'
 import EcosystemMap from './pages/EcosystemMap'
+import EcosystemMapV2 from './pages/EcosystemMapV2'
 import AuditTrail from './pages/AuditTrail'
 import VendorDashboard from './pages/VendorDashboard'
 import VendorTrustCenterManagement from './pages/VendorTrustCenterManagement'
@@ -72,6 +74,15 @@ import Entities from './pages/Entities'
 import SuppliersMasterView from './pages/SuppliersMasterView'
 import VendorProfile from './pages/VendorProfile'
 import PlatformArchitecture from './pages/PlatformArchitecture'
+import Products from './pages/Products'
+import Services from './pages/Services'
+import WorkflowTemplates from './pages/WorkflowTemplates'
+import IncidentReports from './pages/IncidentReports'
+import WorkflowAnalytics from './pages/WorkflowAnalytics'
+import OnboardingHub from './pages/OnboardingHub'
+import ProductOnboarding from './pages/ProductOnboarding'
+import ServiceOnboarding from './pages/ServiceOnboarding'
+import VendorOnboarding from './pages/VendorOnboarding'
 
 const queryClient = new QueryClient()
 
@@ -90,31 +101,32 @@ function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <Toaster
-        position="top-right"
-        toastOptions={{
-          duration: 4000,
-          style: {
-            background: '#363636',
-            color: '#fff',
-          },
-          success: {
+      <DialogProvider>
+        <Toaster
+          position="top-right"
+          toastOptions={{
             duration: 4000,
-            iconTheme: {
-              primary: '#4ade80',
-              secondary: '#fff',
+            style: {
+              background: '#363636',
+              color: '#fff',
             },
-          },
-          error: {
-            duration: 5000,
-            iconTheme: {
-              primary: '#ef4444',
-              secondary: '#fff',
+            success: {
+              duration: 4000,
+              iconTheme: {
+                primary: '#4ade80',
+                secondary: '#fff',
+              },
             },
-          },
-        }}
-      />
-      <BrowserRouter
+            error: {
+              duration: 5000,
+              iconTheme: {
+                primary: '#ef4444',
+                secondary: '#fff',
+              },
+            },
+          }}
+        />
+        <BrowserRouter
         future={{
           v7_startTransition: true,
           v7_relativeSplatPath: true,
@@ -147,6 +159,9 @@ function App() {
           <Route path="/admin/predictive" element={<PredictiveAnalytics />} />
           <Route path="/admin/recommendations" element={<Recommendations />} />
           <Route path="/admin/audit" element={<AuditTrail />} />
+          <Route path="/workflow-configs/:id" element={<WorkflowManagement />} />
+          <Route path="/workflows/templates" element={<WorkflowTemplates />} />
+          <Route path="/workflows/analytics" element={<WorkflowAnalytics />} />
           <Route path="/workflows" element={<WorkflowManagement />} />
           <Route path="/form-designer" element={<FormDesignerList />} />
           <Route path="/compliance/:agentId" element={<ComplianceChecks />} />
@@ -182,9 +197,18 @@ function App() {
           <Route path="/suppliers-master" element={<SuppliersMasterView />} />
           <Route path="/vendors/:vendorId" element={<VendorProfile />} />
           <Route path="/suppliers-master/:vendorId" element={<VendorProfile />} />
+          <Route path="/onboarding" element={<OnboardingHub />} />
+          <Route path="/onboarding/product" element={<ProductOnboarding />} />
+          <Route path="/onboarding/service" element={<ServiceOnboarding />} />
+          <Route path="/onboarding/vendor" element={<VendorOnboarding />} />
+          <Route path="/products" element={<Products />} />
+          <Route path="/products/:id" element={<Products />} />
+          <Route path="/services" element={<Services />} />
+          <Route path="/services/:id" element={<Services />} />
           <Route path="/analytics" element={<AnalyticsDashboard />} />
           <Route path="/ai-posture" element={<AIPostureDashboard />} />
           <Route path="/ecosystem-map" element={<EcosystemMap />} />
+          <Route path="/ecosystem-map-v2" element={<EcosystemMapV2 />} />
           <Route path="/vendor-dashboard" element={<VendorDashboard />} />
           <Route path="/vendor/trust-center" element={<VendorTrustCenterManagement />} />
           <Route path="/audit" element={<AuditTrail />} />
@@ -205,6 +229,8 @@ function App() {
           <Route path="/marketplace" element={<Marketplace />} />
           <Route path="/tickets" element={<Tickets />} />
           <Route path="/tickets/:id" element={<Tickets />} />
+          <Route path="/incident-reports" element={<IncidentReports />} />
+          <Route path="/admin/incident-reports" element={<IncidentReports />} />
           <Route path="/invite-vendor" element={<InviteVendor />} />
           <Route path="/vendor/register" element={<VendorRegistration />} />
           <Route path="/my-vendors" element={<MyVendors />} />
@@ -220,6 +246,7 @@ function App() {
           <Route path="/my-following" element={<MyFollowing />} />
         </Routes>
       </BrowserRouter>
+      </DialogProvider>
     </QueryClientProvider>
   )
 }

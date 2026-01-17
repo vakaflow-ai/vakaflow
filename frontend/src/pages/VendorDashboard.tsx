@@ -397,7 +397,7 @@ export default function VendorDashboard() {
                     height={40} 
                     iconType="circle" 
                     iconSize={10} 
-                    wrapperStyle={{ fontSize: 11, fontWeight: 700, paddingTop: '30px', letterSpacing: 0.05 }} 
+                    wrapperStyle={{ fontSize: '11px', fontWeight: 700, paddingTop: '30px', letterSpacing: '0.05em' }} 
                   />
                 </PieChart>
               </ChartContainer>

@@ -322,6 +322,36 @@ export const assessmentsApi = {
     return response.data
   },
 
+  getWorkflowProgress: async (assignmentId: string): Promise<{
+    has_workflow: boolean
+    steps: Array<{
+      id: string
+      step_number: number
+      step_type: string
+      step_name: string | null
+      status: string
+      assigned_to: string | null
+      assigned_to_user: { id: string; name: string; email: string } | null
+      assigned_role: string | null
+      completed_by: string | null
+      completed_by_user: { id: string; name: string; email: string } | null
+      completed_at: string | null
+      notes: string | null
+      created_at: string
+      updated_at: string
+    }>
+    current_step: number | null
+    total_steps: number
+    completed_steps: number
+    progress_percent: number
+    status: string | null
+    started_at: string | null
+    completed_at: string | null
+  }> => {
+    const response = await api.get(`/assessments/assignments/${assignmentId}/workflow-progress`)
+    return response.data
+  },
+
   getAssignmentStatus: async (assignmentId: string): Promise<{
     assignment_id: string
     assessment_id: string

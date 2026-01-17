@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { workflowConfigApi, WorkflowConfig, WorkflowConfigCreate, WorkflowStep, OnboardingRequest, ApproverGroup, TriggerRules } from '../lib/workflowConfig'
 import { integrationsApi } from '../lib/integrations'
@@ -17,11 +17,14 @@ import MermaidDiagram from '../components/MermaidDiagram'
 import { MaterialCard, MaterialButton, MaterialChip } from '../components/material'
 import { Edit2, Trash2, GitBranch, ChevronDown, ChevronRight, Copy, CheckSquare, Square } from 'lucide-react'
 import { formLayoutsApi } from '../lib/formLayouts'
+import { useDialogContext } from '../contexts/DialogContext'
 import { showToast } from '../utils/toast'
 
 export default function WorkflowManagement() {
   const navigate = useNavigate()
+  const { id } = useParams<{ id?: string }>()
   const queryClient = useQueryClient()
+  const dialog = useDialogContext()
   const [user, setUser] = useState<any>(null)
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [selectedConfig, setSelectedConfig] = useState<WorkflowConfig | null>(null)
@@ -74,6 +77,31 @@ export default function WorkflowManagement() {
     queryFn: () => workflowConfigApi.list(),
     enabled: !!user && (user.role === 'tenant_admin' || user.role === 'platform_admin')
   })
+
+  // Auto-select workflow if ID is provided in URL
+  useEffect(() => {
+    if (id && workflows && workflows.length > 0 && !selectedConfig) {
+      const workflow = workflows.find(w => w.id === id)
+      if (workflow) {
+        setSelectedConfig(workflow)
+        setFormData({
+          name: workflow.name,
+          description: workflow.description || '',
+          workflow_engine: workflow.workflow_engine,
+          integration_id: workflow.integration_id,
+          workflow_steps: workflow.workflow_steps,
+          assignment_rules: workflow.assignment_rules,
+          conditions: workflow.conditions,
+          trigger_rules: workflow.trigger_rules,
+          is_default: workflow.is_default,
+          status: workflow.status
+        })
+        setShowCreateForm(true)
+        // Update URL to /workflows to avoid confusion
+        navigate('/workflows', { replace: true })
+      }
+    }
+  }, [id, workflows, selectedConfig, navigate])
 
   // Debug logging for workflows
   useEffect(() => {
@@ -269,9 +297,14 @@ export default function WorkflowManagement() {
     }
   }
 
-  const handleBulkDelete = () => {
+  const handleBulkDelete = async () => {
     if (selectedWorkflows.size === 0) return
-    if (confirm(`Delete ${selectedWorkflows.size} selected workflow(s)?`)) {
+    const confirmed = await dialog.confirm({
+      title: 'Delete Workflows',
+      message: `Are you sure you want to delete ${selectedWorkflows.size} selected workflow(s)? This action cannot be undone.`,
+      variant: 'destructive'
+    })
+    if (confirmed) {
       bulkDeleteMutation.mutate(Array.from(selectedWorkflows))
     }
   }
@@ -407,8 +440,13 @@ export default function WorkflowManagement() {
     setFormData({ ...formData, workflow_steps: updatedSteps })
   }
 
-  const handleSetFirstStep = (configId: string, stepNumber: number) => {
-    if (confirm('Set this step as the first step in the workflow?')) {
+  const handleSetFirstStep = async (configId: string, stepNumber: number) => {
+    const confirmed = await dialog.confirm({
+      title: 'Set First Step',
+      message: 'Set this step as the first step in the workflow?',
+      variant: 'default'
+    })
+    if (confirmed) {
       setFirstStepMutation.mutate({ id: configId, stepNumber })
     }
   }
@@ -848,8 +886,13 @@ export default function WorkflowManagement() {
                                       variant="text"
                                       color="error"
                                       size="small"
-                                      onClick={() => {
-                                        if (confirm('Delete this workflow?')) {
+                                      onClick={async () => {
+                                        const confirmed = await dialog.confirm({
+                                          title: 'Delete Workflow',
+                                          message: 'Are you sure you want to delete this workflow? This action cannot be undone.',
+                                          variant: 'destructive'
+                                        })
+                                        if (confirmed) {
                                           deleteMutation.mutate(workflow.id)
                                         }
                                       }}
@@ -996,9 +1039,84 @@ export default function WorkflowManagement() {
             setShowStageSettings(false)
             setStepForSettings(null)
           }}
-          requestType={stepForSettings ? (workflows?.find(w => 
-            w.workflow_steps?.some(s => s.step_number === stepForSettings.step_number)
-          )?.workflow_steps?.find(s => s.step_number === stepForSettings.step_number)?.step_type === 'approval' ? 'vendor_submission_workflow' : 'agent_onboarding_workflow') : 'agent_onboarding_workflow'}
+          requestType={(() => {
+            if (!stepForSettings) return 'agent_onboarding_workflow'
+            
+            // Find the workflow that contains this step
+            const workflow = workflows?.find(w => 
+              w.workflow_steps?.some(s => s.step_number === stepForSettings.step_number)
+            )
+            
+            if (!workflow) {
+              console.log('StageSettingsModal - No workflow found for step:', stepForSettings.step_number)
+              return 'agent_onboarding_workflow'
+            }
+            
+            // Find the workflow layout group for this workflow
+            // Handle both string and UUID comparison
+            const layoutGroup = layoutGroups?.find(g => {
+              const groupWorkflowId = g.workflow_config_id
+              const workflowId = workflow.id
+              // Compare as strings to handle UUID/string differences
+              return groupWorkflowId && workflowId && String(groupWorkflowId) === String(workflowId)
+            })
+            
+            console.log('StageSettingsModal - RequestType calculation:', {
+              workflowId: workflow.id,
+              workflowIdType: typeof workflow.id,
+              workflowName: workflow.name,
+              layoutGroupsCount: layoutGroups?.length || 0,
+              layoutGroupFound: !!layoutGroup,
+              layoutGroupRequestType: layoutGroup?.request_type,
+              layoutGroupName: layoutGroup?.name,
+              allLayoutGroupWorkflowIds: layoutGroups?.map(g => ({
+                id: g.id,
+                name: g.name,
+                workflow_config_id: g.workflow_config_id,
+                request_type: g.request_type
+              })) || []
+            })
+            
+            // Use request_type from layout group if available
+            if (layoutGroup?.request_type) {
+              console.log('StageSettingsModal - Using requestType from layout group:', layoutGroup.request_type)
+              return layoutGroup.request_type
+            }
+            
+            // Fallback 1: Try to find layout group by workflow name pattern (for template workflows)
+            // Template workflows have names like "SOC 2 Compliance Workflow", "ISO 27001 Compliance Workflow", etc.
+            const workflowNameLower = workflow.name.toLowerCase()
+            let templateRequestType: string | null = null
+            
+            if (workflowNameLower.includes('soc 2') || workflowNameLower.includes('soc2')) {
+              templateRequestType = 'soc2_compliance_workflow'
+            } else if (workflowNameLower.includes('iso 27001') || workflowNameLower.includes('iso27001')) {
+              templateRequestType = 'iso27001_compliance_workflow'
+            } else if (workflowNameLower.includes('gdpr')) {
+              templateRequestType = 'gdpr_compliance_workflow'
+            } else if (workflowNameLower.includes('vendor onboarding') || workflowNameLower.includes('vendor_onboarding')) {
+              templateRequestType = 'vendor_onboarding_workflow'
+            } else if (workflowNameLower.includes('risk assessment') || workflowNameLower.includes('risk_assessment')) {
+              templateRequestType = 'risk_assessment_workflow'
+            }
+            
+            if (templateRequestType) {
+              // Try to find a layout group with this request_type
+              const templateLayoutGroup = layoutGroups?.find(g => 
+                g.request_type === templateRequestType && g.is_default === true
+              )
+              if (templateLayoutGroup) {
+                console.log('StageSettingsModal - Found template layout group by request_type:', templateRequestType)
+                return templateRequestType
+              }
+            }
+            
+            // Fallback 2: use step type to determine request type (legacy behavior)
+            const step = workflow.workflow_steps?.find(s => s.step_number === stepForSettings.step_number)
+            const fallbackType = step?.step_type === 'approval' ? 'vendor_submission_workflow' : 'agent_onboarding_workflow'
+            console.log('StageSettingsModal - Using fallback requestType:', fallbackType)
+            return fallbackType
+          })()}
         />
 
 
@@ -1065,10 +1183,17 @@ export default function WorkflowManagement() {
                         {(request.status === 'pending' || request.status === 'in_review') && (isAdmin || !request.assigned_to || request.assigned_to === user?.id) ? (
                           <>
                         <button
-                          onClick={() => {
-                            const notes = prompt('Approval notes (optional):')
+                          onClick={async () => {
+                            const notes = await dialog.prompt({
+                              title: 'Approve Request',
+                              message: 'Enter approval notes (optional)',
+                              label: 'Approval Notes',
+                              placeholder: 'Enter approval notes...',
+                              required: false,
+                              type: 'textarea'
+                            })
                             if (notes !== null) {
-                              approveRequestMutation.mutate({ requestId: request.id, notes })
+                              approveRequestMutation.mutate({ requestId: request.id, notes: notes || undefined })
                             }
                           }}
                           className="compact-button-primary text-sm"
@@ -1077,8 +1202,15 @@ export default function WorkflowManagement() {
                           Approve
                         </button>
                         <button
-                          onClick={() => {
-                            const reason = prompt('Rejection reason:')
+                          onClick={async () => {
+                            const reason = await dialog.prompt({
+                              title: 'Reject Request',
+                              message: 'Enter rejection reason',
+                              label: 'Rejection Reason',
+                              placeholder: 'Enter rejection reason...',
+                              required: true,
+                              type: 'textarea'
+                            })
                             if (reason) {
                               rejectRequestMutation.mutate({ requestId: request.id, reason })
                             }
@@ -1362,8 +1494,15 @@ function RequestDetailsView({
       {(request.status === 'pending' || request.status === 'in_review') && (isAdmin || !request.assigned_to || request.assigned_to === user?.id) && (
         <div className="mt-6 pt-4 border-t border-gray-200 flex gap-3 justify-end">
           <button
-            onClick={() => {
-              const notes = prompt('Approval notes (optional):')
+            onClick={async () => {
+              const notes = await dialog.prompt({
+                title: 'Approve Request',
+                message: 'Enter approval notes (optional)',
+                label: 'Approval Notes',
+                placeholder: 'Enter approval notes...',
+                required: false,
+                type: 'textarea'
+              })
               if (notes !== null) {
                 approveRequestMutation.mutate({ requestId: request.id, notes: notes || undefined })
               }
@@ -1374,8 +1513,15 @@ function RequestDetailsView({
             {approveRequestMutation.isPending ? 'Approving...' : 'Approve Request'}
           </button>
           <button
-            onClick={() => {
-              const reason = prompt('Rejection reason (required):')
+            onClick={async () => {
+              const reason = await dialog.prompt({
+                title: 'Reject Request',
+                message: 'Enter rejection reason',
+                label: 'Rejection Reason',
+                placeholder: 'Enter rejection reason...',
+                required: true,
+                type: 'textarea'
+              })
               if (reason) {
                 rejectRequestMutation.mutate({ requestId: request.id, reason })
               }

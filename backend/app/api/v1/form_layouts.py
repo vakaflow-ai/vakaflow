@@ -876,8 +876,10 @@ async def get_available_fields(
         ))
     
     # Get agent fields from EntityFieldRegistry
+    # Filter by visibility configuration - only show fields visible in Form Designer
     agent_fields_query = db.query(EntityFieldRegistry).filter(
         EntityFieldRegistry.entity_name == "agents",
+        EntityFieldRegistry.visible_in_form_designer == True,  # Only show visible fields
         EntityFieldRegistry.is_enabled == True,
         EntityFieldRegistry.is_custom == False
     )
@@ -1243,8 +1245,10 @@ async def get_available_fields(
         ))
 
     # Get agent_metadata fields from EntityFieldRegistry
+    # Filter by visibility configuration - only show fields visible in Form Designer
     agent_metadata_query = db.query(EntityFieldRegistry).filter(
         EntityFieldRegistry.entity_name == "agent_metadata",
+        EntityFieldRegistry.visible_in_form_designer == True,  # Only show visible fields
         EntityFieldRegistry.is_enabled == True,
         EntityFieldRegistry.is_custom == False
     )
@@ -1309,8 +1313,10 @@ async def get_available_fields(
     # Get ALL entity types from EntityFieldRegistry (not just agents/agent_metadata)
     # This includes assessments, vendors, users, and all other entities
     # Fields are dynamically pulled from EntityFieldRegistry based on what's in the registry
+    # Filter by visibility configuration - only show fields visible in Form Designer
     all_entities_query = db.query(EntityFieldRegistry).filter(
         EntityFieldRegistry.is_enabled == True,
+        EntityFieldRegistry.visible_in_form_designer == True,  # Only show fields visible in Form Designer
         EntityFieldRegistry.entity_name.notin_(["agents", "agent_metadata"])  # Exclude already processed
     )
     
@@ -1318,6 +1324,12 @@ async def get_available_fields(
     all_entities_query = all_entities_query.filter(
         (EntityFieldRegistry.tenant_id == effective_tenant_id) | 
         (EntityFieldRegistry.tenant_id.is_(None))
+    )
+    
+    # Exclude system fields by default (unless explicitly enabled)
+    all_entities_query = all_entities_query.filter(
+        (EntityFieldRegistry.is_system == False) | 
+        (EntityFieldRegistry.visible_in_form_designer == True)  # Allow system fields if explicitly visible
     )
     
     all_entity_fields = all_entities_query.order_by(

@@ -45,10 +45,14 @@ class EntityFieldRegistry(Base):
     is_required = Column(Boolean, default=False, nullable=False)
     display_order = Column(Integer, default=0, nullable=False)
     
+    # Field visibility in Form Designer
+    visible_in_form_designer = Column(Boolean, default=True, nullable=False, index=True)  # Show in Form Designer field picker
+    form_designer_category = Column(String(100), nullable=True, index=True)  # Category for grouping in Form Designer
+    
     # Field source
     is_auto_discovered = Column(Boolean, default=True, nullable=False)
     is_custom = Column(Boolean, default=False, nullable=False)
-    is_system = Column(Boolean, default=False, nullable=False)
+    is_system = Column(Boolean, default=False, nullable=False)  # System/internal fields hidden by default
     
     # Field configuration (JSON for type-specific settings)
     field_config = Column(JSON, nullable=True)  # {placeholder, validation, options, etc.}

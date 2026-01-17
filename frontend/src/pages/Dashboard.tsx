@@ -6,6 +6,7 @@ import { authApi } from '../lib/auth'
 import { messagesApi } from '../lib/messages'
 import { assessmentsApi } from '../lib/assessments'
 import Layout from '../components/Layout'
+import PageContainer, { PageHeader } from '../components/PageContainer'
 import DashboardHeader from '../components/DashboardHeader'
 import DashboardWidget from '../components/DashboardWidget'
 import DashboardGrid from '../components/DashboardGrid'
@@ -224,8 +225,8 @@ export default function Dashboard() {
 
   return (
     <Layout user={user}>
-      <div className="max-w-7xl mx-auto px-6 py-6">
-        <DashboardHeader
+      <PageContainer>
+        <PageHeader
           title="Dashboard"
           subtitle={`Welcome back${user ? `, ${user.name}` : ''}! Here's your overview. Drag widgets to rearrange, resize, and customize your dashboard.`}
         />
@@ -235,7 +236,7 @@ export default function Dashboard() {
         >
           {widgets}
         </DashboardGrid>
-      </div>
+      </PageContainer>
     </Layout>
   )
 }

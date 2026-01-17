@@ -201,27 +201,43 @@ async def list_users(
     # Tenant isolation - ALL users (including platform_admin) must have tenant_id
     # Platform admins without tenant_id use the default platform admin tenant
     from app.core.tenant_utils import get_effective_tenant_id
-    effective_tenant_id = get_effective_tenant_id(current_user, db)
-    if not effective_tenant_id:
+    
+    try:
+        effective_tenant_id = get_effective_tenant_id(current_user, db)
+        if not effective_tenant_id:
+            logger.error(f"User {current_user.id} has no effective tenant_id")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="User must be assigned to a tenant to view users"
+            )
+    except ValueError as e:
+        logger.error(f"User {current_user.id} does not have tenant_id: {e}")
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="User must be assigned to a tenant to view users"
         )
     
+    logger.info(f"Listing users for tenant {effective_tenant_id} (current_user: {current_user.id}, role: {current_user.role.value})")
+    
     query = db.query(User)
     
-    # ALL users (including platform_admin) must filter by their own tenant
+    # CRITICAL: ALL users (including platform_admin) must filter by their own tenant
+    # This is MANDATORY tenant isolation - no exceptions
     # If tenant_id parameter is provided, validate it matches current_user's effective tenant
     if tenant_id:
         if tenant_id != effective_tenant_id:
+            logger.warning(f"User {current_user.id} attempted to access tenant {tenant_id} but belongs to {effective_tenant_id}")
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Access denied: Can only view users from your own tenant"
             )
         query = query.filter(User.tenant_id == tenant_id)
     else:
-        # Default to current user's effective tenant
+        # Default to current user's effective tenant - MANDATORY filter
         query = query.filter(User.tenant_id == effective_tenant_id)
+    
+    # Ensure we never return users without tenant_id (additional safety check)
+    query = query.filter(User.tenant_id.isnot(None))
     
     # Vendor coordinator can only see vendor users
     if current_user.role.value == "vendor_coordinator":
@@ -241,6 +257,14 @@ async def list_users(
             )
     
     users = query.order_by(User.created_at.desc()).all()
+    
+    # Log for debugging tenant isolation
+    logger.info(f"Found {len(users)} users for tenant {effective_tenant_id}")
+    if len(users) > 0:
+        tenant_ids_in_result = set(str(u.tenant_id) for u in users if u.tenant_id)
+        if len(tenant_ids_in_result) > 1 or (tenant_ids_in_result and str(effective_tenant_id) not in tenant_ids_in_result):
+            logger.error(f"TENANT ISOLATION VIOLATION: Users from multiple tenants found! Expected: {effective_tenant_id}, Found: {tenant_ids_in_result}")
+        logger.debug(f"User tenant_ids in result: {tenant_ids_in_result}")
     
     return [
         UserResponse(

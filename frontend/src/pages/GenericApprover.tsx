@@ -13,6 +13,7 @@ import { usersApi, User as UserType } from '../lib/users'
 import Layout from '../components/Layout'
 import DynamicForm from '../components/DynamicForm'
 import { showToast } from '../utils/toast'
+import { useDialogContext } from '../contexts/DialogContext'
 import {
   FileText,
   AlertCircle,
@@ -1216,8 +1217,15 @@ export default function GenericApproverPage({}: GenericApproverPageProps) {
                     </div>
                     <div className="space-y-1.5">
                       <button
-                        onClick={() => {
-                          const comment = prompt('Optional comment for acceptance:') || undefined
+                        onClick={async () => {
+                          const comment = await dialog.prompt({
+                            title: 'Accept Action',
+                            message: 'Enter optional comment for acceptance',
+                            label: 'Comment',
+                            placeholder: 'Enter comment (optional)...',
+                            required: false,
+                            type: 'textarea'
+                          }) || undefined
                           submitDecisionMutation.mutate({ decision: 'accepted', comment })
                         }}
                         disabled={isCompleted || submitDecisionMutation.isPending}
@@ -1231,8 +1239,15 @@ export default function GenericApproverPage({}: GenericApproverPageProps) {
                         {submitDecisionMutation.isPending ? 'Submitting...' : 'Accept'}
                       </button>
                       <button
-                        onClick={() => {
-                          const comment = prompt('Reason for denial (required):')
+                        onClick={async () => {
+                          const comment = await dialog.prompt({
+                            title: 'Deny Action',
+                            message: 'Enter reason for denial',
+                            label: 'Reason',
+                            placeholder: 'Enter reason for denial...',
+                            required: true,
+                            type: 'textarea'
+                          })
                           if (comment) {
                             submitDecisionMutation.mutate({ decision: 'denied', comment })
                           }
@@ -1248,8 +1263,15 @@ export default function GenericApproverPage({}: GenericApproverPageProps) {
                         {submitDecisionMutation.isPending ? 'Submitting...' : 'Deny'}
                       </button>
                       <button
-                        onClick={() => {
-                          const comment = prompt('What information is needed?')
+                        onClick={async () => {
+                          const comment = await dialog.prompt({
+                            title: 'Request Information',
+                            message: 'What information is needed?',
+                            label: 'Information Request',
+                            placeholder: 'Enter information needed...',
+                            required: true,
+                            type: 'textarea'
+                          })
                           if (comment) {
                             submitDecisionMutation.mutate({ decision: 'need_info', comment })
                           }

@@ -17,6 +17,7 @@ import {
   MessageSquare, Send, User, Search, ChevronDown, UserPlus
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import WorkflowProgress from '@/components/WorkflowProgress'
 
 interface QuestionResponse {
   value: any
@@ -114,6 +115,15 @@ export default function AssessmentAssignmentPage() {
     queryKey: ['assessment-table-layout', 'vendor_submission'],
     queryFn: () => assessmentTableLayoutsApi.getDefault('vendor_submission'),
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+  })
+
+  // Load workflow progress
+  const { data: workflowProgress } = useQuery({
+    queryKey: ['assessment-workflow-progress', id],
+    queryFn: () => assessmentsApi.getWorkflowProgress(id!),
+    enabled: !!id && !!assignmentStatus,
+    staleTime: 30000, // Cache for 30 seconds
+    retry: false, // Don't retry if workflow doesn't exist
   })
 
   // Initialize responses from existing data
@@ -442,6 +452,20 @@ export default function AssessmentAssignmentPage() {
             </div>
           </CardHeader>
         </Card>
+
+        {/* Workflow Progress */}
+        {workflowProgress?.has_workflow && (
+          <WorkflowProgress
+            steps={workflowProgress.steps}
+            current_step={workflowProgress.current_step}
+            total_steps={workflowProgress.total_steps}
+            completed_steps={workflowProgress.completed_steps}
+            progress_percent={workflowProgress.progress_percent}
+            status={workflowProgress.status}
+            started_at={workflowProgress.started_at}
+            completed_at={workflowProgress.completed_at}
+          />
+        )}
 
         {/* Questions Table */}
         <Card>

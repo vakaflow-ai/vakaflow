@@ -8,6 +8,7 @@ import Layout from '../components/Layout'
 export default function WebhookManagement() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const dialog = useDialogContext()
   const [user, setUser] = useState<any>(null)
   const [showCreate, setShowCreate] = useState(false)
   const [selectedWebhook, setSelectedWebhook] = useState<string | null>(null)
@@ -198,8 +199,13 @@ export default function WebhookManagement() {
                       {selectedWebhook === webhook.id ? 'Hide' : 'View'} Deliveries
                     </button>
                     <button
-                      onClick={() => {
-                        if (window.confirm('Delete this webhook?')) {
+                      onClick={async () => {
+                        const confirmed = await dialog.confirm({
+                          title: 'Delete Webhook',
+                          message: 'Are you sure you want to delete this webhook? This action cannot be undone.',
+                          variant: 'destructive'
+                        })
+                        if (confirmed) {
                           deleteMutation.mutate(webhook.id)
                         }
                       }}

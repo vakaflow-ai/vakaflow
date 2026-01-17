@@ -11,6 +11,7 @@ import FormsDesigner from '../components/FormsDesigner'
 import { authApi } from '../lib/auth'
 import { ChevronDown, ChevronUp, ChevronRight, Plus, Shield, AlertTriangle, FolderOpen, FileText, CheckCircle2, Search, X, Save, ArrowLeft, Settings, List, Layers, GripVertical, Eye, EyeOff, ArrowUp, ArrowDown, Trash2 } from 'lucide-react'
 import { showToast } from '../utils/toast'
+import { useDialogContext } from '../contexts/DialogContext'
 import { MaterialCard, MaterialButton, MaterialChip, MaterialInput } from '../components/material'
 import ReactQuillWrapper from '../components/ReactQuillWrapper'
 import JsonFieldInput from '../components/JsonFieldInput'
@@ -1875,10 +1876,15 @@ export default function FormDesignerEditor() {
     )
   }
 
-  const handleApplyTemplate = (template: FormLayout) => {
+  const handleApplyTemplate = async (template: FormLayout) => {
     if (!template) return
     
-    if (confirm(`Apply design from "${template.name}"? This will replace your current design sections and fields.`)) {
+    const confirmed = await dialog.confirm({
+      title: 'Apply Template',
+      message: `Apply design from "${template.name}"? This will replace your current design sections and fields.`,
+      variant: 'default'
+    })
+    if (confirmed) {
       // Import sections and custom fields from template
       if (template.sections) {
         // Map sections to guided steps
@@ -3225,6 +3231,14 @@ function ReviewAndSubmitStep({
   editingLayout: Partial<FormLayoutCreate> | null
   guidedSteps: GuidedStep[]
 }) {
+  // Calculate totals
+  const totalSteps = guidedSteps?.length || 0
+  const totalFields = guidedSteps?.reduce((acc, step) => {
+    const fieldCount = step.field_names?.length || 0
+    return acc + fieldCount
+  }, 0) || 0
+  const stepNames = guidedSteps?.map(step => step.title || `Step ${step.step_number || ''}`).join(', ') || 'No steps configured'
+
   return (
     <div className="space-y-4">
       <div className="mb-3 shadow-md-elevation-2 rounded-md border border-gray-100 bg-white p-6 bg-primary-50 border-primary-200">

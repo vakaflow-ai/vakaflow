@@ -191,11 +191,14 @@ export default function Layout({ children, user }: LayoutProps) {
     '/assessments/analytics': 'menu.assessment_analytics',
     '/ai-posture': 'menu.ai_posture',
     '/ecosystem-map': 'menu.ecosystem_map',
+    '/ecosystem-map-v2': 'menu.ecosystem_map_v2',
     '/agents/new': 'menu.submit_agent',
     '/submissions': 'menu.my_submissions',
     '/vendor/trust-center': 'menu.trust_center',
     '/tickets': 'menu.tickets',
     '/reviews': 'menu.reviews',
+    '/incident-reports': 'menu.incident_reports',
+    '/admin/incident-reports': 'menu.incident_reports',
     '/admin/policies': 'menu.policies',
     '/admin/rules': 'menu.business_rules',
     '/admin/users': 'menu.user_management',
@@ -218,6 +221,8 @@ export default function Layout({ children, user }: LayoutProps) {
     '/admin/cve/settings': 'menu.cve_settings',
     '/studio': 'menu.studio',
     '/workflows': 'menu.workflow_management',
+    '/workflows/templates': 'menu.workflow_templates',
+    '/workflows/analytics': 'menu.workflow_analytics',
     '/form-designer': 'menu.form_designer',
     '/assessments': 'menu.assessments',
     '/question-library': 'menu.question_library',
@@ -229,6 +234,8 @@ export default function Layout({ children, user }: LayoutProps) {
     '/profile': 'menu.profile',
     '/mfa': 'menu.mfa_settings',
     '/suppliers-master': 'menu.suppliers_master',
+    '/products': 'menu.products',
+    '/services': 'menu.services',
   }
 
   const checkPermission = useCallback((path: string): boolean => {
@@ -276,31 +283,112 @@ export default function Layout({ children, user }: LayoutProps) {
   const visibleGroups = useMemo(() => {
     const groups: NavGroup[] = []
 
-    // Overview Section
-    const overviewItems: NavItem[] = []
+    // Quick Access Section
+    const quickAccessItems: NavItem[] = []
     if (checkPermission('/my-actions')) {
-      overviewItems.push({ path: '/my-actions', label: 'My Actions', icon: InboxIcon, show: true })
+      quickAccessItems.push({ path: '/my-actions', label: 'My Actions', icon: InboxIcon, show: true })
     }
     if (isVendor && checkPermission('/vendor-dashboard')) {
-      overviewItems.push({ path: '/vendor-dashboard', label: 'Vendor Dashboard', icon: DashboardIcon, show: true })
+      quickAccessItems.push({ path: '/vendor-dashboard', label: 'Vendor Dashboard', icon: DashboardIcon, show: true })
     }
-    if (checkPermission('/catalog')) {
-      overviewItems.push({ path: '/catalog', label: 'Agent Catalog', icon: CatalogIcon, show: true })
-    }
-    if (checkPermission('/marketplace')) {
-      overviewItems.push({ path: '/marketplace', label: 'Marketplace', icon: MarketplaceIcon, show: true })
-    }
-    if (isAdmin && checkPermission('/invite-vendor')) {
-      overviewItems.push({ path: '/invite-vendor', label: 'Invite Vendor', icon: PlusIcon, show: true })
-    }
-    if (isAdmin && checkPermission('/my-vendors')) {
-      overviewItems.push({ path: '/my-vendors', label: 'My Vendors', icon: BuildingIcon, show: true })
-    }
-    if (overviewItems.length > 0) {
-      groups.push({ title: 'Overview', items: overviewItems })
+    if (quickAccessItems.length > 0) {
+      groups.push({ title: 'Quick Access', items: quickAccessItems })
     }
 
-    // Dashboard & Analytics Section
+    // Discover & Browse Section
+    const discoverItems: NavItem[] = []
+    if (checkPermission('/catalog')) {
+      discoverItems.push({ path: '/catalog', label: 'Agent Catalog', icon: CatalogIcon, show: true })
+    }
+    if (checkPermission('/marketplace')) {
+      discoverItems.push({ path: '/marketplace', label: 'Marketplace', icon: MarketplaceIcon, show: true })
+    }
+    if (discoverItems.length > 0) {
+      groups.push({ title: 'Discover & Browse', items: discoverItems })
+    }
+
+    // Create & Manage Section
+    const createItems: NavItem[] = []
+    if ((isAdmin || isVendor) && checkPermission('/onboarding')) {
+      createItems.push({ path: '/onboarding', label: 'Onboarding Hub', icon: PlusIcon, show: true })
+    }
+    if (checkPermission('/agents/new')) {
+      createItems.push({ path: '/agents/new', label: 'Submit Agent', icon: PlusIcon, show: true })
+    }
+    if (checkPermission('/submissions')) {
+      createItems.push({ path: '/submissions', label: 'My Submissions', icon: DocumentIcon, show: true })
+    }
+    if (isAdmin && checkPermission('/products')) {
+      createItems.push({ path: '/products', label: 'Products', icon: DocumentIcon, show: true })
+    }
+    if (isAdmin && checkPermission('/services')) {
+      createItems.push({ path: '/services', label: 'Services', icon: DocumentIcon, show: true })
+    }
+    if (createItems.length > 0) {
+      groups.push({ title: 'Create & Manage', items: createItems })
+    }
+
+    // Vendor Management Section
+    const vendorItems: NavItem[] = []
+    if (isAdmin && checkPermission('/invite-vendor')) {
+      vendorItems.push({ path: '/invite-vendor', label: 'Invite Vendor', icon: PlusIcon, show: true })
+    }
+    if (isAdmin && checkPermission('/my-vendors')) {
+      vendorItems.push({ path: '/my-vendors', label: 'My Vendors', icon: BuildingIcon, show: true })
+    }
+    if (isVendor && checkPermission('/vendor/trust-center')) {
+      vendorItems.push({ path: '/vendor/trust-center', label: 'Trust Center', icon: ShieldCheckIcon, show: true })
+    }
+    if (vendorItems.length > 0) {
+      groups.push({ title: 'Vendor Management', items: vendorItems })
+    }
+
+    // Assessments & Compliance Section
+    const assessmentItems: NavItem[] = []
+    if (checkPermission('/assessments')) {
+      assessmentItems.push({ path: '/assessments', label: 'Assessments', icon: ClipboardIcon, show: true })
+    }
+    if (checkPermission('/question-library')) {
+      assessmentItems.push({ path: '/question-library', label: 'Question Library', icon: BookOpenIcon, show: true })
+    }
+    if (checkPermission('/submission-requirements')) {
+      assessmentItems.push({ path: '/submission-requirements', label: 'Submission Requirements', icon: DocumentIcon, show: true })
+    }
+    if (checkPermission('/compliance')) {
+      assessmentItems.push({ path: '/compliance', label: 'Compliance Checks', icon: ShieldCheckIcon, show: true })
+    }
+    if (checkPermission('/frameworks')) {
+      assessmentItems.push({ path: '/frameworks', label: 'Compliance Frameworks', icon: ShieldCheckIcon, show: true })
+    }
+    if (assessmentItems.length > 0) {
+      groups.push({ title: 'Assessments & Compliance', items: assessmentItems })
+    }
+
+    // Workflows & Configuration Section
+    const workflowItems: NavItem[] = []
+    if (isAdmin && checkPermission('/workflows')) {
+      workflowItems.push({ path: '/workflows', label: 'Workflow Management', icon: DocumentIcon, show: true })
+    }
+    if (isAdmin && checkPermission('/workflows/templates')) {
+      workflowItems.push({ path: '/workflows/templates', label: 'Workflow Templates', icon: BookOpenIcon, show: true })
+    }
+    if (isAdmin && checkPermission('/workflows/analytics')) {
+      workflowItems.push({ path: '/workflows/analytics', label: 'Workflow Analytics', icon: ChartBarIcon, show: true })
+    }
+    if (isAdmin && checkPermission('/form-designer')) {
+      workflowItems.push({ path: '/form-designer', label: 'Form Designer', icon: DocumentTextIcon, show: true })
+    }
+    if (isAdmin && checkPermission('/entities')) {
+      workflowItems.push({ path: '/entities', label: 'Business Process Designer', icon: DatabaseIcon, show: true })
+    }
+    if (isAdmin && checkPermission('/studio')) {
+      workflowItems.push({ path: '/studio', label: 'Studio', icon: CogIcon, show: true })
+    }
+    if (workflowItems.length > 0) {
+      groups.push({ title: 'Workflows & Configuration', items: workflowItems })
+    }
+
+    // Analytics Section
     const analyticsItems: NavItem[] = []
     if (canViewAnalytics && checkPermission('/analytics')) {
       analyticsItems.push({ path: '/analytics', label: 'Analytics Dashboard', icon: ChartBarIcon, show: true })
@@ -312,25 +400,13 @@ export default function Layout({ children, user }: LayoutProps) {
       analyticsItems.push({ path: '/ai-posture', label: 'AI Posture', icon: AIPostureIcon, show: true })
     }
     if (isAdmin && checkPermission('/ecosystem-map')) {
-      analyticsItems.push({ path: '/ecosystem-map', label: 'Ecosystem Map', icon: EcosystemMapIcon, show: true })
+      analyticsItems.push({ path: '/ecosystem-map', label: 'Ecosystem Map (AI)', icon: EcosystemMapIcon, show: true })
+    }
+    if (isAdmin && checkPermission('/ecosystem-map-v2')) {
+      analyticsItems.push({ path: '/ecosystem-map-v2', label: 'Ecosystem Map (Multi-View)', icon: EcosystemMapIcon, show: true })
     }
     if (analyticsItems.length > 0) {
-      groups.push({ title: 'Dashboard & Analytics', items: analyticsItems })
-    }
-
-    // Agent Management Section
-    const agentItems: NavItem[] = []
-    if (checkPermission('/agents/new')) {
-      agentItems.push({ path: '/agents/new', label: 'Submit Agent', icon: PlusIcon, show: true })
-    }
-    if (checkPermission('/submissions')) {
-      agentItems.push({ path: '/submissions', label: 'My Submissions', icon: DocumentIcon, show: true })
-    }
-    if (isVendor && checkPermission('/vendor/trust-center')) {
-      agentItems.push({ path: '/vendor/trust-center', label: 'Trust Center', icon: ShieldCheckIcon, show: true })
-    }
-    if (agentItems.length > 0) {
-      groups.push({ title: 'Agent Management', items: agentItems })
+      groups.push({ title: 'Analytics', items: analyticsItems })
     }
 
     // Operations Section
@@ -341,20 +417,26 @@ export default function Layout({ children, user }: LayoutProps) {
     if (checkPermission('/reviews')) {
       operationsItems.push({ path: '/reviews', label: 'Reviews', icon: ClipboardIcon, show: true })
     }
+    if (isAdmin && checkPermission('/incident-reports')) {
+      operationsItems.push({ path: '/incident-reports', label: 'Incident Reports', icon: ShieldCheckIcon, show: true })
+    }
     if (operationsItems.length > 0) {
       groups.push({ title: 'Operations', items: operationsItems })
     }
 
-    // Integrations Section
+    // Integrations & Connections Section
     const integrationItems: NavItem[] = []
     if (isAdmin && checkPermission('/admin/integrations')) {
       integrationItems.push({ path: '/admin/integrations', label: 'Integrations', icon: PlugIcon, show: true })
     }
+    if (checkPermission('/agent-connections')) {
+      integrationItems.push({ path: '/agent-connections', label: 'Agent Connections', icon: LinkIcon, show: true })
+    }
     if (integrationItems.length > 0) {
-      groups.push({ title: 'Integrations', items: integrationItems })
+      groups.push({ title: 'Integrations & Connections', items: integrationItems })
     }
 
-    // System Section
+    // System Administration Section
     const systemItems: NavItem[] = []
     if (isAdmin && checkPermission('/admin/users')) {
       systemItems.push({ path: '/admin/users', label: 'User Management', icon: UsersIcon, show: true })
@@ -374,20 +456,17 @@ export default function Layout({ children, user }: LayoutProps) {
     if (isAdmin && checkPermission('/admin/entity-fields')) {
       systemItems.push({ path: '/admin/entity-fields', label: 'Entity Fields', icon: DocumentTextIcon, show: true })
     }
-    if (isAdmin && checkPermission('/entities')) {
-      systemItems.push({ path: '/entities', label: 'Entities', icon: DatabaseIcon, show: true })
+    if (canViewCVE && checkPermission('/admin/cve/dashboard')) {
+      systemItems.push({ path: '/admin/cve/dashboard', label: 'CVE Dashboard', icon: ShieldCheckIcon, show: true })
+    }
+    if (canViewCVE && checkPermission('/admin/cve/settings')) {
+      systemItems.push({ path: '/admin/cve/settings', label: 'CVE Settings', icon: CogIcon, show: true })
     }
     if (isAdmin && checkPermission('/admin/platform-config')) {
       systemItems.push({ path: '/admin/platform-config', label: 'Platform Config', icon: CogIcon, show: true })
     }
     if (isAdmin && checkPermission('/admin/cluster-nodes')) {
       systemItems.push({ path: '/admin/cluster-nodes', label: 'Cluster Nodes', icon: CogIcon, show: true })
-    }
-    if (isAdmin && checkPermission('/admin/logs')) {
-      systemItems.push({ path: '/admin/logs', label: 'Application Logs', icon: DocumentIcon, show: true })
-    }
-    if (isAdmin && checkPermission('/admin/export')) {
-      systemItems.push({ path: '/admin/export', label: 'Export Data', icon: ArrowUpIcon, show: true })
     }
     if (isAdmin && checkPermission('/admin/webhooks')) {
       systemItems.push({ path: '/admin/webhooks', label: 'Webhooks', icon: LinkIcon, show: true })
@@ -401,59 +480,14 @@ export default function Layout({ children, user }: LayoutProps) {
     if (isAdmin && checkPermission('/admin/audit')) {
       systemItems.push({ path: '/admin/audit', label: 'Audit Trail', icon: DocumentIcon, show: true })
     }
-    if (canViewCVE && checkPermission('/admin/cve/dashboard')) {
-      systemItems.push({ path: '/admin/cve/dashboard', label: 'CVE Dashboard', icon: ShieldCheckIcon, show: true })
+    if (isAdmin && checkPermission('/admin/logs')) {
+      systemItems.push({ path: '/admin/logs', label: 'Application Logs', icon: DocumentIcon, show: true })
     }
-    if (canViewCVE && checkPermission('/admin/cve/settings')) {
-      systemItems.push({ path: '/admin/cve/settings', label: 'CVE Settings', icon: CogIcon, show: true })
+    if (isAdmin && checkPermission('/admin/export')) {
+      systemItems.push({ path: '/admin/export', label: 'Export Data', icon: ArrowUpIcon, show: true })
     }
     if (systemItems.length > 0) {
-      groups.push({ title: 'System', items: systemItems })
-    }
-
-    // Studio & Workflows Section
-    const studioItems: NavItem[] = []
-    if (isAdmin && checkPermission('/studio')) {
-      studioItems.push({ path: '/studio', label: 'Studio', icon: CogIcon, show: true })
-    }
-    if (isAdmin && checkPermission('/workflows')) {
-      studioItems.push({ path: '/workflows', label: 'Workflow Management', icon: DocumentIcon, show: true })
-    }
-    if (isAdmin && checkPermission('/form-designer')) {
-      studioItems.push({ path: '/form-designer', label: 'Form Designer', icon: DocumentTextIcon, show: true })
-    }
-    if (studioItems.length > 0) {
-      groups.push({ title: 'Studio & Workflows', items: studioItems })
-    }
-
-    // Assessments Section
-    const assessmentItems: NavItem[] = []
-    if (checkPermission('/assessments')) {
-      assessmentItems.push({ path: '/assessments', label: 'Assessments', icon: ClipboardIcon, show: true })
-    }
-    if (checkPermission('/question-library')) {
-      assessmentItems.push({ path: '/question-library', label: 'Question Library', icon: BookOpenIcon, show: true })
-    }
-    if (checkPermission('/submission-requirements')) {
-      assessmentItems.push({ path: '/submission-requirements', label: 'Submission Requirements', icon: DocumentIcon, show: true })
-    }
-    if (checkPermission('/compliance')) {
-      assessmentItems.push({ path: '/compliance', label: 'Compliance Checks', icon: ShieldCheckIcon, show: true })
-    }
-    if (checkPermission('/frameworks')) {
-      assessmentItems.push({ path: '/frameworks', label: 'Compliance Frameworks', icon: ShieldCheckIcon, show: true })
-    }
-    if (assessmentItems.length > 0) {
-      groups.push({ title: 'Assessments', items: assessmentItems })
-    }
-
-    // Connections Section
-    const connectionItems: NavItem[] = []
-    if (checkPermission('/agent-connections')) {
-      connectionItems.push({ path: '/agent-connections', label: 'Agent Connections', icon: LinkIcon, show: true })
-    }
-    if (connectionItems.length > 0) {
-      groups.push({ title: 'Connections', items: connectionItems })
+      groups.push({ title: 'System Administration', items: systemItems })
     }
 
     // Messages Section
@@ -606,15 +640,15 @@ export default function Layout({ children, user }: LayoutProps) {
             </div>
 
             {/* Navigation Groups - Pure Tree Structure */}
-            <nav className="flex-1 overflow-y-auto py-6 px-5">
+            <nav className="flex-1 overflow-y-auto py-4 px-5 sidebar-scrollbar">
               {visibleGroups.map((group, groupIndex) => {
                 const isExpanded = expandedGroups.has(group.title)
                 return (
-                  <div key={groupIndex} className="mb-6">
+                  <div key={groupIndex} className="mb-4">
                     {sidebarOpen && (
                       <div
                         onClick={(e) => toggleGroup(group.title, e)}
-                        className="flex items-center justify-between py-2 cursor-pointer select-none transition-opacity duration-150"
+                        className="flex items-center justify-between py-1.5 cursor-pointer select-none transition-opacity duration-150"
                         style={{
                           color: sidebarText,
                           opacity: 0.85,
@@ -635,7 +669,7 @@ export default function Layout({ children, user }: LayoutProps) {
                       </div>
                     )}
                     {(!sidebarOpen || isExpanded) && (
-                      <div className="mt-1 space-y-0.5">
+                      <div className="mt-0.5 space-y-0.5">
                         {group.items.map((item) => {
                           const isActive = location.pathname === item.path || 
                             (item.path !== '/' && location.pathname.startsWith(item.path))
@@ -645,7 +679,7 @@ export default function Layout({ children, user }: LayoutProps) {
                             <div
                               key={item.path}
                               onClick={() => navigate(item.path)}
-                              className="py-1.5 cursor-pointer select-none transition-all duration-150"
+                              className="py-1 cursor-pointer select-none transition-all duration-150"
                               style={{
                                 color: isActive ? 'hsl(var(--primary))' : sidebarText,
                                 opacity: isActive ? 1 : 0.65,

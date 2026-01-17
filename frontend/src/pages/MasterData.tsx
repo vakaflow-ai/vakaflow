@@ -4,6 +4,7 @@ import { authApi } from '../lib/auth'
 import { masterDataListsApi, MasterDataList, MasterDataListCreate, MasterDataValue } from '../lib/masterDataLists'
 import Layout from '../components/Layout'
 import { showToast } from '../utils/toast'
+import { useDialogContext } from '../contexts/DialogContext'
 import { Plus, Edit, Trash2, X, Save, Database, Filter } from 'lucide-react'
 
 const MASTER_DATA_TYPES = [
@@ -25,6 +26,7 @@ interface User {
 
 export default function MasterData() {
   const queryClient = useQueryClient()
+  const dialog = useDialogContext()
   const [user, setUser] = useState<User | null>(null)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
@@ -148,8 +150,13 @@ export default function MasterData() {
     updateMutation.mutate({ id: selectedList.id, data: updateData })
   }
 
-  const handleDelete = (id: string) => {
-    if (confirm('Are you sure you want to delete this master data list?')) {
+  const handleDelete = async (id: string) => {
+    const confirmed = await dialog.confirm({
+      title: 'Delete Master Data List',
+      message: 'Are you sure you want to delete this master data list? This action cannot be undone.',
+      variant: 'destructive'
+    })
+    if (confirmed) {
       deleteMutation.mutate(id)
     }
   }

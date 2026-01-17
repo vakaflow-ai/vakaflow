@@ -5,6 +5,7 @@ import { actionsApi, ActionItem } from '../lib/actions'
 import { assessmentsApi } from '../lib/assessments'
 import { authApi } from '../lib/auth'
 import Layout from '../components/Layout'
+import PageContainer, { PageHeader } from '../components/PageContainer'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -64,17 +65,14 @@ export default function MyActions() {
 
   return (
     <Layout user={user}>
-      <div className="space-y-6">
-        {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold text-foreground mb-2">My Actions</h1>
-          <p className="text-muted-foreground">
-            Manage your assigned tasks and workflows
-          </p>
-        </div>
+      <PageContainer>
+        <PageHeader 
+          title="My Actions"
+          subtitle="Manage your assigned tasks and workflows"
+        />
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
           <Card 
             className={cn(
               "cursor-pointer transition-colors",
@@ -179,7 +177,7 @@ export default function MyActions() {
             />
           </CardContent>
         </Card>
-      </div>
+      </PageContainer>
     </Layout>
   )
 }

@@ -3,7 +3,13 @@ Database models
 """
 from app.models.user import User
 from app.models.vendor import Vendor
-from app.models.agent import Agent, AgentMetadata, AgentArtifact
+from app.models.agent import Agent, AgentMetadata, AgentArtifact, AgentProduct
+from app.models.product import Product
+from app.models.service import Service
+from app.models.incident_report import IncidentReport, IncidentType, IncidentStatus
+from app.models.incident_config import IncidentConfig, IncidentTriggerType
+from app.models.architecture import ArchitectureDocument
+from app.models.landscape import LandscapePosition
 from app.models.vendor_invitation import VendorInvitation
 from app.models.otp import OTPCode
 from app.models.platform_config import PlatformConfiguration
@@ -61,7 +67,7 @@ from app.models.security_incident import (
     SecurityMonitoringConfig,
     SecurityAlert,
     SecurityIncidentActionHistory,
-    IncidentType,
+    IncidentType as SecurityIncidentType,  # Renamed to avoid conflict
     IncidentSeverity,
     IncidentActionType
 )
@@ -145,7 +151,7 @@ __all__ = [
     "SecurityMonitoringConfig",
     "SecurityAlert",
     "SecurityIncidentActionHistory",
-    "IncidentType",
+    "SecurityIncidentType",
     "IncidentSeverity",
     "IncidentActionType",
     "CustomFieldCatalog",
@@ -161,4 +167,14 @@ __all__ = [
     "CVEStatus",
     "InvestigationStatus",
     "ComplianceIssueStatus",
+    "IncidentReport",
+    "IncidentType",
+    "IncidentStatus",
+    "IncidentConfig",
+    "IncidentTriggerType",
+    "ArchitectureDocument",
+    "LandscapePosition",
+    "AgentProduct",
+    "Product",
+    "Service",
 ]

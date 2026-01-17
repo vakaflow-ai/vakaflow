@@ -113,7 +113,11 @@ class RolePermissionService:
             "menu.tenant_settings": ("Tenant Settings", "Access to Tenant Settings page"),
             "menu.tenants": ("Tenants", "Access to Tenants management page"),
             "menu.workflows": ("Workflows", "Access to Workflows page"),
+            "menu.workflow_management": ("Workflow Management", "Access to Workflow Management page"),
+            "menu.workflow_templates": ("Workflow Templates", "Access to Workflow Templates page"),
+            "menu.workflow_analytics": ("Workflow Analytics", "Access to Workflow Analytics page"),
             "menu.screen_designer": ("Process Designer", "Access to Process Designer"),
+            "menu.form_designer": ("Form Designer", "Access to Form Designer page"),
             "menu.master_data": ("Master Data", "Access to Master Data page"),
             "menu.platform_config": ("Platform Config", "Access to Platform Config page"),
             "menu.cluster_nodes": ("Cluster Nodes", "Access to Cluster Nodes page"),
@@ -126,6 +130,9 @@ class RolePermissionService:
             "menu.application_logs": ("Application Logs", "Access to Application Logs page"),
             "menu.messages": ("Messages", "Access to Messages page"),
             "menu.mfa_settings": ("MFA Settings", "Access to MFA Settings page"),
+            "menu.products": ("Products", "Access to Products management page"),
+            "menu.services": ("Services", "Access to Services management page"),
+            "menu.incident_reports": ("Incident Reports", "Access to Incident Reports page"),
         },
         "forms_and_data_fields": {
             # Submission Data Level - Agent Core Fields
@@ -201,9 +208,10 @@ class RolePermissionService:
                 "menu.approvals", "menu.policies", "menu.business_rules", "menu.compliance_checks", "menu.cve_tracking",
                 "menu.question_library", "menu.submission_requirements", "menu.assessments", "menu.admin_panel",
                 "menu.users", "menu.role_permissions", "menu.entity_fields_catalog", "menu.tenant_settings",
-                "menu.tenants", "menu.workflows", "menu.screen_designer", "menu.master_data", "menu.platform_config",
+                "menu.tenants", "menu.workflows", "menu.workflow_management", "menu.workflow_templates", "menu.workflow_analytics", "menu.screen_designer", "menu.form_designer", "menu.master_data", "menu.platform_config",
                 "menu.cluster_nodes", "menu.audit_trail", "menu.studio", "menu.offboarding", "menu.export_data",
-                "menu.integrations", "menu.webhooks", "menu.application_logs", "menu.messages", "menu.mfa_settings"
+                "menu.integrations", "menu.webhooks", "menu.application_logs", "menu.messages", "menu.mfa_settings",
+                "menu.products", "menu.services", "menu.incident_reports"
             ],
             "agent_management": ["agents.view", "agents.create", "agents.edit", "agents.delete", "agents.approve", "agents.reject"],
             "review_approval": ["reviews.view", "reviews.create", "reviews.edit", "reviews.approve", "reviews.reject", "approvals.view", "approvals.approve", "approvals.reject"],
@@ -240,9 +248,10 @@ class RolePermissionService:
                 "menu.tickets", "menu.reviews", "menu.approvals", "menu.policies", "menu.business_rules",
                 "menu.compliance_checks", "menu.cve_tracking", "menu.question_library", "menu.submission_requirements",
                 "menu.assessments", "menu.admin_panel", "menu.users", "menu.role_permissions",
-                "menu.entity_fields_catalog", "menu.tenant_settings", "menu.workflows", "menu.screen_designer",
+                "menu.entity_fields_catalog", "menu.tenant_settings", "menu.workflows", "menu.workflow_management", "menu.workflow_templates", "menu.workflow_analytics", "menu.screen_designer", "menu.form_designer",
                 "menu.master_data", "menu.audit_trail", "menu.studio", "menu.offboarding", "menu.export_data",
-                "menu.integrations", "menu.webhooks", "menu.application_logs", "menu.messages", "menu.mfa_settings"
+                "menu.integrations", "menu.webhooks", "menu.application_logs", "menu.messages", "menu.mfa_settings",
+                "menu.products", "menu.services", "menu.incident_reports"
             ],
             "agent_management": ["agents.view", "agents.create", "agents.edit", "agents.approve", "agents.reject"],
             "review_approval": ["reviews.view", "reviews.create", "reviews.edit", "reviews.approve", "reviews.reject", "approvals.view", "approvals.approve", "approvals.reject"],

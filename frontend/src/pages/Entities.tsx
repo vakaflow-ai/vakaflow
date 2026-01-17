@@ -9,6 +9,7 @@ import { businessRulesApi, BusinessRule } from '../lib/businessRules'
 import Layout from '../components/Layout'
 import { authApi } from '../lib/auth'
 import { showToast } from '../utils/toast'
+import { useDialogContext } from '../contexts/DialogContext'
 import {
   Plus, X, Edit, Trash2, Settings, GitBranch, Link as LinkIcon, Workflow as WorkflowIcon,
   FileText, Calendar, Database, CheckCircle, XCircle, ArrowRight, ArrowLeft, ChevronLeft, ChevronRight
@@ -712,16 +713,26 @@ function ProcessEditorPage({
                                   }}
                                   onMouseEnter={() => setHoveredConnection({ from: step.id, to: conn.targetId })}
                                   onMouseLeave={() => setHoveredConnection(null)}
-                                  onClick={(e) => {
+                                  onClick={async (e) => {
                                     e.stopPropagation()
                                     if (conn.branchId) {
                                       // Delete branch connection
-                                      if (window.confirm('Delete this branch connection?')) {
+                                      const confirmed = await dialog.confirm({
+                                        title: 'Delete Branch Connection',
+                                        message: 'Are you sure you want to delete this branch connection?',
+                                        variant: 'destructive'
+                                      })
+                                      if (confirmed) {
                                         handleUpdateBranch(step.id, conn.branchId, { next_step_id: null })
                                       }
                                     } else {
                                       // Delete regular connection
-                                      if (window.confirm('Delete this connection?')) {
+                                      const confirmed = await dialog.confirm({
+                                        title: 'Delete Connection',
+                                        message: 'Are you sure you want to delete this connection?',
+                                        variant: 'destructive'
+                                      })
+                                      if (confirmed) {
                                         const updatedConnections = (step.connections || []).filter(id => id !== conn.targetId)
                                         onUpdateStep(step.id, { connections: updatedConnections })
                                       }
@@ -1161,6 +1172,7 @@ function ProcessEditorPage({
 }
 
 export default function Entities() {
+  const dialog = useDialogContext()
   const [user, setUser] = useState<any>(null)
   const [processes, setProcesses] = useState<BusinessProcess[]>([])
   const [editingProcess, setEditingProcess] = useState<BusinessProcess | null>(null)
@@ -1470,7 +1482,7 @@ export default function Entities() {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Business Process Designer</h1>
-            <p className="text-sm text-gray-600 mt-1">Configure processes using entities, forms, assessments, and workflows from catalog</p>
+            <p className="text-sm text-gray-600 mt-1">Design and configure business processes using entities, forms, assessments, and workflows from catalog</p>
           </div>
           <MaterialButton onClick={handleCreateProcess} variant="contained" className="flex items-center gap-2">
             <Plus className="w-5 h-5" />
@@ -1478,27 +1490,144 @@ export default function Entities() {
           </MaterialButton>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {processes.map((process) => (
-            <MaterialCard key={process.id} className="p-4">
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="font-semibold text-gray-900">{process.name}</h3>
-                <button
-                  onClick={() => setEditingProcess(process)}
-                  className="text-blue-600 hover:text-blue-800"
-                >
-                  <Edit className="w-4 h-4" />
-                </button>
-              </div>
-              {process.description && (
-                <p className="text-sm text-gray-600 mb-2">{process.description}</p>
-              )}
-              <div className="text-xs text-gray-500">
-                {process.steps.length} step{process.steps.length !== 1 ? 's' : ''}
-              </div>
-            </MaterialCard>
-          ))}
-        </div>
+        <MaterialCard className="overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Process Name
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Description
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Type
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Steps
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Entity Type
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Department
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Updated
+                  </th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {processes.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="px-6 py-12 text-center text-gray-500">
+                      <div className="flex flex-col items-center justify-center">
+                        <WorkflowIcon className="w-12 h-12 text-gray-400 mb-4" />
+                        <p className="text-sm font-medium">No processes found</p>
+                        <p className="text-xs mt-1">Create your first business process to get started</p>
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  processes.map((process) => (
+                    <tr key={process.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
+                          <WorkflowIcon className="w-5 h-5 text-blue-600 mr-2" />
+                          <div>
+                            <div className="text-sm font-medium text-gray-900">{process.name}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="text-sm text-gray-600 max-w-md truncate" title={process.description}>
+                          {process.description || '-'}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">
+                          {process.process_type || 'Standard'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center text-sm text-gray-900">
+                          <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center mr-2">
+                            <span className="text-xs font-semibold">{process.steps.length}</span>
+                          </div>
+                          <span className="text-gray-600">
+                            {process.steps.length === 1 ? 'step' : 'steps'}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">
+                          {process.entity_type ? (
+                            <span className="inline-flex items-center">
+                              <Database className="w-4 h-4 text-gray-400 mr-1" />
+                              {process.entity_type}
+                            </span>
+                          ) : (
+                            <span className="text-gray-400">-</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">
+                          {process.department || <span className="text-gray-400">-</span>}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-500">
+                          {process.updated_at ? (
+                            new Date(process.updated_at).toLocaleDateString('en-US', {
+                              year: 'numeric',
+                              month: 'short',
+                              day: 'numeric'
+                            })
+                          ) : (
+                            <span className="text-gray-400">-</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => setEditingProcess(process)}
+                            className="text-blue-600 hover:text-blue-900 p-2 rounded-lg hover:bg-blue-50 transition-colors"
+                            title="Edit process"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={async () => {
+                              const confirmed = await dialog.confirm({
+                                title: 'Delete Process',
+                                message: `Are you sure you want to delete "${process.name}"? This action cannot be undone.`,
+                                variant: 'destructive'
+                              })
+                              if (confirmed) {
+                                // Handle delete - you may need to implement this
+                                showToast.error('Delete functionality not yet implemented')
+                              }
+                            }}
+                            className="text-red-600 hover:text-red-900 p-2 rounded-lg hover:bg-red-50 transition-colors"
+                            title="Delete process"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </MaterialCard>
       </div>
     </Layout>
   )

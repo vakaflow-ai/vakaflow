@@ -1,7 +1,7 @@
 """
 Agent models
 """
-from sqlalchemy import Column, String, DateTime, Text, Integer, ForeignKey, JSON
+from sqlalchemy import Column, String, DateTime, Text, Integer, ForeignKey, JSON, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 import uuid
@@ -38,8 +38,12 @@ class Agent(Base):
     approval_date: Optional[datetime] = Column(DateTime, nullable=True)  # type: ignore
     compliance_score: Optional[int] = Column(Integer, nullable=True)  # type: ignore
     risk_score: Optional[int] = Column(Integer, nullable=True)  # type: ignore
+    tenant_id: Optional[uuid.UUID] = Column(UUID(as_uuid=True), nullable=True, index=True)  # type: ignore
     created_at: datetime = Column(DateTime, default=datetime.utcnow)  # type: ignore
     updated_at: Optional[datetime] = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)  # type: ignore
+    
+    # Ecosystem mapping fields (MVP - simple fields)
+    use_cases: Optional[str] = Column(Text, nullable=True)  # type: ignore  # Rich text area - list of use cases (simple text, no separate model)
     
     # Relationships
     # vendor = relationship("Vendor", back_populates="agents")
@@ -97,3 +101,17 @@ class AgentArtifact(Base):
     
     # Relationships
     # agent = relationship("Agent", back_populates="artifacts")
+
+
+class AgentProduct(Base):
+    """Many-to-many relationship: Agent can be tagged/categorized under Product"""
+    __tablename__ = "agent_products"
+    
+    id: uuid.UUID = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)  # type: ignore
+    agent_id: uuid.UUID = Column(UUID(as_uuid=True), ForeignKey("agents.id"), nullable=False, index=True)  # type: ignore
+    product_id: uuid.UUID = Column(UUID(as_uuid=True), ForeignKey("products.id"), nullable=False, index=True)  # type: ignore
+    relationship_type: Optional[str] = Column(String(50), nullable=True)  # type: ignore  # component, integration, dependency
+    created_at: datetime = Column(DateTime, default=datetime.utcnow)  # type: ignore
+    
+    # Unique constraint
+    __table_args__ = (UniqueConstraint('agent_id', 'product_id', name='uq_agent_product'),)

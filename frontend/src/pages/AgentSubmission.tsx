@@ -13,6 +13,9 @@ import { formLayoutsApi, FormLayout, CustomField, SectionDefinition } from '../l
 import { masterDataListsApi, MasterDataList } from '../lib/masterDataLists'
 import RequirementTreeComponent from '../components/RequirementTree'
 import Layout from '../components/Layout'
+import PageContainer, { PageHeader } from '../components/PageContainer'
+import OnboardingSidebar from '../components/OnboardingSidebar'
+import OnboardingWorkflowPanel from '../components/OnboardingWorkflowPanel'
 import MermaidDiagram from '../components/MermaidDiagram'
 import { showToast } from '../utils/toast'
 import SearchableSelect, { SearchableSelectOption } from '../components/material/SearchableSelect'
@@ -2138,12 +2141,12 @@ Please try:
                       className="text-red-600 hover:text-red-800"
                     >
                       Remove
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
         )
       
       default:
@@ -5713,137 +5716,170 @@ Please try:
     )
   }
 
+  // Convert STEPS to format expected by OnboardingWorkflowPanel
+  const workflowSteps = STEPS.map((step, index) => ({
+    number: index + 1,
+    title: step.title,
+    description: step.description || ''
+  }))
+
   return (
     <Layout user={user}>
-      <div className="max-w-5xl mx-auto">
+      <PageContainer maxWidth="full">
+        <PageHeader 
+          title={agentId ? 'Edit Agent Submission' : 'Submit New Agent'}
+          subtitle={agentId ? 'Continue editing your agent submission' : 'Complete all steps to submit your agent for review'}
+          backButton={true}
+          backUrl="/onboarding"
+        />
+
+        {/* Three-column layout: Left Sidebar | Main Content | Right Panel */}
+        <div className="flex gap-6">
+          {/* Left Sidebar - User & Metadata Info */}
+          <OnboardingSidebar
+            user={user}
+            formData={formData}
+            entityType="agent"
+            vendors={[]}
+            users={[]}
+          />
+
+          {/* Main Content Area */}
+          <div className="flex-1 min-w-0">
             <div className="mb-4">
-          <h1 className="text-base font-medium">{agentId ? 'Edit Agent Submission' : 'Submit New Agent'}</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {agentId ? 'Continue editing your agent submission' : 'Complete all steps to submit your agent for review'}
-          </p>
-          {formLayout && (
-            <div className="text-xs text-blue-600 mt-1">
-              <p>
-                Using layout: <strong>{formLayout.name}</strong> (ID: {formLayout.id.substring(0, 8)}...)
-                <br />
-                Sections: {STEPS.length} | 
-                Active: {formLayout.is_active ? 'Yes' : 'No'} | 
-                Default: {formLayout.is_default ? 'Yes' : 'No'}
-                {formLayout.sections?.length === 0 && (formLayout.is_default || formLayout.name === 'Vendor Submission Layout (Default)-External') ? ' - auto-populated from default steps' : ''}
-              </p>
-              {formLayout.sections && formLayout.sections.length === 1 && (
-                <p className="text-yellow-600 mt-1">
-                  ⚠️ Warning: Layout has only 1 section. If you configured more sections in the Form Designer, 
-                  please <button 
-                    type="button" 
-                    onClick={() => refetchLayout()} 
-                    className="underline font-medium hover:text-yellow-800"
-                  >
-                    refresh this page
-                  </button> or ensure the layout was saved correctly.
+              {formLayout && (
+                <div className="text-xs text-blue-600 mt-1">
+                  <p>
+                    Using layout: <strong>{formLayout.name}</strong> (ID: {formLayout.id.substring(0, 8)}...)
+                    <br />
+                    Sections: {STEPS.length} | 
+                    Active: {formLayout.is_active ? 'Yes' : 'No'} | 
+                    Default: {formLayout.is_default ? 'Yes' : 'No'}
+                    {formLayout.sections?.length === 0 && (formLayout.is_default || formLayout.name === 'Vendor Submission Layout (Default)-External') ? ' - auto-populated from default steps' : ''}
+                  </p>
+                  {formLayout.sections && formLayout.sections.length === 1 && (
+                    <p className="text-yellow-600 mt-1">
+                      ⚠️ Warning: Layout has only 1 section. If you configured more sections in the Form Designer, 
+                      please <button 
+                        type="button" 
+                        onClick={() => refetchLayout()} 
+                        className="underline font-medium hover:text-yellow-800"
+                      >
+                        refresh this page
+                      </button> or ensure the layout was saved correctly.
+                    </p>
+                  )}
+                </div>
+              )}
+              {layoutError && (
+                <p className="text-xs text-red-600 mt-1">
+                  Error loading layout: {(layoutError as any)?.response?.data?.detail || (layoutError as any)?.message || 'Unknown error'}
+                </p>
+              )}
+              {!formLayout && !layoutLoading && !layoutError && (
+                <p className="text-xs text-yellow-600 mt-1">
+                  No active screen layout found. Please configure and activate a layout in the Process Designer.
                 </p>
               )}
             </div>
-          )}
-          {layoutError && (
-            <p className="text-xs text-red-600 mt-1">
-              Error loading layout: {(layoutError as any)?.response?.data?.detail || (layoutError as any)?.message || 'Unknown error'}
-            </p>
-          )}
-          {!formLayout && !layoutLoading && !layoutError && (
-            <p className="text-xs text-yellow-600 mt-1">
-              No active screen layout found. Please configure and activate a layout in the Process Designer.
-            </p>
-          )}
-        </div>
 
-        {/* Step Indicator */}
-        <div className="compact-card mb-6">
-          <div className="flex items-center justify-between mb-4">
-            {STEPS.map((step, idx) => (
-              <div key={step.id} className="flex items-center flex-1">
-                <button
-                  type="button"
-                  onClick={() => handleStepClick(step.id)}
-                  className={`flex items-center justify-center w-10 h-10 rounded-full font-medium transition-all ${
-                    currentStep === step.id
-                      ? 'bg-primary text-white'
-                      : currentStep > step.id
-                      ? 'bg-green-500 text-white'
-                      : 'bg-gray-200 text-gray-600'
-                  }`}
-                  title={step.title}
-                >
-                  {currentStep > step.id ? '✓' : step.id}
-                </button>
-                {idx < STEPS.length - 1 && (
-                  <div
-                    className={`flex-1 h-1 mx-2 ${
-                      currentStep > step.id ? 'bg-green-500' : 'bg-gray-200'
-                    }`}
-                  />
+            {/* Step Indicator */}
+            <div className="compact-card mb-6">
+              <div className="flex items-center justify-between mb-4">
+                {STEPS.map((step, idx) => (
+                  <div key={step.id} className="flex items-center flex-1">
+                    <button
+                      type="button"
+                      onClick={() => handleStepClick(step.id)}
+                      className={`flex items-center justify-center w-10 h-10 rounded-full font-medium transition-all ${
+                        currentStep === step.id
+                          ? 'bg-primary text-white'
+                          : currentStep > step.id
+                          ? 'bg-green-500 text-white'
+                          : 'bg-gray-200 text-gray-600'
+                      }`}
+                      title={step.title}
+                    >
+                      {currentStep > step.id ? '✓' : step.id}
+                    </button>
+                    {idx < STEPS.length - 1 && (
+                      <div
+                        className={`flex-1 h-1 mx-2 ${
+                          currentStep > step.id ? 'bg-green-500' : 'bg-gray-200'
+                        }`}
+                      />
+                    )}
+                  </div>
+                ))}
+              </div>
+              <div className="text-center">
+                {STEPS[currentStep - 1] && (
+                  <>
+                <h2 className="text-lg font-medium">{STEPS[currentStep - 1].title}</h2>
+                <p className="text-sm text-muted-foreground">{STEPS[currentStep - 1].description}</p>
+                  </>
                 )}
               </div>
-            ))}
-          </div>
-          <div className="text-center">
-            {STEPS[currentStep - 1] && (
-              <>
-            <h2 className="text-lg font-medium">{STEPS[currentStep - 1].title}</h2>
-            <p className="text-sm text-muted-foreground">{STEPS[currentStep - 1].description}</p>
-              </>
-            )}
-          </div>
-        </div>
+            </div>
 
-        {/* Step Content */}
-        <div className="compact-card mb-6">
-          {renderStepContent()}
-        </div>
+            {/* Step Content */}
+            <div className="compact-card mb-6">
+              {renderStepContent()}
+            </div>
 
-        {/* Navigation */}
-        <div className="flex justify-between items-center">
-          <button
-            type="button"
-            onClick={handlePrevious}
-            disabled={currentStep === (getBasicInformationStepNumber('vendor') || 1)}
-            className="compact-button-secondary disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Previous
-          </button>
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={saveDraft}
-              disabled={loading}
-              className="compact-button-secondary text-sm"
-            >
-              {loading ? 'Saving...' : 'Save as Draft'}
-            </button>
-            <span className="text-sm text-muted-foreground">
-              Step {currentStep} of {STEPS.length}
-            </span>
+            {/* Navigation */}
+            <div className="flex justify-between items-center">
+              <button
+                type="button"
+                onClick={handlePrevious}
+                disabled={currentStep === (getBasicInformationStepNumber('vendor') || 1)}
+                className="compact-button-secondary disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Previous
+              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={saveDraft}
+                  disabled={loading}
+                  className="compact-button-secondary text-sm"
+                >
+                  {loading ? 'Saving...' : 'Save as Draft'}
+                </button>
+                <span className="text-sm text-muted-foreground">
+                  Step {currentStep} of {STEPS.length}
+                </span>
+              </div>
+              {currentStep >= 1 && currentStep <= STEPS.length && currentStep < STEPS.length ? (
+                <button
+                  type="button"
+                  onClick={handleNext}
+                  className="compact-button-primary"
+                >
+                  Next
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleSubmit}
+                  disabled={loading}
+                  className="compact-button-primary"
+                >
+                  {loading ? 'Submitting...' : 'Submit Agent'}
+                </button>
+              )}
+            </div>
           </div>
-          {currentStep >= 1 && currentStep <= STEPS.length && currentStep < STEPS.length ? (
-            <button
-              type="button"
-              onClick={handleNext}
-              className="compact-button-primary"
-            >
-              Next
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={loading}
-              className="compact-button-primary"
-            >
-              {loading ? 'Submitting...' : 'Submit Agent'}
-            </button>
-          )}
+
+          {/* Right Panel - Workflow/Step Info */}
+          <OnboardingWorkflowPanel
+            currentStep={currentStep}
+            totalSteps={STEPS.length}
+            steps={workflowSteps}
+            entityType="agent"
+          />
         </div>
-      </div>
+      </PageContainer>
     </Layout>
   )
 }

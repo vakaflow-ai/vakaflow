@@ -22,10 +22,12 @@ from app.models.form_layout import FormLayout
 from app.models.entity_field import EntityPermission, EntityFieldPermission, EntityFieldRegistry
 from app.models.custom_field import CustomFieldCatalog
 from app.models.business_rule import BusinessRule
+from app.models.agentic_agent import AgenticAgent
 from app.services.permission_resolution import resolve_field_permissions, get_effective_permission
 from app.services.business_rules_engine import BusinessRulesEngine
 from app.services.email_service import EmailService
 from app.services.layout_type_mapper import get_layout_type_for_stage
+from app.services.studio_service import StudioService
 from app.models.user import User
 
 logger = logging.getLogger(__name__)
@@ -113,20 +115,45 @@ class WorkflowOrchestrationService:
         conditions = workflow.conditions or {}
         trigger_rules = workflow.trigger_rules or {}
         
+        # Check entity_type first (if specified in conditions or trigger_rules)
+        if conditions.get("entity_types"):
+            if entity_type not in conditions["entity_types"]:
+                return False
+        
+        if trigger_rules.get("entity_types"):
+            if entity_type not in trigger_rules["entity_types"]:
+                return False
+        
         # Check conditions
         if conditions:
             match_all = conditions.get("match_all", False)
             matches = []
             
-            # Check agent_types
-            if "agent_types" in conditions:
+            # Check agent_types (for backward compatibility)
+            if "agent_types" in conditions and conditions["agent_types"] is not None:
                 entity_type_value = entity_data.get("type") or entity_data.get("agent_type")
-                matches.append(entity_type_value in conditions["agent_types"])
+                if entity_type_value:
+                    matches.append(entity_type_value in conditions["agent_types"])
+                else:
+                    matches.append(False)
             
             # Check risk_levels
             if "risk_levels" in conditions:
-                risk_level = entity_data.get("risk_level")
-                matches.append(risk_level in conditions["risk_levels"] if risk_level else False)
+                risk_level = entity_data.get("risk_level") or entity_data.get("risk_score")
+                if risk_level:
+                    # Convert numeric risk_score to level if needed
+                    if isinstance(risk_level, (int, float)):
+                        if risk_level >= 80:
+                            risk_level = "critical"
+                        elif risk_level >= 60:
+                            risk_level = "high"
+                        elif risk_level >= 40:
+                            risk_level = "medium"
+                        else:
+                            risk_level = "low"
+                    matches.append(risk_level in conditions["risk_levels"])
+                else:
+                    matches.append(False)
             
             # Check categories
             if "categories" in conditions:
@@ -148,11 +175,23 @@ class WorkflowOrchestrationService:
             
             if "agent_types" in trigger_rules:
                 entity_type_value = entity_data.get("type") or entity_data.get("agent_type")
-                matches.append(entity_type_value in trigger_rules["agent_types"])
+                if entity_type_value:
+                    matches.append(entity_type_value in trigger_rules["agent_types"])
             
             if "risk_levels" in trigger_rules:
-                risk_level = entity_data.get("risk_level")
-                matches.append(risk_level in trigger_rules["risk_levels"] if risk_level else False)
+                risk_level = entity_data.get("risk_level") or entity_data.get("risk_score")
+                if risk_level:
+                    # Convert numeric risk_score to level if needed
+                    if isinstance(risk_level, (int, float)):
+                        if risk_level >= 80:
+                            risk_level = "critical"
+                        elif risk_level >= 60:
+                            risk_level = "high"
+                        elif risk_level >= 40:
+                            risk_level = "medium"
+                        else:
+                            risk_level = "low"
+                    matches.append(risk_level in trigger_rules["risk_levels"])
             
             if matches:
                 if match_all:

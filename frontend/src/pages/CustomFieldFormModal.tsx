@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { MaterialButton, MaterialInput, MaterialChip } from '../components/material'
 import { CustomField } from '../lib/formLayouts'
 import { MasterDataList } from '../lib/masterDataLists'
+import { showToast } from '../utils/toast'
 
 interface CustomFieldFormModalProps {
   initialData?: CustomField
@@ -35,7 +36,7 @@ export default function CustomFieldFormModal({
     e.preventDefault()
     
     if (!fieldName || !label) {
-      alert('Field name and label are required')
+      showToast.error('Field name and label are required')
       return
     }
 
@@ -67,7 +68,7 @@ export default function CustomFieldFormModal({
         customField.options = optionsWithValues
         customField.master_data_list_id = undefined // Clear master data if using static options
       } else {
-        alert('Please either choose an existing list or add at least one option')
+        showToast.error('Please either choose an existing list or add at least one option')
         return
       }
     }

@@ -9,7 +9,8 @@ from typing import List, Optional, Dict, Any
 from uuid import UUID
 from datetime import datetime
 from app.core.database import get_db
-from app.models.agent import Agent, AgentStatus, AgentMetadata, AgentArtifact
+from app.models.agent import Agent, AgentStatus, AgentMetadata, AgentArtifact, AgentProduct
+from app.models.product import Product
 from app.models.vendor import Vendor
 from app.models.user import User
 from app.api.v1.auth import get_current_user
@@ -1527,3 +1528,52 @@ async def submit_agent(
         workflow_current_step=workflow_current_step
     )
 
+
+
+@router.get("/{agent_id}/products", response_model=List[Dict[str, Any]])
+async def get_agent_products(
+    agent_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get products this agent is tagged under"""
+    agent = db.query(Agent).filter(Agent.id == agent_id).first()
+    if not agent:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Agent not found"
+        )
+    
+    # Validate tenant access
+    validate_agent_tenant_access(agent, current_user, db)
+    
+    # Get agent-product relationships
+    agent_products = db.query(AgentProduct).filter(AgentProduct.agent_id == agent_id).all()
+    product_ids = [ap.product_id for ap in agent_products]
+    
+    if not product_ids:
+        return []
+    
+    # Get products
+    products = db.query(Product).filter(Product.id.in_(product_ids)).all()
+    
+    # Build response
+    result = []
+    for product in products:
+        # Find relationship type
+        relationship_type = None
+        for ap in agent_products:
+            if ap.product_id == product.id:
+                relationship_type = ap.relationship_type
+                break
+        
+        result.append({
+            "id": str(product.id),
+            "name": product.name,
+            "product_type": product.product_type,
+            "category": product.category,
+            "status": product.status,
+            "relationship_type": relationship_type
+        })
+    
+    return result

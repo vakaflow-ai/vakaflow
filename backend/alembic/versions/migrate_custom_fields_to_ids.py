@@ -9,11 +9,6 @@ The actual data migration is handled by the Python script: backend/scripts/migra
 """
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.orm import Session
-from app.core.database import SessionLocal
-from app.models.form_layout import FormLayout
-from app.models.custom_field import CustomFieldCatalog
-from uuid import UUID
 import logging
 
 # revision identifiers, used by Alembic.

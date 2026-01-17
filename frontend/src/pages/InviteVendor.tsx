@@ -6,6 +6,8 @@ import { authApi } from '../lib/auth'
 import Layout from '../components/Layout'
 import { FormField } from '../components/FormField'
 import { useFormValidation } from '../hooks/useFormValidation'
+import { showToast } from '../utils/toast'
+import { useDialogContext } from '../contexts/DialogContext'
 
 // Helper to extract error message
 const getErrorMessage = (error: any): string => {
@@ -78,6 +80,7 @@ The Platform Team`
 type InvitationType = 'ai-agentic-app-onboarding' | 'vendor-onboarding' | 'vendor-app-onboarding-request' | ''
 
 export default function InviteVendor() {
+  const dialog = useDialogContext()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [statusFilter, setStatusFilter] = useState<string>('')
@@ -129,18 +132,26 @@ export default function InviteVendor() {
 
   const createInvitation = useMutation({
     mutationFn: (data: InvitationCreate) => vendorInvitationsApi.create(data),
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       queryClient.invalidateQueries({ queryKey: ['vendor-invitations'] })
       reset()
       setInvitationType('')
       
       // Check if email was sent successfully
       if (data.email_sent === false && data.email_error) {
-        alert(`Invitation created successfully, but the email could not be sent.\n\n${data.email_error}\n\nPlease configure SMTP settings in Integration Management, then you can resend the invitation email.`)
+        await dialog.alert({
+          title: 'Invitation Created',
+          message: `Invitation created successfully, but the email could not be sent.\n\n${data.email_error}\n\nPlease configure SMTP settings in Integration Management, then you can resend the invitation email.`,
+          variant: 'warning'
+        })
       } else if (data.email_sent === false) {
-        alert(`Invitation created successfully, but the email could not be sent.\n\nPlease configure SMTP settings in Integration Management, then you can resend the invitation email.`)
+        await dialog.alert({
+          title: 'Invitation Created',
+          message: 'Invitation created successfully, but the email could not be sent.\n\nPlease configure SMTP settings in Integration Management, then you can resend the invitation email.',
+          variant: 'warning'
+        })
       } else {
-      alert(`Invitation sent successfully! The vendor will receive an email with a registration link to access the Vendor Portal.`)
+        showToast.success('Invitation sent successfully! The vendor will receive an email with a registration link to access the Vendor Portal.')
       }
     },
     onError: async (error: any) => {
@@ -173,18 +184,35 @@ export default function InviteVendor() {
                 `- Created: ${new Date(existingInvitation.created_at).toLocaleDateString()}\n\n` +
                 `Would you like to resend the invitation email?`
               
-              if (confirm(message)) {
+              const confirmed = await dialog.confirm({
+                title: 'Resend Invitation?',
+                message: message,
+                variant: 'default'
+              })
+              if (confirmed) {
                 resendInvitation.mutate(existingInvitation.id)
               }
             } else {
-              alert(`An active invitation already exists for ${emailToCheck}.\n\nThis vendor may already be registered or have a pending invitation.`)
+              await dialog.alert({
+                title: 'Invitation Exists',
+                message: `An active invitation already exists for ${emailToCheck}.\n\nThis vendor may already be registered or have a pending invitation.`,
+                variant: 'info'
+              })
             }
           } else {
-            alert(`An active invitation already exists for this email.\n\nThis vendor may already be registered or have a pending invitation.`)
+            await dialog.alert({
+              title: 'Invitation Exists',
+              message: 'An active invitation already exists for this email.\n\nThis vendor may already be registered or have a pending invitation.',
+              variant: 'info'
+            })
           }
         } catch (fetchError) {
           // Fallback if we can't fetch invitations
-          alert(`An active invitation already exists for this email.\n\nThis vendor may already be registered or have a pending invitation.`)
+          await dialog.alert({
+            title: 'Invitation Exists',
+            message: 'An active invitation already exists for this email.\n\nThis vendor may already be registered or have a pending invitation.',
+            variant: 'info'
+          })
         }
       } else {
         // Show user-friendly error message for other errors
@@ -196,7 +224,11 @@ export default function InviteVendor() {
         userMessage += '\n\nPlease check that the email address is valid and correctly formatted.'
       }
       
-      alert(userMessage)
+      await dialog.alert({
+        title: 'Error',
+        message: userMessage,
+        variant: 'error'
+      })
       }
     }
   })
@@ -205,10 +237,10 @@ export default function InviteVendor() {
     mutationFn: (id: string) => vendorInvitationsApi.resend(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vendor-invitations'] })
-      alert('Invitation email resent successfully!')
+      showToast.success('Invitation email resent successfully!')
     },
     onError: (error: any) => {
-      alert(error?.response?.data?.detail || 'Failed to resend invitation')
+      showToast.error(error?.response?.data?.detail || 'Failed to resend invitation')
     }
   })
 
@@ -216,10 +248,10 @@ export default function InviteVendor() {
     mutationFn: (id: string) => vendorInvitationsApi.cancel(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vendor-invitations'] })
-      alert('Invitation cancelled successfully!')
+      showToast.success('Invitation cancelled successfully!')
     },
     onError: (error: any) => {
-      alert(error?.response?.data?.detail || 'Failed to cancel invitation')
+      showToast.error(error?.response?.data?.detail || 'Failed to cancel invitation')
     }
   })
 

@@ -2179,6 +2179,9 @@ async def save_assessment_responses(
             ActionItem.action_type == ActionItemType.APPROVAL
         ).count()
         
+        # Review items count (for logging - now consolidated to approval only)
+        review_items_count = 0  # No longer used, but kept for logging compatibility
+        
         # Log detailed information about action items
         if approval_items_count > 0:
             approval_items = db.query(ActionItem).filter(
@@ -4624,6 +4627,109 @@ async def get_assignment_approval_status(
     }
 
 
+@router.get("/assignments/{assignment_id}/workflow-progress", response_model=Dict[str, Any])
+async def get_assignment_workflow_progress(
+    assignment_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get complete workflow progress with all steps for an assessment assignment"""
+    from app.core.tenant_utils import get_effective_tenant_id
+    from app.models.approval import ApprovalInstance, ApprovalStep
+    
+    effective_tenant_id = get_effective_tenant_id(current_user, db)
+    if not effective_tenant_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Tenant access required"
+        )
+    
+    assignment = db.query(AssessmentAssignment).filter(
+        AssessmentAssignment.id == assignment_id,
+        AssessmentAssignment.tenant_id == effective_tenant_id
+    ).first()
+    
+    if not assignment:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Assignment not found"
+        )
+    
+    approval_instance = db.query(ApprovalInstance).filter(
+        ApprovalInstance.assignment_id == assignment_id
+    ).first()
+    
+    if not approval_instance:
+        return {
+            "has_workflow": False,
+            "steps": [],
+            "current_step": None,
+            "total_steps": 0,
+            "completed_steps": 0,
+            "progress_percent": 0,
+            "status": None
+        }
+    
+    # Get all steps ordered by step_number
+    steps = db.query(ApprovalStep).filter(
+        ApprovalStep.instance_id == approval_instance.id
+    ).order_by(ApprovalStep.step_number).all()
+    
+    # Get user details for assigned_to and completed_by
+    user_ids = set()
+    for step in steps:
+        if step.assigned_to:
+            user_ids.add(step.assigned_to)
+        if step.completed_by:
+            user_ids.add(step.completed_by)
+    
+    users = {}
+    if user_ids:
+        from app.models.user import User as UserModel
+        users_list = db.query(UserModel).filter(UserModel.id.in_(list(user_ids))).all()
+        users = {str(u.id): {"id": str(u.id), "name": u.name, "email": u.email} for u in users_list}
+    
+    # Build steps data
+    steps_data = []
+    completed_count = 0
+    for step in steps:
+        step_status = step.status
+        if step_status == "completed":
+            completed_count += 1
+        
+        steps_data.append({
+            "id": str(step.id),
+            "step_number": step.step_number,
+            "step_type": step.step_type,
+            "step_name": step.step_name,
+            "status": step_status,
+            "assigned_to": str(step.assigned_to) if step.assigned_to else None,
+            "assigned_to_user": users.get(str(step.assigned_to)) if step.assigned_to else None,
+            "assigned_role": step.assigned_role,
+            "completed_by": str(step.completed_by) if step.completed_by else None,
+            "completed_by_user": users.get(str(step.completed_by)) if step.completed_by else None,
+            "completed_at": step.completed_at.isoformat() if step.completed_at else None,
+            "notes": step.notes,
+            "created_at": step.created_at.isoformat() if step.created_at else None,
+            "updated_at": step.updated_at.isoformat() if step.updated_at else None
+        })
+    
+    total_steps = len(steps)
+    progress_percent = int((completed_count / total_steps * 100)) if total_steps > 0 else 0
+    
+    return {
+        "has_workflow": True,
+        "steps": steps_data,
+        "current_step": approval_instance.current_step,
+        "total_steps": total_steps,
+        "completed_steps": completed_count,
+        "progress_percent": progress_percent,
+        "status": approval_instance.status,
+        "started_at": approval_instance.started_at.isoformat() if approval_instance.started_at else None,
+        "completed_at": approval_instance.completed_at.isoformat() if approval_instance.completed_at else None
+    }
+
+
 @router.get("/assignments/{assignment_id}/workflow-history", response_model=List[Dict[str, Any]])
 async def get_assignment_workflow_history(
     assignment_id: UUID,
@@ -5929,7 +6035,7 @@ async def submit_final_decision(
     new_decision = mapped[decision]
 
     # Check if workflow-based approval (using ApprovalInstance/ApprovalStep)
-    from app.models.approval import ApprovalInstance, ApprovalStep
+    from app.models.approval import ApprovalInstance, ApprovalStep, ApprovalStatus
     approval_instance = db.query(ApprovalInstance).filter(
         ApprovalInstance.assignment_id == assignment_id
     ).first()

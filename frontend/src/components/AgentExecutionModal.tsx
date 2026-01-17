@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { StudioAgent } from '../lib/studio'
 import SkillInputForm from './SkillInputForm'
 import BusinessRulesIndicator from './BusinessRulesIndicator'
+import { showToast } from '../utils/toast'
 
 interface AgentExecutionModalProps {
   agent: StudioAgent
@@ -16,7 +17,7 @@ export default function AgentExecutionModal({ agent, onExecute, onCancel }: Agen
 
   const handleExecute = async () => {
     if (!selectedSkill) {
-      alert('Please select a skill')
+      showToast.error('Please select a skill')
       return
     }
 
@@ -24,7 +25,7 @@ export default function AgentExecutionModal({ agent, onExecute, onCancel }: Agen
     if (selectedSkill === 'tprm') {
       const vendorId = inputData.vendor_id
       if (!vendorId || (Array.isArray(vendorId) && vendorId.length === 0)) {
-        alert('Please select at least one vendor for TPRM analysis')
+        showToast.error('Please select at least one vendor for TPRM analysis')
         return
       }
     }
@@ -33,7 +34,7 @@ export default function AgentExecutionModal({ agent, onExecute, onCancel }: Agen
     try {
       await onExecute(selectedSkill, inputData)
     } catch (error: any) {
-      alert(`Execution failed: ${error.message}`)
+      showToast.error(`Execution failed: ${error.message}`)
     } finally {
       setIsExecuting(false)
     }

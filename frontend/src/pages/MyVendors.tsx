@@ -8,7 +8,7 @@ import Layout from '../components/Layout'
 import { MaterialCard, MaterialButton } from '../components/material'
 import { 
   Search, Grid3x3, List, Filter, FileText, Upload, Download, Plus, Pencil, ChevronDown, 
-  ExternalLink, Building2
+  ExternalLink, Building2, Rocket
 } from 'lucide-react'
 
 interface VendorPOC {
@@ -272,6 +272,16 @@ export default function MyVendors() {
               >
                 <Download className="w-4 h-4" />
               </button>
+
+              {/* Onboard Vendor Button */}
+              <MaterialButton
+                onClick={() => navigate('/onboarding/vendor')}
+                variant="outlined"
+                className="border-primary-600 text-primary-600 hover:bg-primary-50"
+              >
+                <Rocket className="w-4 h-4 mr-2" />
+                Onboard Vendor
+              </MaterialButton>
 
               {/* New Vendor Button */}
               <button

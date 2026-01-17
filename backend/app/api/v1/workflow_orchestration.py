@@ -12,6 +12,9 @@ from app.core.database import get_db
 from app.models.user import User
 from app.api.v1.auth import get_current_user
 from app.services.workflow_orchestration import WorkflowOrchestrationService
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -180,5 +183,212 @@ async def evaluate_stage_rules(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to evaluate rules: {str(e)}"
+        )
+
+
+@router.get("/status/{entity_type}/{entity_id}", response_model=Dict[str, Any])
+async def get_workflow_status(
+    entity_type: str,
+    entity_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Get workflow status for an entity (product, service, agent, vendor)
+    
+    Returns:
+    - has_workflow: Whether a workflow exists for this entity
+    - workflow_id: Workflow configuration ID
+    - workflow_name: Workflow name
+    - current_stage: Current workflow stage
+    - current_stage_label: Human-readable stage label
+    - progress_percentage: Progress percentage (0-100)
+    - stages: List of workflow stages with status
+    - status: Overall workflow status
+    """
+    from app.core.tenant_utils import get_effective_tenant_id
+    from app.models.product import Product
+    from app.models.service import Service
+    from app.models.agent import Agent
+    from app.models.vendor import Vendor
+    
+    effective_tenant_id = get_effective_tenant_id(current_user, db)
+    if not effective_tenant_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Tenant access required"
+        )
+    
+    try:
+        # Get entity
+        entity = None
+        entity_data = {}
+        
+        if entity_type == "product":
+            entity = db.query(Product).filter(Product.id == entity_id).first()
+            if entity:
+                entity_data = {
+                    "product_type": entity.product_type,
+                    "category": entity.category,
+                    "status": entity.status
+                }
+        elif entity_type == "service":
+            entity = db.query(Service).filter(Service.id == entity_id).first()
+            if entity:
+                entity_data = {
+                    "service_type": entity.service_type,
+                    "category": entity.category,
+                    "status": entity.status
+                }
+        elif entity_type == "agent":
+            entity = db.query(Agent).filter(Agent.id == entity_id).first()
+            if entity:
+                entity_data = {
+                    "type": entity.type,
+                    "category": entity.category,
+                    "status": entity.status
+                }
+        elif entity_type == "vendor":
+            entity = db.query(Vendor).filter(Vendor.id == entity_id).first()
+            if entity:
+                entity_data = {
+                    "status": entity.status
+                }
+        
+        if not entity:
+            return {
+                "has_workflow": False,
+                "error": f"{entity_type} not found"
+            }
+        
+        # Check tenant access
+        if hasattr(entity, 'tenant_id') and entity.tenant_id != effective_tenant_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied"
+            )
+        
+        # Check if entity has workflow info in metadata first (fast path)
+        workflow_id_from_metadata = None
+        if hasattr(entity, 'extra_metadata') and entity.extra_metadata:
+            workflow_id_from_metadata = entity.extra_metadata.get("workflow_id")
+        
+        # Get workflow for entity
+        orchestration = WorkflowOrchestrationService(db, effective_tenant_id)
+        
+        # Determine request type based on entity type
+        request_type_map = {
+            "product": "product_qualification_workflow",
+            "service": "service_qualification_workflow",
+            "agent": "agent_onboarding_workflow",
+            "vendor": "vendor_submission_workflow"
+        }
+        request_type = request_type_map.get(entity_type, f"{entity_type}_workflow")
+        
+        # Try to get workflow config - use metadata workflow_id if available for faster lookup
+        workflow_config = None
+        if workflow_id_from_metadata:
+            try:
+                from app.models.workflow_config import WorkflowConfiguration
+                workflow_config = db.query(WorkflowConfiguration).filter(
+                    WorkflowConfiguration.id == UUID(workflow_id_from_metadata),
+                    WorkflowConfiguration.tenant_id == effective_tenant_id,
+                    WorkflowConfiguration.status == "active"
+                ).first()
+            except Exception:
+                pass  # Fall through to normal lookup
+        
+        # If not found via metadata, do normal lookup
+        if not workflow_config:
+            workflow_config = orchestration.get_workflow_for_entity(
+                entity_type=entity_type,
+                entity_data=entity_data,
+                request_type=request_type
+            )
+        
+        if not workflow_config:
+            return {
+                "has_workflow": False
+            }
+        
+        # Get current stage from entity metadata or default to first stage
+        current_stage = "new"
+        if hasattr(entity, 'extra_metadata') and entity.extra_metadata:
+            current_stage = entity.extra_metadata.get("workflow_stage", "new")
+        elif hasattr(entity, 'workflow_stage'):
+            current_stage = entity.workflow_stage or "new"
+        
+        # Calculate progress
+        workflow_steps = workflow_config.workflow_steps or []
+        if not isinstance(workflow_steps, list):
+            workflow_steps = []
+        
+        total_steps = len(workflow_steps)
+        current_step_index = 0
+        
+        # Find current step index - check both "stage" and "step_name" fields
+        for i, step in enumerate(workflow_steps):
+            if not isinstance(step, dict):
+                continue
+            step_stage = step.get("stage") or step.get("workflow_stage")
+            if step_stage == current_stage:
+                current_step_index = i
+                break
+        
+        progress_percentage = int((current_step_index / total_steps * 100)) if total_steps > 0 else 0
+        
+        # Build stages list
+        stages = []
+        for i, step in enumerate(workflow_steps):
+            if not isinstance(step, dict):
+                continue
+            step_stage = step.get("stage") or step.get("workflow_stage") or "new"
+            step_label = step.get("step_name") or step.get("name") or step_stage.replace("_", " ").title()
+            
+            if step_stage == current_stage:
+                stage_status = "current"
+            elif i < current_step_index:
+                stage_status = "completed"
+            else:
+                stage_status = "pending"
+            
+            stages.append({
+                "stage": step_stage,
+                "label": step_label,
+                "status": stage_status
+            })
+        
+        # Determine overall status
+        status = current_stage
+        if current_stage in ["approved", "closed"]:
+            status = "approved"
+        elif current_stage in ["rejected", "cancelled"]:
+            status = "rejected"
+        elif current_stage in ["pending_approval", "pending_review"]:
+            status = "pending_review"
+        elif current_stage in ["in_progress"]:
+            status = "in_progress"
+        elif current_stage in ["needs_revision"]:
+            status = "needs_revision"
+        else:
+            status = "draft"
+        
+        return {
+            "has_workflow": True,
+            "workflow_id": str(workflow_config.id),
+            "workflow_name": workflow_config.name,
+            "current_stage": current_stage,
+            "current_stage_label": stages[current_step_index]["label"] if stages else current_stage.replace("_", " ").title(),
+            "progress_percentage": progress_percentage,
+            "stages": stages,
+            "status": status
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get workflow status: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get workflow status: {str(e)}"
         )
 

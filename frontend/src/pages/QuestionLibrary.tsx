@@ -8,6 +8,8 @@ import { frameworksApi, ComplianceFramework } from '../lib/frameworks'
 import Layout from '../components/Layout'
 import { Plus, Edit, Trash2, Search, Filter, X, Save, ToggleLeft, ToggleRight, CheckSquare, Square, Download, Upload, ChevronDown, Check } from 'lucide-react'
 import * as XLSX from 'xlsx'
+import { showToast } from '../utils/toast'
+import { useDialogContext } from '../contexts/DialogContext'
 
 // Assessment types are now fetched from master data lists
 // Fallback constant for backward compatibility
@@ -52,6 +54,7 @@ interface User {
 export default function QuestionLibrary() {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
+  const dialog = useDialogContext()
   const [user, setUser] = useState<User | null>(null)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [filterAssessmentType, setFilterAssessmentType] = useState<string>('')
@@ -345,17 +348,27 @@ export default function QuestionLibrary() {
     }
   }
 
-  const handleDelete = (id: string) => {
-    if (confirm('Are you sure you want to delete this question?')) {
+  const handleDelete = async (id: string) => {
+    const confirmed = await dialog.confirm({
+      title: 'Delete Question',
+      message: 'Are you sure you want to delete this question? This action cannot be undone.',
+      variant: 'destructive'
+    })
+    if (confirmed) {
       deleteMutation.mutate(id)
     }
   }
 
-  const handleBulkDelete = () => {
+  const handleBulkDelete = async () => {
     const count = selectedQuestions.size
     if (count === 0) return
     
-    if (confirm(`Are you sure you want to delete ${count} question${count > 1 ? 's' : ''}?`)) {
+    const confirmed = await dialog.confirm({
+      title: 'Delete Questions',
+      message: `Are you sure you want to delete ${count} question${count > 1 ? 's' : ''}? This action cannot be undone.`,
+      variant: 'destructive'
+    })
+    if (confirmed) {
       bulkDeleteMutation.mutate(Array.from(selectedQuestions))
     }
   }
@@ -1283,7 +1296,7 @@ export default function QuestionLibrary() {
                   <button
                     onClick={async () => {
                       if (!importFile) {
-                        alert('Please select a file')
+                        showToast.error('Please select a file')
                         return
                       }
                       try {
@@ -1299,7 +1312,7 @@ export default function QuestionLibrary() {
                           const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 })
                           
                           if (jsonData.length < 2) {
-                            alert('Excel file must have at least a header row and one data row')
+                            showToast.error('Excel file must have at least a header row and one data row')
                             return
                           }
                           
@@ -1319,7 +1332,7 @@ export default function QuestionLibrary() {
                           const text = await importFile.text()
                           const lines = text.split('\n').filter(line => line.trim())
                           if (lines.length < 2) {
-                            alert('CSV file must have at least a header row and one data row')
+                            showToast.error('CSV file must have at least a header row and one data row')
                             return
                           }
                           
@@ -1341,12 +1354,12 @@ export default function QuestionLibrary() {
                           const parsed = JSON.parse(text)
                           questions = Array.isArray(parsed) ? parsed : [parsed]
                         } else {
-                          alert('Unsupported file format. Please use Excel (.xlsx), CSV (.csv), or JSON (.json)')
+                          showToast.error('Unsupported file format. Please use Excel (.xlsx), CSV (.csv), or JSON (.json)')
                           return
                         }
                         
                         if (questions.length === 0) {
-                          alert('No valid questions found in the file')
+                          showToast.error('No valid questions found in the file')
                           return
                         }
                         
@@ -1386,7 +1399,7 @@ export default function QuestionLibrary() {
                     <button
                       onClick={() => {
                         if (!filteredQuestions || filteredQuestions.length === 0) {
-                          alert('No questions to export')
+                          showToast.warning('No questions to export')
                           return
                         }
                         // Export as Excel
@@ -1428,7 +1441,7 @@ export default function QuestionLibrary() {
                     <button
                       onClick={() => {
                         if (!filteredQuestions || filteredQuestions.length === 0) {
-                          alert('No questions to export')
+                          showToast.warning('No questions to export')
                           return
                         }
                         // Export as CSV
@@ -1464,7 +1477,7 @@ export default function QuestionLibrary() {
                     <button
                       onClick={() => {
                         if (!filteredQuestions || filteredQuestions.length === 0) {
-                          alert('No questions to export')
+                          showToast.warning('No questions to export')
                           return
                         }
                         // Export as JSON

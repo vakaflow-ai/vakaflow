@@ -38,24 +38,39 @@ export default function ChartContainer({
     const checkDimensions = () => {
       if (containerRef.current) {
         const rect = containerRef.current.getBoundingClientRect()
+        const computedStyle = window.getComputedStyle(containerRef.current)
+        
+        // Check if element is visible (not hidden or collapsed)
+        const isVisible = computedStyle.display !== 'none' &&
+                         computedStyle.visibility !== 'hidden' &&
+                         computedStyle.opacity !== '0'
+        
         const width = rect.width
         const height = rect.height
         
-        // Only render chart if container has valid dimensions (> 0)
-        if (width > 0 && height > 0) {
+        // Only render chart if container has valid dimensions (> 0) and is visible
+        // Use a minimum threshold to avoid rendering with tiny dimensions
+        if (isVisible && width > 10 && height > 10) {
           setDimensions({ width, height })
           setHasDimensions(true)
         } else {
           setHasDimensions(false)
+          setDimensions({ width: 0, height: 0 })
         }
       }
     }
 
-    // Check immediately
-    checkDimensions()
+    // Use requestAnimationFrame to ensure DOM is ready
+    const rafId = requestAnimationFrame(() => {
+      checkDimensions()
+    })
 
     // Use ResizeObserver to watch for dimension changes
-    const resizeObserver = new ResizeObserver(checkDimensions)
+    const resizeObserver = new ResizeObserver(() => {
+      // Debounce resize checks
+      requestAnimationFrame(checkDimensions)
+    })
+    
     if (containerRef.current) {
       resizeObserver.observe(containerRef.current)
     }
@@ -64,6 +79,7 @@ export default function ChartContainer({
     window.addEventListener('resize', checkDimensions)
 
     return () => {
+      cancelAnimationFrame(rafId)
       resizeObserver.disconnect()
       window.removeEventListener('resize', checkDimensions)
     }
@@ -78,13 +94,16 @@ export default function ChartContainer({
         minHeight: minHeightValue,
         minWidth: '200px', // Ensure minimum width
         position: 'relative',
-        width: '100%'
+        width: '100%',
+        overflow: 'hidden' // Prevent overflow issues
       }}
     >
-      {hasDimensions && dimensions.width > 0 && dimensions.height > 0 ? (
-      <ResponsiveContainer width="100%" height="100%">
-        {children}
-      </ResponsiveContainer>
+      {hasDimensions && dimensions.width > 10 && dimensions.height > 10 ? (
+        <div style={{ width: '100%', height: '100%', minWidth: '200px', minHeight: '200px' }}>
+          <ResponsiveContainer width="100%" height="100%">
+            {children}
+          </ResponsiveContainer>
+        </div>
       ) : (
         <div 
           className="flex items-center justify-center"

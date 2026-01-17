@@ -198,7 +198,7 @@ async def serve_upload_file(file_path: str, request: Request):
 
 
 # Include routers
-from app.api.v1 import auth, agents, knowledge, reviews, tenants, onboarding, compliance, audit, analytics, messages, approvals, offboarding, adoption, integrations, webhooks, recommendations, export, mfa, sso, oauth2, integration_config, predictive, marketplace, cross_tenant, fine_tuning, metrics, logs, tickets, vendors, users, submission_requirements, assessments, agent_connections, frameworks, workflow_config, workflow_actions, workflow_stage_settings, workflow_orchestration, reminders, vendor_invitations, otp, smtp_settings, sso_settings, scim, api_gateway, api_token_management, integration_help, user_sync, platform_config, cluster_nodes, agentic_agents, studio, external_agents, presentation, actions, question_library, assessment_rules, business_rules, role_permissions, role_configurations, security_incidents, custom_fields, entity_fields, suppliers_master
+from app.api.v1 import auth, agents, knowledge, reviews, tenants, onboarding, compliance, audit, analytics, messages, approvals, offboarding, adoption, integrations, webhooks, recommendations, export, mfa, sso, oauth2, integration_config, predictive, marketplace, cross_tenant, fine_tuning, metrics, logs, tickets, vendors, users, submission_requirements, assessments, agent_connections, frameworks, workflow_config, workflow_actions, workflow_stage_settings, workflow_orchestration, reminders, vendor_invitations, otp, smtp_settings, sso_settings, scim, api_gateway, api_token_management, integration_help, user_sync, platform_config, cluster_nodes, agentic_agents, studio, external_agents, presentation, actions, question_library, assessment_rules, business_rules, role_permissions, role_configurations, security_incidents, custom_fields, entity_fields, suppliers_master, products, services, incident_reports, workflow_templates, ecosystem_map, qualifications, incident_configs, workflow_analytics
 
 # Import form_layouts with error handling
 try:
@@ -262,6 +262,10 @@ app.include_router(export.router, prefix="/api/v1")
 app.include_router(logs.router, prefix="/api/v1")
 app.include_router(tickets.router, prefix="/api/v1")
 app.include_router(vendors.router, prefix="/api/v1")
+app.include_router(products.router, prefix="/api/v1")
+app.include_router(services.router, prefix="/api/v1")
+app.include_router(incident_reports.router, prefix="/api/v1")
+app.include_router(incident_configs.router, prefix="/api/v1")
 app.include_router(submission_requirements.router, prefix="/api/v1")
 app.include_router(assessments.router, prefix="/api/v1")
 app.include_router(assessments.template_router, prefix="/api/v1")
@@ -273,6 +277,10 @@ app.include_router(business_rules.router, prefix="/api/v1")
 app.include_router(agent_connections.router, prefix="/api/v1")
 app.include_router(frameworks.router, prefix="/api/v1")
 app.include_router(workflow_config.router, prefix="/api/v1")
+app.include_router(workflow_templates.router, prefix="/api/v1")
+app.include_router(workflow_analytics.router, prefix="/api/v1")
+app.include_router(ecosystem_map.router, prefix="/api/v1")
+app.include_router(qualifications.router, prefix="/api/v1")
 app.include_router(workflow_actions.router, prefix="/api/v1")
 app.include_router(workflow_stage_settings.router, prefix="/api/v1")
 app.include_router(workflow_orchestration.router, prefix="/api/v1/workflow")  # Generic workflow orchestration

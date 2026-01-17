@@ -5,6 +5,7 @@ import { authApi } from '../lib/auth'
 import { marketplaceApi, Rating, Review } from '../lib/marketplace'
 import { agentsApi, Agent } from '../lib/agents'
 import Layout from '../components/Layout'
+import PageContainer, { PageHeader } from '../components/PageContainer'
 import { MaterialCard, MaterialButton, MaterialChip } from '../components/material'
 import { SearchIcon, FilterIcon, StarIcon, ChatIcon, ChevronRightIcon, MarketplaceIcon, CheckCircleIcon, XIcon, SendIcon } from '../components/Icons'
 
@@ -150,16 +151,16 @@ export default function Marketplace() {
 
   return (
     <Layout user={user}>
-      <div className="max-w-7xl mx-auto space-y-10 pb-12">
+      <PageContainer spacing="lg">
         {/* Modern Header */}
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-8 bg-white p-8 rounded-lg border border-gray-200">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-8 bg-white p-8 rounded-lg border border-gray-200 mb-6">
           <div className="flex items-center gap-6">
             <div className="w-16 h-12 bg-blue-600 rounded-lg flex items-center justify-center text-white">
               <MarketplaceIcon className="w-8 h-8" />
             </div>
             <div>
-              <h1 className="unified-page-title mb-1">Global Marketplace</h1>
-              <p className="unified-page-subtitle">Discover and evaluate enterprise-grade autonomous agents</p>
+              <h1 className="text-3xl font-bold text-gray-900 mb-1">Global Marketplace</h1>
+              <p className="text-sm text-gray-500">Discover and evaluate enterprise-grade autonomous agents</p>
             </div>
           </div>
           
@@ -363,7 +364,7 @@ export default function Marketplace() {
         )}
 
         {/* Similar polish for Review Modal... */}
-      </div>
+      </PageContainer>
     </Layout>
   )
 }

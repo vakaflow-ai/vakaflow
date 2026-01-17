@@ -195,7 +195,7 @@ class AssessmentSchedule(Base):
 
 
 class AssessmentAssignment(Base):
-    """Individual assessment assignments to vendors/agents"""
+    """Individual assessment assignments to vendors/agents/products/services"""
     __tablename__ = "assessment_assignments"
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -203,12 +203,16 @@ class AssessmentAssignment(Base):
     schedule_id = Column(UUID(as_uuid=True), ForeignKey("assessment_schedules.id"), nullable=True, index=True)  # If part of a scheduled assessment
     tenant_id = Column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False, index=True)
     
-    # Assignment Target
+    # Assignment Target - Entity-agnostic approach
+    entity_type = Column(String(50), nullable=True, index=True)  # "agent", "product", "service", "vendor"
+    entity_id = Column(UUID(as_uuid=True), nullable=True, index=True)  # Generic entity ID (can reference agent, product, service, or vendor)
+    
+    # Legacy fields - kept for backward compatibility, but entity_type/entity_id should be preferred
     vendor_id = Column(UUID(as_uuid=True), ForeignKey("vendors.id"), nullable=True, index=True)  # If assigned to vendor
     agent_id = Column(UUID(as_uuid=True), ForeignKey("agents.id"), nullable=True, index=True)  # If assigned to specific agent
     
     # Assignment Context
-    assignment_type = Column(String(50), nullable=False)  # "vendor_onboarding", "agent_onboarding", "scheduled"
+    assignment_type = Column(String(50), nullable=False)  # "vendor_onboarding", "agent_onboarding", "product_qualification", "service_qualification", "scheduled"
     assigned_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)  # Who assigned this
     
     # Status and Tracking

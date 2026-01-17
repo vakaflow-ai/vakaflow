@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import or_
 from typing import List, Optional, Dict, Any
 from uuid import UUID
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from app.core.database import get_db
 from app.models.user import User, UserRole
 from app.models.entity_field import EntityFieldRegistry, EntityPermission, EntityFieldPermission
@@ -40,6 +40,7 @@ class EntityFieldResponse(BaseModel):
     field_name: str
     field_label: str
     field_description: Optional[str] = None
+    field_type: str  # SQLAlchemy type name
     field_type_display: str
     is_nullable: bool
     is_primary_key: bool
@@ -47,18 +48,59 @@ class EntityFieldResponse(BaseModel):
     foreign_key_table: Optional[str] = None
     max_length: Optional[int] = None
     is_enabled: bool
+    is_visible: bool  # Maps from visible_in_form_designer
+    is_editable: bool = True  # Default to True, can be overridden by permissions
     is_required: bool
     display_order: int
     is_auto_discovered: bool
     is_custom: bool
     is_system: bool
+    field_category: Optional[str] = None  # Maps from entity_user_level for compatibility
     field_config: Optional[Dict[str, Any]] = None
+    default_view_roles: Optional[List[str]] = None
+    default_edit_roles: Optional[List[str]] = None
     created_at: datetime
     updated_at: datetime
     last_discovered_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
+    
+    @model_validator(mode='before')
+    @classmethod
+    def map_fields(cls, data: Any) -> Any:
+        """Map database fields to response fields"""
+        # For SQLAlchemy objects, Pydantic will convert to dict automatically with from_attributes=True
+        # We just need to handle the field mapping
+        if hasattr(data, 'visible_in_form_designer'):
+            # SQLAlchemy object - create a dict with mapped fields
+            result = {}
+            # Get all column values
+            for column in data.__table__.columns:
+                result[column.name] = getattr(data, column.name, None)
+            # Map visible_in_form_designer to is_visible
+            result['is_visible'] = getattr(data, 'visible_in_form_designer', True)
+            # Ensure is_editable exists (default to True)
+            result['is_editable'] = True
+            # Map entity_user_level to field_category
+            result['field_category'] = getattr(data, 'entity_user_level', None)
+            # Handle default_view_roles and default_edit_roles (may not exist in DB)
+            result['default_view_roles'] = getattr(data, 'default_view_roles', None)
+            result['default_edit_roles'] = getattr(data, 'default_edit_roles', None)
+            return result
+        elif isinstance(data, dict):
+            # Already a dict - just map the fields
+            if 'visible_in_form_designer' in data and 'is_visible' not in data:
+                data['is_visible'] = data.pop('visible_in_form_designer', True)
+            if 'is_editable' not in data:
+                data['is_editable'] = True
+            if 'field_category' not in data and 'entity_user_level' in data:
+                data['field_category'] = data.get('entity_user_level')
+            if 'default_view_roles' not in data:
+                data['default_view_roles'] = None
+            if 'default_edit_roles' not in data:
+                data['default_edit_roles'] = None
+        return data
 
 
 class EntityFieldUpdate(BaseModel):
@@ -265,6 +307,7 @@ async def list_entity_fields(
     entity_category: Optional[str] = Query(None, description="Filter by category"),
     entity_user_level: Optional[str] = Query(None, description="Filter by user level (business/advanced)"),
     is_enabled: Optional[bool] = Query(None, description="Filter by enabled status"),
+    is_visible: Optional[bool] = Query(None, description="Filter by visibility in form designer"),
     is_system: Optional[bool] = Query(None, description="Filter by system fields"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
@@ -295,6 +338,8 @@ async def list_entity_fields(
         query = query.filter(EntityFieldRegistry.entity_user_level == entity_user_level)
     if is_enabled is not None:
         query = query.filter(EntityFieldRegistry.is_enabled == is_enabled)
+    if is_visible is not None:
+        query = query.filter(EntityFieldRegistry.visible_in_form_designer == is_visible)
     if is_system is not None:
         query = query.filter(EntityFieldRegistry.is_system == is_system)
     
@@ -305,6 +350,7 @@ async def list_entity_fields(
             EntityFieldRegistry.field_name
         ).all()
         
+        # Convert to response models - model_validator handles field mapping
         return [EntityFieldResponse.model_validate(f) for f in fields]
     except Exception as e:
         logger.error(f"Error listing entity fields: {e}", exc_info=True)
@@ -335,7 +381,16 @@ async def get_entity_fields(
             detail=f"No fields found for entity: {entity_name}"
         )
     
-    return [EntityFieldResponse.model_validate(f) for f in fields]
+    # Convert to response models with is_visible mapping
+    result = []
+    for field in fields:
+        field_dict = {
+            **{k: getattr(field, k) for k in field.__table__.columns.keys()},
+            'is_visible': getattr(field, 'visible_in_form_designer', True)
+        }
+        result.append(EntityFieldResponse(**field_dict))
+    
+    return result
 
 
 @router.get("/entity-fields/{entity_name}/{field_name}", response_model=EntityFieldResponse)
@@ -373,7 +428,12 @@ async def get_entity_field(
             detail=f"Field {field_name} not found for entity {entity_name}"
         )
     
-    return EntityFieldResponse.model_validate(field)
+    # Convert to response model with is_visible mapping
+    field_dict = {
+        **{k: getattr(field, k) for k in field.__table__.columns.keys()},
+        'is_visible': getattr(field, 'visible_in_form_designer', True)
+    }
+    return EntityFieldResponse(**field_dict)
 
 
 @router.patch("/entity-fields/{entity_name}/{field_name}", response_model=EntityFieldResponse)
@@ -422,7 +482,12 @@ async def update_entity_field(
     try:
         db.commit()
         db.refresh(field)
-        return EntityFieldResponse.model_validate(field)
+        # Convert to response model with is_visible mapping
+        field_dict = {
+            **{k: getattr(field, k) for k in field.__table__.columns.keys()},
+            'is_visible': getattr(field, 'visible_in_form_designer', True)
+        }
+        return EntityFieldResponse(**field_dict)
     except Exception as e:
         db.rollback()
         logger.error(f"Error updating entity field: {e}", exc_info=True)

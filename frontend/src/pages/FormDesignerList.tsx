@@ -8,10 +8,12 @@ import { authApi } from '../lib/auth'
 import { showToast } from '../utils/toast'
 import { Edit2, Plus, Trash2, ChevronDown, ChevronRight, Settings, Copy, X, Check } from 'lucide-react'
 import { MaterialCard, MaterialButton, MaterialChip } from '../components/material'
+import { useDialogContext } from '../contexts/DialogContext'
 
 export default function FormDesignerList() {
   const [user, setUser] = useState<any>(null)
   const queryClient = useQueryClient()
+  const dialog = useDialogContext()
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
   const [editingEntities, setEditingEntities] = useState<{ groupId: string; entities: string[] } | null>(null)
   const [editingWorkflowContext, setEditingWorkflowContext] = useState<{ groupId: string; request_type: string; workflow_config_id?: string } | null>(null)
@@ -79,25 +81,6 @@ export default function FormDesignerList() {
       return hasActualMappings
     })
     
-    console.log('📋 Filtering configured workflows:', {
-      totalGroups: groups.length,
-      allGroupsDetails: groups.map(g => ({
-        id: g.id,
-        name: g.name,
-        request_type: g.request_type,
-        is_active: g.is_active,
-        is_default: g.is_default
-      })),
-      defaultGroups: defaultGroups.length,
-      defaultGroupsDetails: defaultGroups.map(g => ({
-        id: g.id,
-        name: g.name,
-        request_type: g.request_type,
-        is_active: g.is_active,
-        is_default: g.is_default
-      }))
-    })
-    
     // Extract unique request_type values from default groups only
     const uniqueRequestTypes = new Set<string>()
     defaultGroups.forEach(group => {
@@ -105,8 +88,6 @@ export default function FormDesignerList() {
         uniqueRequestTypes.add(group.request_type)
       }
     })
-    
-    console.log('📋 Unique request types from default groups:', Array.from(uniqueRequestTypes))
     
     // Map to workflow type objects with labels from master data
     const configured = Array.from(uniqueRequestTypes).map(requestType => {
@@ -121,8 +102,6 @@ export default function FormDesignerList() {
     
     // Sort by order
     configured.sort((a, b) => a.order - b.order)
-    
-    console.log('📋 Final configured workflows:', configured)
     
     return configured
   }, [groups, workflowTypes])
@@ -144,15 +123,22 @@ export default function FormDesignerList() {
     return labels
   }, [workflowTypes])
 
-  // Debug: Log configured workflows
+  // Debug flag controlled by query param: ?debug_workflows=1 or ?debug_workflows=true
+  // Declare early so it can be used in useEffect hooks below
+  const [searchParams] = useSearchParams()
+  const debugWorkflows = searchParams.get('debug_workflows') === '1' || searchParams.get('debug_workflows') === 'true'
+
+  // Debug: Log configured workflows (only in development with debug flag)
   useEffect(() => {
-    console.log('📋 Configured Workflows Debug:', {
-      groupsCount: groups?.length,
-      configuredWorkflows: configuredWorkflows,
-      configuredWorkflowsCount: configuredWorkflows.length,
-      uniqueRequestTypes: groups ? Array.from(new Set(groups.filter(g => g.is_active).map(g => g.request_type))) : []
-    })
-  }, [groups, configuredWorkflows])
+    if (process.env.NODE_ENV === 'development' && debugWorkflows) {
+      console.log('📋 Configured Workflows Debug:', {
+        groupsCount: groups?.length,
+        configuredWorkflows: configuredWorkflows,
+        configuredWorkflowsCount: configuredWorkflows.length,
+        uniqueRequestTypes: groups ? Array.from(new Set(groups.filter(g => g.is_active).map(g => g.request_type))) : []
+      })
+    }
+  }, [groups, configuredWorkflows, debugWorkflows])
 
   // Fetch form library (templates) - for creating new groups
   const { data: library, isLoading: libraryLoading } = useQuery({
@@ -170,21 +156,17 @@ export default function FormDesignerList() {
     enabled: !!user,
   })
   
-  // Debug: Log forms from library
+  // Debug: Log forms from library (only in development with debug flag)
   useEffect(() => {
-    if (allFormsFromLibrary) {
+    if (process.env.NODE_ENV === 'development' && debugWorkflows && allFormsFromLibrary) {
       console.log('📚 Forms in library:', allFormsFromLibrary.length, allFormsFromLibrary.map(f => ({ name: f.name, id: f.id, layout_type: f.layout_type })))
     }
-  }, [allFormsFromLibrary])
+  }, [allFormsFromLibrary, debugWorkflows])
 
   // Fetch current user
   useEffect(() => {
     authApi.getCurrentUser().then(setUser).catch(() => {})
   }, [])
-
-  // Debug flag controlled by query param: ?debug_workflows=1 or ?debug_workflows=true
-  const [searchParams] = useSearchParams()
-  const debugWorkflows = searchParams.get('debug_workflows') === '1' || searchParams.get('debug_workflows') === 'true'
   const targetGroupIdFromParams = searchParams.get('groupId') || searchParams.get('group_id')
 
   // Auto-open / highlight behavior for a specific group when ?groupId=... is supplied
@@ -533,12 +515,14 @@ export default function FormDesignerList() {
       return matches
     })
     
-    // Debug logging
-    console.log(`📋 Forms for action "${stepKey}" (layout_type: ${layoutType}):`, {
-      totalForms: allFormsFromLibrary.length,
-      matchingForms: matchingForms.length,
-      formNames: matchingForms.map(f => f.name)
-    })
+    // Debug logging (only in development with debug flag)
+    if (process.env.NODE_ENV === 'development' && debugWorkflows) {
+      console.log(`📋 Forms for action "${stepKey}" (layout_type: ${layoutType}):`, {
+        totalForms: allFormsFromLibrary.length,
+        matchingForms: matchingForms.length,
+        formNames: matchingForms.map(f => f.name)
+      })
+    }
     
     return matchingForms
   }
@@ -722,8 +706,13 @@ export default function FormDesignerList() {
                                          <Copy className="w-3.5 h-3.5" />
                                        </button>
                                        <button 
-                                         onClick={() => {
-                                           if (confirm('Are you sure you want to delete this layout group?')) {
+                                         onClick={async () => {
+                                           const confirmed = await dialog.confirm({
+                                             title: 'Delete Layout Group',
+                                             message: 'Are you sure you want to delete this layout group? This action cannot be undone.',
+                                             variant: 'destructive'
+                                           })
+                                           if (confirmed) {
                                              deleteGroupMutation.mutate(group.id)
                                            }
                                          }}

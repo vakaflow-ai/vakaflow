@@ -4,7 +4,6 @@ import { assessmentsApi, AssessmentQuestion } from '../lib/assessments'
 import { MaterialCard, MaterialChip, MaterialButton } from './material'
 import { CheckCircle, XCircle, Clock, FileText, HelpCircle, MessageSquare, Forward, Download, Link as LinkIcon, Lock, Edit, Eye, File, Image, FileCode, FileSpreadsheet, FileVideo, FileAudio } from 'lucide-react'
 import { showToast } from '../utils/toast'
-import CommentDialog from './CommentDialog'
 
 interface AssessmentResponseGridProps {
   assignmentId?: string
@@ -40,10 +39,7 @@ export default function AssessmentResponseGrid({
   const queryClient = useQueryClient()
   const [moreInfoQuestionId, setMoreInfoQuestionId] = useState<string | null>(null)
   const [moreInfoComment, setMoreInfoComment] = useState<string>('')
-  const [acceptDialogOpen, setAcceptDialogOpen] = useState(false)
-  const [denyDialogOpen, setDenyDialogOpen] = useState(false)
-  const [currentQuestionId, setCurrentQuestionId] = useState<string | null>(null)
-  const [acceptComment, setAcceptComment] = useState<string>('')
+  const [denyQuestionId, setDenyQuestionId] = useState<string | null>(null)
   const [denyComment, setDenyComment] = useState<string>('')
   // Fetch questions if not provided
   const { data: fetchedQuestions, isLoading: questionsLoading } = useQuery({
@@ -263,44 +259,40 @@ export default function AssessmentResponseGrid({
   })
 
   const handleAccept = (questionId: string) => {
-    setCurrentQuestionId(questionId)
-    setAcceptComment('')
-    setAcceptDialogOpen(true)
-  }
-
-  const handleAcceptConfirm = (comment?: string) => {
-    if (currentQuestionId) {
-      reviewQuestionMutation.mutate({ 
-        questionId: currentQuestionId, 
-        status: 'pass', 
-        comment: comment?.trim() || undefined 
-      })
-      setAcceptDialogOpen(false)
-      setCurrentQuestionId(null)
-      setAcceptComment('')
-    }
+    // Accept directly without modal - no comment needed
+    reviewQuestionMutation.mutate({ 
+      questionId: questionId, 
+      status: 'pass', 
+      comment: undefined 
+    })
   }
 
   const handleDeny = (questionId: string) => {
-    setCurrentQuestionId(questionId)
+    // Close more info panel if open
+    setMoreInfoQuestionId(null)
+    setMoreInfoComment('')
+    setDenyQuestionId(questionId)
     setDenyComment('')
-    setDenyDialogOpen(true)
   }
 
-  const handleDenyConfirm = (comment: string) => {
-    if (currentQuestionId && comment.trim()) {
-      reviewQuestionMutation.mutate({ 
-        questionId: currentQuestionId, 
-        status: 'fail', 
-        comment: comment.trim() 
-      })
-      setDenyDialogOpen(false)
-      setCurrentQuestionId(null)
-      setDenyComment('')
+  const handleSubmitDeny = (questionId: string) => {
+    if (!denyComment.trim()) {
+      showToast.error('Please provide a comment explaining why this question is denied')
+      return
     }
+    reviewQuestionMutation.mutate({ 
+      questionId: questionId, 
+      status: 'fail', 
+      comment: denyComment.trim() 
+    })
+    setDenyQuestionId(null)
+    setDenyComment('')
   }
 
   const handleMoreInfo = (questionId: string) => {
+    // Close deny panel if open
+    setDenyQuestionId(null)
+    setDenyComment('')
     setMoreInfoQuestionId(questionId)
   }
 
@@ -514,6 +506,39 @@ export default function AssessmentResponseGrid({
                       onClick={() => {
                         setMoreInfoQuestionId(null)
                         setMoreInfoComment('')
+                      }}
+                      className="px-3 py-1.5 text-xs font-medium rounded-md bg-gray-200 text-gray-700 hover:bg-gray-300"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : denyQuestionId === questionIdStr ? (
+                <div className="space-y-3">
+                  <textarea
+                    value={denyComment}
+                    onChange={(e) => setDenyComment(e.target.value)}
+                    placeholder="Please explain why this question is denied..."
+                    className="w-full p-3 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
+                    rows={3}
+                    required
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleSubmitDeny(questionIdStr)}
+                      disabled={isCompleted || reviewQuestionMutation.isPending || !denyComment.trim()}
+                      className={`px-3 py-1.5 text-xs font-medium rounded-md ${
+                        isCompleted
+                          ? 'bg-gray-400 text-white cursor-not-allowed'
+                          : 'bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed'
+                      }`}
+                    >
+                      Submit Denial
+                    </button>
+                    <button
+                      onClick={() => {
+                        setDenyQuestionId(null)
+                        setDenyComment('')
                       }}
                       className="px-3 py-1.5 text-xs font-medium rounded-md bg-gray-200 text-gray-700 hover:bg-gray-300"
                     >
@@ -740,47 +765,6 @@ export default function AssessmentResponseGrid({
         )}
       </div>
 
-      {/* Accept Dialog */}
-      <CommentDialog
-        isOpen={acceptDialogOpen}
-        onClose={() => {
-          setAcceptDialogOpen(false)
-          setCurrentQuestionId(null)
-          setAcceptComment('')
-        }}
-        onSubmit={(comment) => handleAcceptConfirm(comment)}
-        title="Accept Question"
-        label="Optional comment for acceptance:"
-        placeholder="Add any notes about why this question is accepted (optional)..."
-        required={false}
-        actionLabel="Accept"
-        initialValue={acceptComment}
-        onValueChange={setAcceptComment}
-      />
-
-      {/* Deny Dialog */}
-      <CommentDialog
-        isOpen={denyDialogOpen}
-        onClose={() => {
-          setDenyDialogOpen(false)
-          setCurrentQuestionId(null)
-          setDenyComment('')
-        }}
-        onSubmit={(comment) => {
-          if (comment.trim()) {
-            handleDenyConfirm(comment)
-          } else {
-            showToast.error('Please provide a comment explaining why this question is denied')
-          }
-        }}
-        title="Deny Question"
-        label="Comment explaining why this question is denied:"
-        placeholder="Please explain why this question is denied..."
-        required={true}
-        actionLabel="Deny"
-        initialValue={denyComment}
-        onValueChange={setDenyComment}
-      />
       </>
     )
   }
@@ -1074,47 +1058,6 @@ export default function AssessmentResponseGrid({
       ))}
     </div>
 
-    {/* Accept Dialog */}
-    <CommentDialog
-      isOpen={acceptDialogOpen}
-      onClose={() => {
-        setAcceptDialogOpen(false)
-        setCurrentQuestionId(null)
-        setAcceptComment('')
-      }}
-      onSubmit={(comment) => handleAcceptConfirm(comment)}
-      title="Accept Question"
-      label="Optional comment for acceptance:"
-      placeholder="Add any notes about why this question is accepted (optional)..."
-      required={false}
-      actionLabel="Accept"
-      initialValue={acceptComment}
-      onValueChange={setAcceptComment}
-    />
-
-    {/* Deny Dialog */}
-    <CommentDialog
-      isOpen={denyDialogOpen}
-      onClose={() => {
-        setDenyDialogOpen(false)
-        setCurrentQuestionId(null)
-        setDenyComment('')
-      }}
-      onSubmit={(comment) => {
-        if (comment.trim()) {
-          handleDenyConfirm(comment)
-        } else {
-          showToast.error('Please provide a comment explaining why this question is denied')
-        }
-      }}
-      title="Deny Question"
-      label="Comment explaining why this question is denied:"
-      placeholder="Please explain why this question is denied..."
-      required={true}
-      actionLabel="Deny"
-      initialValue={denyComment}
-      onValueChange={setDenyComment}
-    />
     </>
   )
 }

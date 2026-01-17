@@ -84,6 +84,7 @@ class WorkflowConfiguration(Base):
     conditions = Column(JSON, nullable=True)  # When to use this workflow
     # Example structure:
     # {
+    #   "entity_types": ["agent", "product", "service", "vendor"],  # Entity types this workflow applies to
     #   "agent_types": ["ai", "automation"],
     #   "risk_levels": ["high", "critical"],
     #   "categories": ["security", "compliance"],
@@ -94,6 +95,7 @@ class WorkflowConfiguration(Base):
     trigger_rules = Column(JSON, nullable=True)  # Rules that trigger this workflow
     # Example structure:
     # {
+    #   "entity_types": ["agent", "product", "service", "vendor"],  # Entity types this workflow applies to
     #   "sso_groups": ["security-team", "compliance-team"],
     #   "departments": ["IT", "Security", "Compliance"],
     #   "application_categories": ["security", "compliance", "data-processing"],

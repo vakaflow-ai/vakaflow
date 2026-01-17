@@ -1,7 +1,7 @@
 """
 Vendor management API endpoints
 """
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Query
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Query, BackgroundTasks
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
@@ -59,6 +59,17 @@ class VendorUpdate(BaseModel):
     branding: Optional[Dict[str, Any]] = None  # Branding configuration for portal and trust center
 
 
+class VendorCreate(BaseModel):
+    """Vendor creation schema"""
+    name: str = Field(..., min_length=1, max_length=255)
+    contact_email: str = Field(..., description="Vendor coordinator email - will receive notification")
+    contact_phone: Optional[str] = Field(None, max_length=50)
+    address: Optional[str] = None
+    website: Optional[str] = Field(None, max_length=255)
+    description: Optional[str] = None
+    registration_number: Optional[str] = Field(None, max_length=100)
+
+
 class VendorResponse(BaseModel):
     """Vendor response schema"""
     id: str
@@ -76,6 +87,200 @@ class VendorResponse(BaseModel):
     
     class Config:
         from_attributes = True
+
+
+@router.post("", response_model=VendorResponse, status_code=status.HTTP_201_CREATED)
+async def create_vendor(
+    vendor_data: VendorCreate,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Create a new vendor directly (tenant admin only)"""
+    from app.core.tenant_utils import get_effective_tenant_id
+    from app.services.email_service import EmailService
+    from app.services.workflow_orchestration import WorkflowOrchestrationService
+    from app.models.workflow_config import WorkflowConfiguration
+    from app.core.audit import AuditService
+    from app.core.audit import AuditAction
+    
+    # Only tenant admins can create vendors directly
+    if current_user.role.value not in ["tenant_admin", "platform_admin"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only tenant admins can create vendors"
+        )
+    
+    # Get effective tenant_id
+    effective_tenant_id = get_effective_tenant_id(current_user, db)
+    if not effective_tenant_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User must be assigned to a tenant to create vendors"
+        )
+    
+    # Check if vendor with same email already exists
+    existing_vendor = db.query(Vendor).filter(
+        Vendor.contact_email == vendor_data.contact_email.lower(),
+        Vendor.tenant_id == effective_tenant_id
+    ).first()
+    
+    if existing_vendor:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Vendor with email {vendor_data.contact_email} already exists"
+        )
+    
+    # Create vendor
+    vendor = Vendor(
+        tenant_id=effective_tenant_id,
+        name=sanitize_input(vendor_data.name),
+        contact_email=vendor_data.contact_email.lower(),
+        contact_phone=sanitize_input(vendor_data.contact_phone) if vendor_data.contact_phone else None,
+        address=sanitize_input(vendor_data.address) if vendor_data.address else None,
+        website=sanitize_input(vendor_data.website) if vendor_data.website else None,
+        description=sanitize_input(vendor_data.description) if vendor_data.description else None,
+        registration_number=sanitize_input(vendor_data.registration_number) if vendor_data.registration_number else None
+    )
+    
+    db.add(vendor)
+    db.commit()
+    db.refresh(vendor)
+    
+    # Audit log
+    audit_service = AuditService()
+    audit_service.log_action(
+        db=db,
+        user_id=str(current_user.id),
+        action=AuditAction.CREATE,
+        resource_type="vendor",
+        resource_id=str(vendor.id),
+        tenant_id=str(effective_tenant_id),
+        details={"vendor_name": vendor.name, "contact_email": vendor.contact_email},
+        ip_address=request.client.host if request.client else None,
+        user_agent=request.headers.get("user-agent")
+    )
+    
+    # Send notification email to vendor coordinator
+    try:
+        email_service = EmailService()
+        email_service.load_config_from_db(db, str(effective_tenant_id))
+        
+        # Get tenant info for email
+        from app.models.tenant import Tenant
+        tenant = db.query(Tenant).filter(Tenant.id == effective_tenant_id).first()
+        tenant_name = tenant.name if tenant else "Organization"
+        
+        frontend_url = request.headers.get("Origin") or "http://localhost:3000"
+        vendor_url = f"{frontend_url}/vendors/{vendor.id}"
+        
+        subject = f"Vendor Onboarding: {vendor.name}"
+        html_body = f"""
+        <html>
+        <body>
+            <h2>Vendor Onboarding Request</h2>
+            <p>Hello,</p>
+            <p><strong>{vendor.name}</strong> has been onboarded to {tenant_name}.</p>
+            <p><strong>Contact Email:</strong> {vendor.contact_email}</p>
+            {f'<p><strong>Phone:</strong> {vendor.contact_phone}</p>' if vendor.contact_phone else ''}
+            {f'<p><strong>Website:</strong> <a href="{vendor.website}">{vendor.website}</a></p>' if vendor.website else ''}
+            {f'<p><strong>Description:</strong> {vendor.description}</p>' if vendor.description else ''}
+            <p>Please complete the vendor profile details to proceed with product onboarding.</p>
+            <p><a href="{vendor_url}">View Vendor Profile</a></p>
+            <p>You can now start submitting products and services for this vendor.</p>
+        </body>
+        </html>
+        """
+        text_body = f"""
+        Vendor Onboarding Request
+
+        Hello,
+
+        {vendor.name} has been onboarded to {tenant_name}.
+
+        Contact Email: {vendor.contact_email}
+        {f'Phone: {vendor.contact_phone}' if vendor.contact_phone else ''}
+        {f'Website: {vendor.website}' if vendor.website else ''}
+        {f'Description: {vendor.description}' if vendor.description else ''}
+
+        Please complete the vendor profile details to proceed with product onboarding.
+
+        View Vendor Profile: {vendor_url}
+
+        You can now start submitting products and services for this vendor.
+        """
+        
+        # Send email in background
+        background_tasks.add_task(
+            email_service.send_email,
+            to_email=vendor.contact_email,
+            subject=subject,
+            html_body=html_body,
+            text_body=text_body
+        )
+        
+        logger.info(f"Vendor {vendor.id} created by {current_user.email}, notification sent to {vendor.contact_email}")
+    except Exception as e:
+        logger.warning(f"Failed to send vendor onboarding notification: {e}", exc_info=True)
+        # Don't fail the request if email fails
+    
+    # Trigger workflow if configured
+    try:
+        workflow_service = WorkflowOrchestrationService(db, effective_tenant_id)
+        
+        # Get workflow for vendor onboarding
+        workflow_config = workflow_service.get_workflow_for_entity(
+            entity_type="vendor",
+            entity_data={
+                "name": vendor.name,
+                "contact_email": vendor.contact_email,
+                "type": "vendor_onboarding"
+            },
+            request_type="vendor_submission_workflow"
+        )
+        
+        if workflow_config:
+            # Initialize workflow for vendor
+            entity_data = {
+                "vendor_id": str(vendor.id),
+                "vendor_name": vendor.name,
+                "vendor_email": vendor.contact_email,
+                "contact_phone": vendor.contact_phone,
+                "website": vendor.website,
+                "description": vendor.description
+            }
+            
+            workflow_result = workflow_service.initialize_workflow(
+                workflow_config=workflow_config,
+                entity_type="vendor",
+                entity_id=vendor.id,
+                entity_data=entity_data,
+                user=current_user,
+                request_type="vendor_submission_workflow"
+            )
+            
+            logger.info(f"Workflow initialized for vendor {vendor.id}: {workflow_result}")
+        else:
+            logger.info(f"No workflow configuration found for vendor onboarding, skipping workflow trigger")
+    except Exception as e:
+        logger.warning(f"Failed to trigger workflow for vendor {vendor.id}: {e}", exc_info=True)
+        # Don't fail the request if workflow trigger fails
+    
+    return VendorResponse(
+        id=str(vendor.id),
+        name=vendor.name,
+        contact_email=vendor.contact_email,
+        contact_phone=vendor.contact_phone,
+        address=vendor.address,
+        website=vendor.website,
+        description=vendor.description,
+        logo_url=vendor.logo_url,
+        registration_number=vendor.registration_number,
+        branding=vendor.branding,
+        created_at=vendor.created_at.isoformat() if vendor.created_at else datetime.utcnow().isoformat(),
+        updated_at=vendor.updated_at.isoformat() if vendor.updated_at else datetime.utcnow().isoformat()
+    )
 
 
 @router.get("/me", response_model=VendorResponse)
@@ -135,15 +340,15 @@ async def update_my_vendor(
     
     # Update fields
     if vendor_data.name is not None:
-        vendor.name = vendor_data.name
+        vendor.name = sanitize_input(vendor_data.name)
     if vendor_data.contact_phone is not None:
-        vendor.contact_phone = vendor_data.contact_phone
+        vendor.contact_phone = sanitize_input(vendor_data.contact_phone)
     if vendor_data.address is not None:
-        vendor.address = vendor_data.address
+        vendor.address = sanitize_input(vendor_data.address)
     if vendor_data.website is not None:
-        vendor.website = vendor_data.website
+        vendor.website = sanitize_input(vendor_data.website)
     if vendor_data.description is not None:
-        vendor.description = vendor_data.description
+        vendor.description = sanitize_input(vendor_data.description)
     if vendor_data.branding is not None:
         from sqlalchemy.orm.attributes import flag_modified
         if not vendor.branding:

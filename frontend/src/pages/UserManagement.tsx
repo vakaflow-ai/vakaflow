@@ -11,10 +11,12 @@ import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog'
 import { Plus, Search, Edit, Trash2, UserPlus, Upload, Loader2 } from 'lucide-react'
 import { showToast } from '../utils/toast'
+import { useDialogContext } from '../contexts/DialogContext'
 
 export default function UserManagement() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const dialog = useDialogContext()
   const [user, setUser] = useState<any>(null)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
@@ -36,8 +38,8 @@ export default function UserManagement() {
   }, [navigate])
 
   const { data: users, isLoading } = useQuery<User[]>({
-    queryKey: ['users'],
-    queryFn: () => usersApi.list(),
+    queryKey: ['users', user?.tenant_id], // Include tenant_id for proper tenant isolation and caching
+    queryFn: () => usersApi.list(user?.tenant_id), // Explicitly pass tenant_id for tenant isolation
     enabled: !!user && ['tenant_admin', 'platform_admin', 'user_admin', 'vendor_coordinator'].includes(user?.role),
     retry: false,
   })
@@ -138,8 +140,13 @@ export default function UserManagement() {
     updateMutation.mutate({ id: selectedUser.id, data: updateData })
   }
 
-  const handleDelete = (userId: string, userName: string) => {
-    if (confirm(`Are you sure you want to delete user "${userName}"? This action cannot be undone.`)) {
+  const handleDelete = async (userId: string, userName: string) => {
+    const confirmed = await dialog.confirm({
+      title: 'Delete User',
+      message: `Are you sure you want to delete user "${userName}"? This action cannot be undone.`,
+      variant: 'destructive'
+    })
+    if (confirmed) {
       deleteMutation.mutate(userId)
     }
   }

@@ -95,11 +95,25 @@ export interface VendorWithDetails {
   invitation_date?: string
 }
 
+export interface VendorCreate {
+  name: string
+  contact_email: string
+  contact_phone?: string
+  address?: string
+  website?: string
+  description?: string
+  registration_number?: string
+}
+
 export const vendorsApi = {
   list: async (includeRecent: boolean = true): Promise<VendorWithDetails[]> => {
     const response = await api.get('/vendors/list', {
       params: { include_recent: includeRecent }
     })
+    return response.data
+  },
+  create: async (data: VendorCreate): Promise<Vendor> => {
+    const response = await api.post('/vendors', data)
     return response.data
   },
   getMyVendor: async (): Promise<Vendor> => {
