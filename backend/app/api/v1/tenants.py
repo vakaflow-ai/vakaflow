@@ -105,67 +105,13 @@ class TenantFeatureUpdate(BaseModel):
 
 def require_platform_admin(current_user: User = Depends(get_current_user)) -> User:
     """Require platform admin role"""
-    import logging
-    logger = logging.getLogger(__name__)
-
-    # Handle both enum and string role values with robust checking
-    role_value = None
-    is_platform_admin = False
-
-    try:
-        # Method 1: Check if it's a UserRole enum instance
-        if isinstance(current_user.role, UserRole):
-            role_value = current_user.role.value
-            is_platform_admin = current_user.role == UserRole.PLATFORM_ADMIN
-        # Method 2: Check if it has a value attribute
-        elif hasattr(current_user.role, 'value'):
-            role_value = current_user.role.value
-        # Method 3: Check if it's already a string
-        elif isinstance(current_user.role, str):
-            role_value = current_user.role
-        # Method 4: Convert to string
-        else:
-            role_value = str(current_user.role) if current_user.role else None
-
-        # Normalize role string to lowercase for comparison
-        if role_value:
-            role_value = str(role_value).strip().lower()
-            # Check multiple ways to ensure we catch platform_admin
-            if (role_value == "platform_admin" or
-                role_value == UserRole.PLATFORM_ADMIN.value.lower() or
-                (hasattr(UserRole, 'PLATFORM_ADMIN') and role_value == str(UserRole.PLATFORM_ADMIN).lower())):
-                is_platform_admin = True
-
-        # Direct enum comparison as fallback
-        if not is_platform_admin and isinstance(current_user.role, UserRole):
-            is_platform_admin = current_user.role == UserRole.PLATFORM_ADMIN
-
-    except Exception as e:
-        logger.error(f"Error checking platform admin role: {e}", exc_info=True)
-
-    # Log for debugging
-    log_msg = (
-        f"Platform admin check - User: {current_user.email}, "
-        f"Role object: {repr(current_user.role)}, "
-        f"Role type: {type(current_user.role).__name__}, "
-        f"Role string: '{role_value}', "
-        f"Is platform admin: {is_platform_admin}, "
-        f"Tenant ID: {current_user.tenant_id}"
-    )
-    logger.info(log_msg)
-
-    if not is_platform_admin:
-        error_msg = (
-            f"Platform admin access required. User: {current_user.email}, "
-            f"Role: {repr(current_user.role)}, "
-            f"Role string: '{role_value}'"
-        )
-        logger.warning(error_msg)
+    # Handle both enum and string role values
+    role_value = current_user.role.value if hasattr(current_user.role, 'value') else str(current_user.role)
+    if role_value != "platform_admin":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Platform admin access required"
         )
-
     return current_user
 
 
@@ -1161,3 +1107,4 @@ async def update_tenant_branding(
         website=tenant.website,
         created_at=tenant.created_at
     )
+
