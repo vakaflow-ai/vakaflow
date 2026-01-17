@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSS Fixes Test</title>
+    <style>
+        /* Test the fixes */
+        html {
+            -webkit-text-size-adjust: none !important;
+            text-size-adjust: none !important;
+        }
+
+        * {
+            -moz-column-gap: normal !important;
+            column-gap: normal !important;
+        }
+
+        :root {
+            --fix-console-warnings: true;
+        }
+
+        /* Test grid layout */
+        .test-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            column-gap: 20px;
+        }
+
+        /* Test flex layout */
+        .test-flex {
+            display: flex;
+            gap: 15px;
+            column-gap: 15px;
+        }
+    </style>
+</head>
+<body>
+    <h1>CSS Fixes Test Page</h1>
+    <p>This page tests the CSS fixes for browser console warnings.</p>
+
+    <div class="test-grid">
+        <div style="background: #f0f0f0; padding: 20px;">Grid Item 1</div>
+        <div style="background: #e0e0e0; padding: 20px;">Grid Item 2</div>
+    </div>
+
+    <div class="test-flex" style="margin-top: 20px;">
+        <div style="background: #d0d0d0; padding: 20px;">Flex Item 1</div>
+        <div style="background: #c0c0c0; padding: 20px;">Flex Item 2</div>
+    </div>
+
+    <script>
+        console.log('Testing CSS fixes...');
+        console.log('HTML webkit-text-size-adjust:', getComputedStyle(document.documentElement)['-webkit-text-size-adjust']);
+        console.log('HTML text-size-adjust:', getComputedStyle(document.documentElement)['text-size-adjust']);
+        console.log('Body column-gap:', getComputedStyle(document.body)['column-gap']);
+        console.log('Body -moz-column-gap:', getComputedStyle(document.body)['-moz-column-gap']);
+
+        // Check if warnings are still appearing
+        const styleSheets = document.styleSheets;
+        let foundWarnings = false;
+
+        for (let i = 0; i < styleSheets.length; i++) {
+            try {
+                const rules = styleSheets[i].cssRules;
+                for (let j = 0; j < rules.length; j++) {
+                    const rule = rules[j];
+                    if (rule.cssText && (
+                        rule.cssText.includes('-webkit-text-size-adjust') ||
+                        rule.cssText.includes('-moz-column-gap')
+                    )) {
+                        console.log('Found potential warning source:', rule.cssText);
+                        foundWarnings = true;
+                    }
+                }
+            } catch (e) {
+                // Cross-origin stylesheet access error
+                console.log('Cannot access stylesheet:', i);
+            }
+        }
+
+        if (!foundWarnings) {
+            console.log('✅ No CSS warning sources found - fixes are working!');
+        } else {
+            console.log('⚠️  Some CSS warning sources still exist');
+        }
+    </script>
+</body>
+</html>

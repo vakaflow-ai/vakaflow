@@ -2,6 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.tsx'
 import './index.css'
+import './fixes.css'
 
 // Suppress ReactQuill findDOMNode deprecation warning (known issue with react-quill v2.0.0)
 // This warning is harmless and doesn't affect functionality
@@ -34,4 +35,3 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <App />
   </React.StrictMode>,
 )
-

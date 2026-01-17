@@ -195,31 +195,31 @@ export default function TenantManagement() {
                       </td>
                       <td className="px-6 py-2 whitespace-nowrap text-sm text-gray-600">{tenant.slug}</td>
                       <td className="px-6 py-2 whitespace-nowrap">
-                        <MaterialChip 
-                          label={tenant.license_tier} 
+                        <MaterialChip
+                          label={tenant.license_tier}
                           color={
                             tenant.license_tier === 'enterprise' ? 'primary' :
                             tenant.license_tier === 'professional' ? 'success' :
                             'default'
                           }
-                          size="small" 
-                          variant="outlined" 
+                          size="small"
+                          variant="outlined"
                         />
                       </td>
                       <td className="px-6 py-2 whitespace-nowrap">
-                        <MaterialChip 
-                          label={tenant.status} 
+                        <MaterialChip
+                          label={tenant.status}
                           color={
                             tenant.status === 'active' ? 'success' :
                             tenant.status === 'suspended' ? 'error' :
                             tenant.status === 'pending' ? 'warning' : 'default'
                           }
-                          size="small" 
-                          variant="filled" 
+                          size="small"
+                          variant="filled"
                         />
                       </td>
                       <td className="px-6 py-2 whitespace-nowrap">
-                        <MaterialChip 
+                        <MaterialChip
                           label={tenant.onboarding_status}
                           color={tenant.onboarding_status === 'completed' ? 'success' : 'warning'}
                           size="small"
@@ -411,6 +411,170 @@ export default function TenantManagement() {
           </div>
         )}
 
+        {/* Edit Tenant Modal - Material Design */}
+        {showEditModal && selectedTenant && (
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in duration-200">
+            <MaterialCard elevation={24} className="max-w-2xl w-full mx-4 border-none overflow-hidden flex flex-col max-h-[90vh]">
+              <div className="p-6 border-b bg-surface-variant/10 flex items-center justify-between">
+                <h2 className="text-xl font-medium text-gray-900">Edit Tenant - {selectedTenant.name}</h2>
+                <MaterialButton variant="text" size="small" onClick={() => setShowEditModal(false)} className="!p-2 text-gray-600">
+                  <XIcon className="w-6 h-6" />
+                </MaterialButton>
+              </div>
+              <div className="overflow-y-auto flex-1">
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault()
+                    // Filter out undefined values and only send changed fields
+                    const updatedData: any = {
+                      name: selectedTenant.name,
+                      status: selectedTenant.status,
+                      license_tier: selectedTenant.license_tier,
+                      industry: selectedTenant.industry,
+                      timezone: selectedTenant.timezone,
+                      locale: selectedTenant.locale,
+                      contact_email: selectedTenant.contact_email,
+                      contact_name: selectedTenant.contact_name,
+                      contact_phone: selectedTenant.contact_phone,
+                      website: selectedTenant.website,
+                    }
+
+                    // Only include max_agents and max_users if they have values
+                    if (selectedTenant.max_agents !== undefined) {
+                      updatedData.max_agents = selectedTenant.max_agents
+                    }
+                    if (selectedTenant.max_users !== undefined) {
+                      updatedData.max_users = selectedTenant.max_users
+                    }
+
+                    console.log('Updating tenant with data:', updatedData)
+                    updateMutation.mutate({
+                      id: selectedTenant.id,
+                      data: updatedData
+                    })
+                  }}
+                  className="p-6 space-y-5 bg-background"
+                >
+                <MaterialInput
+                  label="Company Name *"
+                  type="text"
+                  required
+                  value={selectedTenant.name}
+                  onChange={(e) => setSelectedTenant({ ...selectedTenant, name: e.target.value })}
+                />
+                <MaterialInput
+                  label="Contact Email *"
+                  type="email"
+                  required
+                  value={selectedTenant.contact_email || ''}
+                  onChange={(e) => setSelectedTenant({ ...selectedTenant, contact_email: e.target.value })}
+                />
+                <MaterialInput
+                  label="Contact Name"
+                  type="text"
+                  value={selectedTenant.contact_name || ''}
+                  onChange={(e) => setSelectedTenant({ ...selectedTenant, contact_name: e.target.value })}
+                />
+                <MaterialInput
+                  label="Contact Phone"
+                  type="tel"
+                  value={selectedTenant.contact_phone || ''}
+                  onChange={(e) => setSelectedTenant({ ...selectedTenant, contact_phone: e.target.value })}
+                />
+                <MaterialInput
+                  label="Website"
+                  type="url"
+                  value={selectedTenant.website || ''}
+                  onChange={(e) => setSelectedTenant({ ...selectedTenant, website: e.target.value })}
+                />
+                <div className="space-y-1">
+                  <label className="block text-xs font-medium text-gray-500 tracking-tight ml-1">License Tier *</label>
+                  <select
+                    required
+                    className="compact-input w-full"
+                    value={selectedTenant.license_tier}
+                    onChange={(e) => setSelectedTenant({ ...selectedTenant, license_tier: e.target.value })}
+                  >
+                    <option value="trial">Trial</option>
+                    <option value="basic">Basic</option>
+                    <option value="professional">Professional</option>
+                    <option value="enterprise">Enterprise</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="block text-xs font-medium text-gray-500 tracking-tight ml-1">Status *</label>
+                  <select
+                    required
+                    className="compact-input w-full"
+                    value={selectedTenant.status}
+                    onChange={(e) => setSelectedTenant({ ...selectedTenant, status: e.target.value })}
+                  >
+                    <option value="pending">Pending</option>
+                    <option value="active">Active</option>
+                    <option value="suspended">Suspended</option>
+                    <option value="cancelled">Cancelled</option>
+                  </select>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <MaterialInput
+                    label="Max Agents"
+                    type="number"
+                    value={selectedTenant.max_agents || ''}
+                    onChange={(e) => setSelectedTenant({ ...selectedTenant, max_agents: e.target.value ? parseInt(e.target.value) : undefined })}
+                    placeholder="Unlimited"
+                  />
+                  <MaterialInput
+                    label="Max Users"
+                    type="number"
+                    value={selectedTenant.max_users || ''}
+                    onChange={(e) => setSelectedTenant({ ...selectedTenant, max_users: e.target.value ? parseInt(e.target.value) : undefined })}
+                    placeholder="Unlimited"
+                  />
+                </div>
+                <MaterialInput
+                  label="Industry"
+                  type="text"
+                  value={selectedTenant.industry || ''}
+                  onChange={(e) => setSelectedTenant({ ...selectedTenant, industry: e.target.value })}
+                  placeholder="e.g., Healthcare, Finance, Technology"
+                />
+                <MaterialInput
+                  label="Timezone"
+                  type="text"
+                  value={selectedTenant.timezone || ''}
+                  onChange={(e) => setSelectedTenant({ ...selectedTenant, timezone: e.target.value })}
+                  placeholder="e.g., America/New_York, UTC"
+                />
+                <MaterialInput
+                  label="Locale"
+                  type="text"
+                  value={selectedTenant.locale || ''}
+                  onChange={(e) => setSelectedTenant({ ...selectedTenant, locale: e.target.value })}
+                  placeholder="e.g., en, en-US, fr"
+                />
+                <div className="flex gap-3 justify-end pt-4 border-t bg-surface-variant/5 -mx-6 -mb-6 p-6 mt-6 sticky bottom-0 bg-white z-10">
+                  <MaterialButton
+                    variant="text"
+                    type="button"
+                    onClick={() => setShowEditModal(false)}
+                    className="text-gray-600"
+                  >
+                    Cancel
+                  </MaterialButton>
+                  <MaterialButton
+                    type="submit"
+                    disabled={updateMutation.isPending}
+                    className="shadow-md-elevation-4"
+                  >
+                    {updateMutation.isPending ? 'Saving...' : 'Save Changes'}
+                  </MaterialButton>
+                </div>
+              </form>
+            </div>
+            </MaterialCard>
+          </div>
+        )}
+
         {/* Branding Modal - Material Design */}
         {showBrandingModal && selectedTenant && (
           <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in duration-200">
@@ -428,9 +592,9 @@ export default function TenantManagement() {
                   {selectedTenant.custom_branding?.logo_url && (
                     <div className="mb-4">
                       <MaterialCard elevation={0} className="inline-block p-4 bg-surface-variant/5 border border-outline/10">
-                        <img 
-                          src={`http://localhost:8000${selectedTenant.custom_branding.logo_url}`} 
-                          alt="Current logo" 
+                        <img
+                          src={`http://localhost:8000${selectedTenant.custom_branding.logo_url}`}
+                          alt="Current logo"
                           className="h-20 object-contain"
                         />
                       </MaterialCard>
@@ -485,4 +649,3 @@ export default function TenantManagement() {
     </Layout>
   )
 }
-

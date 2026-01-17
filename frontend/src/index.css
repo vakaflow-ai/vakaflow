@@ -1,4 +1,6 @@
 /* Cache bust: 2025-01-02 - Fixed font-size/letter-spacing conflicts */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -76,8 +78,6 @@
 .dashboard-grid {
   width: 100%;
 }
-
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
 @layer base {
   * {

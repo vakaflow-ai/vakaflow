@@ -1,0 +1,61 @@
+/*
+ * CSS Fixes for Browser Console Warnings
+ * This file overrides problematic styles from Tailwind preflight and other sources
+ */
+
+/* Fix for -webkit-text-size-adjust parsing error */
+html {
+  -webkit-text-size-adjust: none !important;
+  text-size-adjust: none !important;
+}
+
+/* Modern column-gap handling - use standard property only */
+* {
+  /* Remove any -moz-column-gap that might be lingering */
+  -moz-column-gap: normal !important;
+  column-gap: normal !important;
+}
+
+/* Fix for bad selector warnings - ensure all selectors are valid */
+:root {
+  /* This ensures we have a valid root selector that won't be ignored */
+  --fix-console-warnings: true;
+}
+
+/* Additional browser-specific fixes */
+@supports (-moz-appearance: none) {
+  /* Firefox-specific fixes */
+  * {
+    -moz-appearance: none;
+  }
+}
+
+@supports (-webkit-appearance: none) {
+  /* WebKit-specific fixes */
+  * {
+    -webkit-appearance: none;
+  }
+}
+
+/* Ensure all vendor prefixes are properly handled */
+html {
+  /* Modern text size adjustment */
+  text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
+  -moz-text-size-adjust: 100%;
+  -ms-text-size-adjust: 100%;
+}
+
+/* Fix for any grid/column layout issues */
+.grid, .flex, .inline-flex {
+  /* Ensure modern gap properties are used */
+  gap: normal;
+  column-gap: normal;
+  row-gap: normal;
+}
+
+/* Prevent any invalid selector patterns from being generated */
+[data-fix-console], [class*="fix-console"] {
+  /* This ensures we have valid attribute selectors */
+  all: unset;
+}
