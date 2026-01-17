@@ -26,6 +26,7 @@ export interface Tenant {
   contact_phone?: string
   website?: string
   created_at: string
+  tenant_admin_email?: string
 }
 
 export interface TenantCreate {
@@ -56,6 +57,7 @@ export interface TenantUpdate {
   contact_name?: string
   contact_phone?: string
   website?: string
+  tenant_admin_email?: string
 }
 
 export const tenantsApi = {
@@ -145,4 +147,3 @@ export const tenantsApi = {
     return response.data
   },
 }
-

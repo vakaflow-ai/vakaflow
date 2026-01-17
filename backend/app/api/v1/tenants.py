@@ -67,6 +67,8 @@ class TenantUpdate(BaseModel):
     contact_name: Optional[str] = Field(None, description="Contact name")
     contact_phone: Optional[str] = Field(None, description="Contact phone")
     website: Optional[str] = Field(None, max_length=500, description="Website URL")
+    company_address: Optional[str] = Field(None, max_length=1000, description="Company address")
+    tenant_admin_email: Optional[str] = Field(None, description="Email of the tenant admin user")
 
 
 class TenantResponse(BaseModel):
@@ -91,7 +93,9 @@ class TenantResponse(BaseModel):
     contact_name: Optional[str] = None
     contact_phone: Optional[str] = None
     website: Optional[str] = None
+    company_address: Optional[str] = None
     created_at: datetime
+    tenant_admin_email: Optional[str] = None
     
     class Config:
         from_attributes = True
@@ -343,7 +347,8 @@ async def create_tenant(
         contact_name=tenant.contact_name,
         contact_phone=tenant.contact_phone,
         website=tenant.website,
-        created_at=tenant.created_at
+        created_at=tenant.created_at,
+        tenant_admin_email=tenant_data.tenant_admin_email
     )
 
 
@@ -370,6 +375,18 @@ async def list_tenants(
     total = query.count()
     tenants = query.order_by(Tenant.created_at.desc()).offset((page - 1) * limit).limit(limit).all()
     
+    # Get tenant admin emails
+    tenant_ids = [t.id for t in tenants]
+    admin_emails = {}
+    if tenant_ids:
+        admins = db.query(User).filter(
+            User.tenant_id.in_(tenant_ids),
+            User.role == UserRole.TENANT_ADMIN
+        ).all()
+        for admin in admins:
+            if admin.tenant_id not in admin_emails:
+                admin_emails[admin.tenant_id] = admin.email
+
     return [
         TenantResponse(
             id=str(t.id),
@@ -390,7 +407,8 @@ async def list_tenants(
             contact_name=t.contact_name,
             contact_phone=t.contact_phone,
             website=t.website,
-            created_at=t.created_at
+            created_at=t.created_at,
+            tenant_admin_email=admin_emails.get(t.id)
         )
         for t in tenants
     ]
@@ -542,6 +560,10 @@ async def get_tenant(
             detail="Tenant not found"
         )
     
+    # Get tenant admin email
+    admin_user = db.query(User).filter(User.tenant_id == tenant.id, User.role == UserRole.TENANT_ADMIN).first()
+    tenant_admin_email = admin_user.email if admin_user else None
+
     return TenantResponse(
         id=str(tenant.id),
         name=tenant.name,
@@ -561,7 +583,8 @@ async def get_tenant(
         contact_name=tenant.contact_name,
         contact_phone=tenant.contact_phone,
         website=tenant.website,
-        created_at=tenant.created_at
+        created_at=tenant.created_at,
+        tenant_admin_email=tenant_admin_email
     )
 
 
@@ -606,8 +629,26 @@ async def update_tenant(
     if tenant_data.website is not None:
         tenant.website = tenant_data.website
     
+    # Update tenant admin email if provided
+    if tenant_data.tenant_admin_email:
+        # Find current admin
+        admin_user = db.query(User).filter(User.tenant_id == tenant.id, User.role == UserRole.TENANT_ADMIN).first()
+        if admin_user:
+            # Check if email is already in use by another user
+            existing_user = db.query(User).filter(User.email == tenant_data.tenant_admin_email.lower(), User.id != admin_user.id).first()
+            if existing_user:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Email already in use by another user"
+                )
+            admin_user.email = tenant_data.tenant_admin_email.lower()
+    
     db.commit()
     db.refresh(tenant)
+    
+    # Get updated tenant admin email
+    admin_user = db.query(User).filter(User.tenant_id == tenant.id, User.role == UserRole.TENANT_ADMIN).first()
+    tenant_admin_email = admin_user.email if admin_user else None
     
     return TenantResponse(
         id=str(tenant.id),
@@ -624,7 +665,8 @@ async def update_tenant(
         timezone=tenant.timezone,
         locale=tenant.locale,
         i18n_settings=tenant.i18n_settings,
-        created_at=tenant.created_at
+        created_at=tenant.created_at,
+        tenant_admin_email=tenant_admin_email
     )
 
 

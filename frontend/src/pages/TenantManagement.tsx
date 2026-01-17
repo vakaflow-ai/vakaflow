@@ -506,6 +506,9 @@ export default function TenantManagement() {
                         max_users: selectedTenant.max_users,
                         contact_email: selectedTenant.contact_email,
                         contact_name: selectedTenant.contact_name,
+                        tenant_admin_email: selectedTenant.tenant_admin_email,
+                        website: selectedTenant.website,
+                        company_address: (selectedTenant as any).company_address,
                       }
                     });
                   }
@@ -537,6 +540,37 @@ export default function TenantManagement() {
                   type="text"
                   value={selectedTenant?.contact_name || ''}
                   onChange={(e) => setSelectedTenant({ ...selectedTenant!, contact_name: e.target.value })}
+                />
+                <MaterialInput
+                  label="Website"
+                  type="text"
+                  value={selectedTenant?.website || ''}
+                  onChange={(e) => setSelectedTenant({ ...selectedTenant!, website: e.target.value })}
+                  placeholder="https://example.com"
+                  onBlur={() => {
+                    if (selectedTenant?.website) {
+                      tenantsApi.fetchLogoFromWebsite(selectedTenant.website)
+                        .then(() => {
+                           queryClient.invalidateQueries({ queryKey: ['tenants'] })
+                        })
+                        .catch((err) => console.error('Failed to fetch logo', err));
+                    }
+                  }}
+                  helperText="Enter website URL to auto-fetch logo"
+                />
+                <MaterialInput
+                  label="Company Address"
+                  type="text"
+                  value={(selectedTenant as any)?.company_address || ''}
+                  onChange={(e) => setSelectedTenant({ ...selectedTenant!, company_address: e.target.value } as any)}
+                  placeholder="123 Main St, City, Country"
+                />
+                <MaterialInput
+                  label="Admin Email"
+                  type="email"
+                  value={selectedTenant?.tenant_admin_email || ''}
+                  onChange={(e) => setSelectedTenant({ ...selectedTenant!, tenant_admin_email: e.target.value })}
+                  helperText="Updating this will change the email of the current tenant admin"
                 />
                 <div className="space-y-1">
                   <label className="block text-xs font-medium text-gray-500 tracking-tight ml-1">Status</label>
