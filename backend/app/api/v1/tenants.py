@@ -379,13 +379,14 @@ async def list_tenants(
     tenant_ids = [t.id for t in tenants]
     admin_emails = {}
     if tenant_ids:
+        # Use string comparison for robustness with Enums
         admins = db.query(User).filter(
             User.tenant_id.in_(tenant_ids),
-            User.role == UserRole.TENANT_ADMIN
+            cast(User.role, String).in_(["tenant_admin", "UserRole.TENANT_ADMIN"])
         ).all()
         for admin in admins:
             if admin.tenant_id not in admin_emails:
-                admin_emails[admin.tenant_id] = admin.email
+                admin_emails[str(admin.tenant_id)] = admin.email
 
     return [
         TenantResponse(
@@ -408,7 +409,7 @@ async def list_tenants(
             contact_phone=t.contact_phone,
             website=t.website,
             created_at=t.created_at,
-            tenant_admin_email=admin_emails.get(t.id)
+            tenant_admin_email=admin_emails.get(str(t.id))
         )
         for t in tenants
     ]
@@ -561,7 +562,10 @@ async def get_tenant(
         )
     
     # Get tenant admin email
-    admin_user = db.query(User).filter(User.tenant_id == tenant.id, User.role == UserRole.TENANT_ADMIN).first()
+    admin_user = db.query(User).filter(
+        User.tenant_id == tenant.id, 
+        cast(User.role, String).in_(["tenant_admin", "UserRole.TENANT_ADMIN"])
+    ).first()
     tenant_admin_email = admin_user.email if admin_user else None
 
     return TenantResponse(
@@ -632,7 +636,10 @@ async def update_tenant(
     # Update tenant admin email if provided
     if tenant_data.tenant_admin_email:
         # Find current admin
-        admin_user = db.query(User).filter(User.tenant_id == tenant.id, User.role == UserRole.TENANT_ADMIN).first()
+        admin_user = db.query(User).filter(
+            User.tenant_id == tenant.id, 
+            cast(User.role, String).in_(["tenant_admin", "UserRole.TENANT_ADMIN"])
+        ).first()
         if admin_user:
             # Check if email is already in use by another user
             existing_user = db.query(User).filter(User.email == tenant_data.tenant_admin_email.lower(), User.id != admin_user.id).first()
@@ -647,7 +654,10 @@ async def update_tenant(
     db.refresh(tenant)
     
     # Get updated tenant admin email
-    admin_user = db.query(User).filter(User.tenant_id == tenant.id, User.role == UserRole.TENANT_ADMIN).first()
+    admin_user = db.query(User).filter(
+        User.tenant_id == tenant.id, 
+        cast(User.role, String).in_(["tenant_admin", "UserRole.TENANT_ADMIN"])
+    ).first()
     tenant_admin_email = admin_user.email if admin_user else None
     
     return TenantResponse(

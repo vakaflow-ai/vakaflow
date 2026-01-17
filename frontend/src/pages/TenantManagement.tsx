@@ -257,9 +257,10 @@ export default function TenantManagement() {
                           <MaterialButton
                             variant="outlined"
                             size="small"
-                            onClick={() => {
-                              setSelectedTenant(tenant)
-                              setShowEditModal(true)
+                            onClick={async () => {
+                              const freshTenant = await tenantsApi.get(tenant.id);
+                              setSelectedTenant(freshTenant);
+                              setShowEditModal(true);
                             }}
                             className="border-outline/10 text-gray-600 hover:bg-gray-50"
                           >

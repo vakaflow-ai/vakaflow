@@ -37,6 +37,8 @@ export interface TenantCreate {
   license_tier: string
   max_agents?: number
   max_users?: number
+  website?: string
+  company_address?: string
   tenant_admin_email?: string
   tenant_admin_name?: string
   tenant_admin_password?: string
@@ -140,8 +142,9 @@ export const tenantsApi = {
     return response.data
   },
 
-  fetchLogoFromWebsite: async (website: string): Promise<Tenant> => {
-    const response = await api.post('/tenants/me/fetch-logo', null, {
+  fetchLogoFromWebsite: async (website: string, tenantId?: string): Promise<Tenant> => {
+    const url = tenantId ? `/tenants/${tenantId}/fetch-logo` : '/tenants/me/fetch-logo'
+    const response = await api.post(url, null, {
       params: { website }
     })
     return response.data

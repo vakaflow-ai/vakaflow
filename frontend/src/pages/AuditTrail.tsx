@@ -497,4 +497,3 @@ export default function AuditTrail() {
     </Layout>
   )
 }
-

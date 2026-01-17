@@ -16,6 +16,7 @@ export { default as DashboardSection } from '../DashboardSection'
 export { default as DashboardWidget } from '../DashboardWidget'
 export { default as DashboardGrid } from '../DashboardGrid'
 export { default as MaterialForm } from './MaterialForm'
+export * from './MaterialDialog'
 
 // Export shadcn/ui components
 export { Button } from '@/components/ui/button'
@@ -23,4 +24,3 @@ export { Card, CardHeader, CardFooter, CardTitle, CardDescription, CardContent }
 export { Input } from '@/components/ui/input'
 export { Label } from '@/components/ui/label'
 export { Checkbox } from '@/components/ui/checkbox'
-
