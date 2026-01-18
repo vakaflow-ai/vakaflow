@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { workflowConfigApi, WorkflowConfig } from '../lib/workflowConfig'
 import { authApi } from '../lib/auth'
+import { useDialogContext } from '../contexts/DialogContext'
 import Layout from '../components/Layout'
 import { 
   StandardPageContainer,
@@ -12,11 +13,12 @@ import {
   StandardSearchFilter
 } from '../components/StandardizedLayout'
 import UnifiedWorkflowDesigner from '../components/workflow/UnifiedWorkflowDesigner'
-import { Plus, Edit, Eye, Settings } from 'lucide-react'
+import { Plus, Edit, Eye, Settings, Trash2 } from 'lucide-react'
 import { showToast } from '../utils/toast'
 
 export default function StandardizedWorkflows() {
   const navigate = useNavigate()
+  const dialog = useDialogContext()
   const [user, setUser] = useState<any>(null)
   const [showDesigner, setShowDesigner] = useState(false)
   const [editingWorkflowId, setEditingWorkflowId] = useState<string | null>(null)
@@ -77,6 +79,24 @@ export default function StandardizedWorkflows() {
     showToast.success(`Workflow ${editingWorkflowId ? 'updated' : 'created'} successfully`)
   }
 
+  const handleDeleteWorkflow = async (workflowId: string, workflowName: string) => {
+    const confirmed = await dialog.confirm({
+      title: 'Delete Workflow',
+      message: `Are you sure you want to delete the workflow "${workflowName}"? This action cannot be undone.`,
+      variant: 'destructive'
+    })
+    
+    if (confirmed) {
+      try {
+        await workflowConfigApi.delete(workflowId)
+        refetch()
+        showToast.success('Workflow deleted successfully')
+      } catch (error: any) {
+        showToast.error(error?.response?.data?.detail || 'Failed to delete workflow')
+      }
+    }
+  }
+
   if (!user) {
     return (
       <Layout user={user}>
@@ -94,11 +114,15 @@ export default function StandardizedWorkflows() {
 
   if (showDesigner) {
     return (
-      <UnifiedWorkflowDesigner
-        workflowId={editingWorkflowId || undefined}
-        onClose={handleDesignerClose}
-        onSave={handleDesignerSave}
-      />
+      <Layout user={user}>
+        <div className="w-full max-w-[98%] mx-auto p-6">
+          <UnifiedWorkflowDesigner
+            workflowId={editingWorkflowId || undefined}
+            onClose={handleDesignerClose}
+            onSave={handleDesignerSave}
+          />
+        </div>
+      </Layout>
     )
   }
 
@@ -228,6 +252,14 @@ export default function StandardizedWorkflows() {
                       }}
                     >
                       Preview
+                    </StandardActionButton>
+                    <StandardActionButton
+                      variant="danger"
+                      size="sm"
+                      icon={<Trash2 className="w-4 h-4" />}
+                      onClick={() => handleDeleteWorkflow(workflow.id, workflow.name)}
+                    >
+                      Delete
                     </StandardActionButton>
                   </div>
                 </div>

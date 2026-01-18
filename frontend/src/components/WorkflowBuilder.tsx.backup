@@ -398,7 +398,7 @@ export default function WorkflowBuilder({ steps, onStepsChange, onSetFirstStep, 
       >
         <SortableContext items={steps.map((s) => s.step_number)} strategy={verticalListSortingStrategy}>
           <div className="space-y-3">
-            {steps.map((step) => (
+            {steps.map((step, index) => (
               <SortableStep
                 key={step.step_number}
                 step={step}
@@ -407,11 +407,11 @@ export default function WorkflowBuilder({ steps, onStepsChange, onSetFirstStep, 
                 onSetFirst={() => onSetFirstStep(step.step_number)}
                 onStepClick={onStepClick}
                 onStepUpdate={canEdit ? handleStepUpdate : undefined}
-                onStepDelete={canEdit ? (onStepDelete || handleStepDelete) : undefined}
+                onStepDelete={canEdit ? handleStepDelete : undefined}
                 approverGroups={approverGroups}
                 canEdit={canEdit}
               />
-            ))}
+            ))
           </div>
         </SortableContext>
       </DndContext>
@@ -425,3 +425,4 @@ export default function WorkflowBuilder({ steps, onStepsChange, onSetFirstStep, 
     </div>
   )
 }
+

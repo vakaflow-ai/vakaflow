@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { workflowConfigApi, WorkflowConfig } from '../lib/workflowConfig'
 import { authApi } from '../lib/auth'
+import { useDialogContext } from '../contexts/DialogContext'
 import Layout from '../components/Layout'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/shared/Card'
 import { Button } from '@/components/shared/Button'
@@ -13,6 +14,7 @@ import { showToast } from '../utils/toast'
 
 export default function UnifiedWorkflowManagement() {
   const navigate = useNavigate()
+  const dialog = useDialogContext()
   const [user, setUser] = useState<any>(null)
   const [showDesigner, setShowDesigner] = useState(false)
   const [editingWorkflowId, setEditingWorkflowId] = useState<string | null>(null)
@@ -73,6 +75,24 @@ export default function UnifiedWorkflowManagement() {
     showToast.success(`Workflow ${editingWorkflowId ? 'updated' : 'created'} successfully`)
   }
 
+  const handleDeleteWorkflow = async (workflowId: string, workflowName: string) => {
+    const confirmed = await dialog.confirm({
+      title: 'Delete Workflow',
+      message: `Are you sure you want to delete the workflow "${workflowName}"? This action cannot be undone.`,
+      variant: 'destructive'
+    })
+    
+    if (confirmed) {
+      try {
+        await workflowConfigApi.delete(workflowId)
+        refetch()
+        showToast.success('Workflow deleted successfully')
+      } catch (error: any) {
+        showToast.error(error?.response?.data?.detail || 'Failed to delete workflow')
+      }
+    }
+  }
+
   if (!user) {
     return (
       <Layout user={user}>
@@ -88,11 +108,15 @@ export default function UnifiedWorkflowManagement() {
 
   if (showDesigner) {
     return (
-      <UnifiedWorkflowDesigner
-        workflowId={editingWorkflowId || undefined}
-        onClose={handleDesignerClose}
-        onSave={handleDesignerSave}
-      />
+      <Layout user={user}>
+        <div className="w-full max-w-[98%] mx-auto p-6">
+          <UnifiedWorkflowDesigner
+            workflowId={editingWorkflowId || undefined}
+            onClose={handleDesignerClose}
+            onSave={handleDesignerSave}
+          />
+        </div>
+      </Layout>
     )
   }
 
@@ -228,6 +252,15 @@ export default function UnifiedWorkflowManagement() {
                         }}
                       >
                         <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 hover:border-red-300"
+                        onClick={() => handleDeleteWorkflow(workflow.id, workflow.name)}
+                      >
+                        <Trash2 className="h-4 w-4 mr-1" />
+                        Delete
                       </Button>
                     </div>
                   </div>
