@@ -14,7 +14,8 @@ import { showToast } from '../utils/toast'
 import { 
   FileText, CheckCircle2, AlertCircle, Loader2, Save, ArrowLeft, 
   Upload, X, CheckCircle, XCircle, Clock, AlertTriangle, 
-  MessageSquare, Send, User, Search, ChevronDown, UserPlus
+  MessageSquare, Send, User, Search, ChevronDown, UserPlus,
+  Download
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import WorkflowProgress from '@/components/WorkflowProgress'
@@ -36,6 +37,7 @@ export default function AssessmentAssignmentPage() {
   const [editingAssignee, setEditingAssignee] = useState<string | null>(null)
   const [assigneeSearchQuery, setAssigneeSearchQuery] = useState<Record<string, string>>({})
   const [assigneeDropdownOpen, setAssigneeDropdownOpen] = useState<Record<string, boolean>>({})
+  const [workflowProgressExpanded, setWorkflowProgressExpanded] = useState(false)
   const assigneeDropdownRefs = useRef<Record<string, HTMLDivElement | null>>({})
 
   // Close assignee dropdowns when clicking outside
@@ -307,12 +309,13 @@ export default function AssessmentAssignmentPage() {
   // All other statuses (including 'pending', 'in_progress', and unknown) are editable
   const isReadOnly = readonlyStatuses.includes(normalizedStatus)
 
-  // Load question reviews for read-only approved/completed assignments
+  // Load question reviews to show reviewer feedback (even when not read-only)
+  // Vendors need to see which questions were rejected or need more info
   const { data: questionReviewsData } = useQuery({
     queryKey: ['assessment-question-reviews', id],
     queryFn: () => assessmentsApi.getQuestionReviews(id!),
-    enabled: !!id && !!assignmentStatus && isReadOnly,
-  })
+    enabled: !!id && !!assignmentStatus,
+  });
 
   // Load workflow history for read-only approved/completed assignments
   const { data: workflowHistory = [] } = useQuery({
@@ -453,18 +456,44 @@ export default function AssessmentAssignmentPage() {
           </CardHeader>
         </Card>
 
-        {/* Workflow Progress */}
+        {/* Workflow Progress - Collapsible */}
         {workflowProgress?.has_workflow && (
-          <WorkflowProgress
-            steps={workflowProgress.steps}
-            current_step={workflowProgress.current_step}
-            total_steps={workflowProgress.total_steps}
-            completed_steps={workflowProgress.completed_steps}
-            progress_percent={workflowProgress.progress_percent}
-            status={workflowProgress.status}
-            started_at={workflowProgress.started_at}
-            completed_at={workflowProgress.completed_at}
-          />
+          <Card>
+            <CardHeader 
+              className="cursor-pointer hover:bg-gray-50 transition-colors"
+              onClick={() => setWorkflowProgressExpanded(!workflowProgressExpanded)}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-blue-600" />
+                  <CardTitle className="text-base">Workflow Progress</CardTitle>
+                  <span className="text-sm text-gray-500">
+                    ({workflowProgress.completed_steps}/{workflowProgress.total_steps} steps completed)
+                  </span>
+                </div>
+                <ChevronDown 
+                  className={cn(
+                    "w-5 h-5 text-gray-500 transition-transform",
+                    workflowProgressExpanded && "transform rotate-180"
+                  )} 
+                />
+              </div>
+            </CardHeader>
+            {workflowProgressExpanded && (
+              <CardContent>
+                <WorkflowProgress
+                  steps={workflowProgress.steps}
+                  current_step={workflowProgress.current_step}
+                  total_steps={workflowProgress.total_steps}
+                  completed_steps={workflowProgress.completed_steps}
+                  progress_percent={workflowProgress.progress_percent}
+                  status={workflowProgress.status}
+                  started_at={workflowProgress.started_at}
+                  completed_at={workflowProgress.completed_at}
+                />
+              </CardContent>
+            )}
+          </Card>
         )}
 
         {/* Questions Table */}
@@ -523,7 +552,17 @@ export default function AssessmentAssignmentPage() {
                       // Add question rows for this category
                       categoryQuestions.forEach((question, index) => {
                         const questionIdStr = String(question.id)
-                        const response = responses[questionIdStr] || responses[question.id] || { value: '', comment: '', documents: [] }
+                        const rawResponse = responses[questionIdStr] || responses[question.id] || { value: '', comment: '', documents: [] }
+                        
+                        // Safely extract response - handle case where API returns nested structure
+                        const response: QuestionResponse = {
+                          value: typeof rawResponse === 'object' && rawResponse !== null && 'value' in rawResponse 
+                            ? rawResponse.value 
+                            : rawResponse,
+                          comment: rawResponse?.comment || '',
+                          documents: rawResponse?.documents || []
+                        }
+                        
                         const hasResponse = response.value !== undefined && response.value !== null && response.value !== ''
                         
                         // Get assignee/owner for this question
@@ -557,13 +596,56 @@ export default function AssessmentAssignmentPage() {
                               if (col.id === 'question') {
                                 return (
                                   <td key={col.id} className="px-4 py-3">
-                                    <div className="space-y-1">
-                                      <div className="text-sm font-medium text-gray-900">
-                                        {question.question_text || question.title}
-                                        {question.is_required && <span className="text-red-600 ml-1">*</span>}
+                                    <div className="space-y-2">
+                                      <div className="flex items-start gap-2">
+                                        <div className="flex-1">
+                                          <div className="text-sm font-medium text-gray-900">
+                                            {question.question_text || question.title}
+                                            {question.is_required && <span className="text-red-600 ml-1">*</span>}
+                                          </div>
+                                          {question.description && (
+                                            <div className="text-xs text-gray-500 mt-1">{question.description}</div>
+                                          )}
+                                        </div>
+                                        {/* Review Status Badge */}
+                                        {reviewStatus && (
+                                          <span className={cn(
+                                            "inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium shrink-0",
+                                            reviewStatus === 'fail' && "bg-red-100 text-red-700",
+                                            reviewStatus === 'in_progress' && "bg-orange-100 text-orange-700",
+                                            reviewStatus === 'pass' && "bg-green-100 text-green-700"
+                                          )}>
+                                            {reviewStatus === 'fail' && <><XCircle className="w-3 h-3" /> Rejected</>}
+                                            {reviewStatus === 'in_progress' && <><Clock className="w-3 h-3" /> Needs Info</>}
+                                            {reviewStatus === 'pass' && <><CheckCircle className="w-3 h-3" /> Approved</>}
+                                          </span>
+                                        )}
                                       </div>
-                                      {question.description && (
-                                        <div className="text-xs text-gray-500">{question.description}</div>
+                                      {/* Reviewer Feedback Alert */}
+                                      {reviewerComment && !isReadOnly && (
+                                        <Alert className={cn(
+                                          "border-l-4",
+                                          reviewStatus === 'fail' && "border-l-red-500 bg-red-50",
+                                          reviewStatus === 'in_progress' && "border-l-orange-500 bg-orange-50",
+                                          !reviewStatus && "border-l-blue-500 bg-blue-50"
+                                        )}>
+                                          <div className="flex items-start gap-2">
+                                            <MessageSquare className={cn(
+                                              "w-4 h-4 mt-0.5",
+                                              reviewStatus === 'fail' && "text-red-600",
+                                              reviewStatus === 'in_progress' && "text-orange-600",
+                                              !reviewStatus && "text-blue-600"
+                                            )} />
+                                            <div className="flex-1">
+                                              <div className="text-xs font-semibold mb-1">
+                                                {reviewStatus === 'fail' ? 'Rejection Reason:' : 'Reviewer Feedback:'}
+                                              </div>
+                                              <AlertDescription className="text-xs">
+                                                {reviewerComment}
+                                              </AlertDescription>
+                                            </div>
+                                          </div>
+                                        </Alert>
                                       )}
                                     </div>
                                   </td>
@@ -777,23 +859,49 @@ export default function AssessmentAssignmentPage() {
                                           {response.documents && response.documents.length > 0 && (
                                             <div className="space-y-1">
                                               {(response.documents || []).map((doc: any, docIndex: number) => (
-                                                <div key={docIndex} className="flex items-center gap-2 text-sm bg-gray-50 p-2 rounded">
-                                                  <FileText className="w-4 h-4 text-gray-500" />
-                                                  <span className="text-gray-700 flex-1">{doc.name || doc.path || `Document ${docIndex + 1}`}</span>
-                                                  <button
-                                                    type="button"
-                                                    onClick={() => {
-                                                      const questionIdStr = String(question.id)
-                                                      const newDocs = (response.documents || []).filter((_: any, i: number) => i !== docIndex)
-                                                      setResponses(prev => ({
-                                                        ...prev,
-                                                        [questionIdStr]: { ...prev[questionIdStr] || {}, documents: newDocs }
-                                                      }))
-                                                    }}
-                                                    className="text-red-600 hover:text-red-800"
-                                                  >
-                                                    <X className="w-4 h-4" />
-                                                  </button>
+                                                <div key={doc.file_id || docIndex} className="flex items-center gap-2 text-sm bg-gray-50 p-2 rounded group">
+                                                  <FileText className="w-4 h-4 text-gray-500 flex-shrink-0" />
+                                                  <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center gap-2">
+                                                      <span className="text-gray-700 truncate">{doc.name || `Document ${docIndex + 1}`}</span>
+                                                      {doc.size && (
+                                                        <span className="text-xs text-gray-500 whitespace-nowrap">
+                                                          ({(doc.size / 1024).toFixed(1)} KB)
+                                                        </span>
+                                                      )}
+                                                    </div>
+                                                    {doc.uploaded_at && (
+                                                      <div className="text-xs text-gray-500">
+                                                        Uploaded: {new Date(doc.uploaded_at).toLocaleDateString()}
+                                                      </div>
+                                                    )}
+                                                  </div>
+                                                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <a
+                                                      href={`/api/v1/files/${doc.file_id}`}
+                                                      target="_blank"
+                                                      rel="noopener noreferrer"
+                                                      className="text-blue-600 hover:text-blue-800 p-1"
+                                                      title="Download file"
+                                                    >
+                                                      <Download className="w-4 h-4" />
+                                                    </a>
+                                                    <button
+                                                      type="button"
+                                                      onClick={() => {
+                                                        const questionIdStr = String(question.id)
+                                                        const newDocs = (response.documents || []).filter((_: any, i: number) => i !== docIndex)
+                                                        setResponses(prev => ({
+                                                          ...prev,
+                                                          [questionIdStr]: { ...prev[questionIdStr] || {}, documents: newDocs }
+                                                        }))
+                                                      }}
+                                                      className="text-red-600 hover:text-red-800 p-1"
+                                                      title="Remove file"
+                                                    >
+                                                      <X className="w-4 h-4" />
+                                                    </button>
+                                                  </div>
                                                 </div>
                                               ))}
                                             </div>
@@ -802,27 +910,53 @@ export default function AssessmentAssignmentPage() {
                                             type="button"
                                             variant="outline"
                                             size="sm"
-                                            onClick={() => {
+                                            onClick={async () => {
                                               const input = document.createElement('input')
                                               input.type = 'file'
                                               input.multiple = true
-                                              input.onchange = (e: any) => {
+                                              input.accept = '.pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.txt,.csv'
+                                              
+                                              input.onchange = async (e: any) => {
                                                 const files = Array.from(e.target.files || []) as File[]
                                                 const questionIdStr = String(question.id)
-                                                const newDocs = files.map((file: File) => ({
-                                                  name: file.name,
-                                                  file,
-                                                  id: `${Date.now()}-${Math.random()}`,
-                                                  size: file.size,
-                                                  type: file.type
-                                                }))
-                                                setResponses(prev => ({
-                                                  ...prev,
-                                                  [questionIdStr]: {
-                                                    ...prev[questionIdStr] || {},
-                                                    documents: [...(prev[questionIdStr]?.documents || []), ...newDocs]
+                                                
+                                                // Upload each file
+                                                const uploadPromises = files.map(async (file: File) => {
+                                                  try {
+                                                    const uploadResult = await assessmentsApi.uploadFile(
+                                                      file,
+                                                      id!, // assignment ID as context
+                                                      'assessment'
+                                                    )
+                                                    
+                                                    return {
+                                                      name: uploadResult.filename,
+                                                      file_id: uploadResult.file_id,
+                                                      path: uploadResult.path,
+                                                      size: uploadResult.size,
+                                                      type: file.type,
+                                                      uploaded_at: uploadResult.uploaded_at
+                                                    }
+                                                  } catch (error: any) {
+                                                    console.error('File upload failed:', error)
+                                                    showToast.error(`Failed to upload ${file.name}: ${error.message || 'Upload failed'}`)
+                                                    return null
                                                   }
-                                                }))
+                                                })
+                                                
+                                                const results = await Promise.all(uploadPromises)
+                                                const successfulUploads = results.filter(Boolean) as any[]
+                                                
+                                                if (successfulUploads.length > 0) {
+                                                  setResponses(prev => ({
+                                                    ...prev,
+                                                    [questionIdStr]: {
+                                                      ...prev[questionIdStr] || {},
+                                                      documents: [...(prev[questionIdStr]?.documents || []), ...successfulUploads]
+                                                    }
+                                                  }))
+                                                  showToast.success(`${successfulUploads.length} file(s) uploaded successfully`)
+                                                }
                                               }
                                               input.click()
                                             }}

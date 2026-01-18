@@ -734,6 +734,44 @@ export const assessmentsApi = {
     const response = await api.get('/assessments/my-assignments', { params })
     return response.data
   },
+
+  // File Management
+  uploadFile: async (
+    file: File,
+    context: string,
+    contextType: string = 'assessment'
+  ): Promise<{
+    success: boolean
+    file_id: string
+    filename: string
+    size: number
+    path: string
+    uploaded_at: string
+  }> => {
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('context', context)
+    formData.append('context_type', contextType)
+    
+    const response = await api.post('/files/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    })
+    return response.data
+  },
+
+  getFile: async (fileId: string): Promise<{
+    file_id: string
+    filename: string
+    path: string
+    size: number
+    mime_type: string
+    uploaded_at: string
+  }> => {
+    const response = await api.get(`/files/${fileId}`)
+    return response.data
+  },
 }
 
 export interface AssessmentTemplate {
