@@ -7,6 +7,7 @@ import Layout from '../components/Layout'
 import { MaterialCard, MaterialButton, MaterialChip, MaterialInput } from '../components/material'
 import { PlusIcon, SearchIcon, XIcon, ShieldCheckIcon } from '../components/Icons'
 import api from '../lib/api'
+import StandardModal from '../components/StandardModal'
 
 export default function TenantManagement() {
   const navigate = useNavigate()
@@ -289,27 +290,19 @@ export default function TenantManagement() {
 
         {/* Create Tenant Modal - Material Design */}
         {showCreateModal && (
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
-            <div className="max-w-2xl w-full mx-4 bg-white rounded-xl shadow-2xl border max-h-[90vh] flex flex-col">
-              {/* Fixed Header */}
-              <div className="p-6 border-b bg-gray-50 flex-shrink-0">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-xl font-medium text-gray-900">Create Tenant</h2>
-                  <button 
-                    onClick={() => setShowCreateModal(false)}
-                    className="p-2 text-gray-600 hover:bg-gray-100 rounded-full"
-                  >
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
+          <StandardModal
+            isOpen={showCreateModal}
+            onClose={() => setShowCreateModal(false)}
+            title="Create Tenant"
+            subtitle="Set up a new tenant organization on the platform"
+            size="lg"
+            isSaving={createMutation.isPending}
+            onSave={() => handleCreate({} as React.FormEvent)}
+            saveButtonText={createMutation.isPending ? 'Creating...' : 'Create Tenant'}
+            disableSave={!formData.name || !formData.slug || !formData.contact_email}
+          >
               
-              {/* Scrollable Content Area */}
-              <form onSubmit={handleCreate} className="flex-1 min-h-0 flex flex-col">
-                <div className="flex-1 overflow-y-auto p-6">
-                  <div className="space-y-5">
+              <div className="space-y-5">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Company Name *</label>
                       <input
@@ -430,30 +423,7 @@ export default function TenantManagement() {
                       </div>
                     </div>
                   </div>
-                </div>
-              </form>
-              
-              {/* Fixed Footer */}
-              <div className="p-6 border-t bg-gray-50 flex-shrink-0">
-                <div className="flex gap-3 justify-end">
-                  <button
-                    type="button"
-                    onClick={() => setShowCreateModal(false)}
-                    className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-md font-medium"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={createMutation.isPending}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-md font-medium hover:bg-blue-700 disabled:opacity-50"
-                  >
-                    {createMutation.isPending ? 'Creating...' : 'Create Tenant'}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
+              </StandardModal>
         )}
 
         {/* Branding Modal - Material Design */}
@@ -541,17 +511,34 @@ export default function TenantManagement() {
 
         {/* Edit Tenant Modal - Material Design */}
         {showEditModal && selectedTenant && (
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in duration-200">
-            <MaterialCard elevation={24} className="max-w-2xl w-full mx-4 border-none max-h-[90vh] flex flex-col">
-              {/* Fixed Header */}
-              <div className="p-6 border-b bg-surface-variant/10 flex-shrink-0">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-xl font-medium text-gray-900">Edit Tenant - {selectedTenant.name}</h2>
-                  <MaterialButton variant="text" size="small" onClick={() => setShowEditModal(false)} className="!p-2 text-gray-600">
-                    <XIcon className="w-6 h-6" />
-                  </MaterialButton>
-                </div>
-              </div>
+          <StandardModal
+            isOpen={showEditModal}
+            onClose={() => setShowEditModal(false)}
+            title={`Edit Tenant - ${selectedTenant.name}`}
+            subtitle="Update tenant configuration and settings"
+            size="lg"
+            isSaving={updateMutation.isPending}
+            onSave={() => {
+              if (selectedTenant) {
+                updateMutation.mutate({
+                  id: selectedTenant.id,
+                  data: {
+                    name: selectedTenant.name,
+                    status: selectedTenant.status,
+                    license_tier: selectedTenant.license_tier,
+                    max_agents: selectedTenant.max_agents,
+                    max_users: selectedTenant.max_users,
+                    contact_email: selectedTenant.contact_email,
+                    contact_name: selectedTenant.contact_name,
+                    tenant_admin_email: selectedTenant.tenant_admin_email,
+                    website: selectedTenant.website,
+                    company_address: (selectedTenant as any).company_address,
+                  }
+                });
+              }
+            }}
+            saveButtonText={updateMutation.isPending ? 'Updating...' : 'Update Tenant'}
+          >
               
               {/* Scrollable Content Area */}
               <form
@@ -702,8 +689,7 @@ export default function TenantManagement() {
                   </MaterialButton>
                 </div>
               </div>
-            </MaterialCard>
-          </div>
+              </StandardModal>
         )}
       </div>
     </Layout>

@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { vendorsApi, VendorWithDetails } from '../lib/vendors'
 import { agentsApi, Agent } from '../lib/agents'
 import { studioApi, StudioAgent, AgenticFlowCreate } from '../lib/studio'
+import StandardModal from './StandardModal'
 
 interface BusinessFlowBuilderProps {
   onSave: (flow: AgenticFlowCreate) => Promise<void>
@@ -202,63 +203,53 @@ export default function BusinessFlowBuilder({ onSave, onCancel, initialFlow }: B
   const selectedVendor = vendors?.find(v => v.id === selectedVendorId)
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl my-8">
-        {/* Header */}
-        <div className="px-6 py-2 border-b border-gray-200 flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-semibold text-gray-900">
-              Create Assessment Flow
-            </h2>
-            <p className="text-sm text-gray-600 mt-1">
-              Configure an assessment flow for vendors and their agents
-            </p>
-          </div>
-          <button
-            onClick={onCancel}
-            className="text-gray-600 hover:text-gray-600"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-
-        {/* Content */}
-        <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
+    <StandardModal
+      isOpen={true}
+      onClose={onCancel}
+      title="Create Assessment Flow"
+      subtitle="Configure an assessment flow for vendors and their agents"
+      size="lg"
+      isSaving={false}
+      onSave={handleSave}
+      saveButtonText="Save Flow"
+      disableSave={!flowName || !selectedVendorId || selectedAgentIds.length === 0}
+    >
+      <div className="grid grid-cols-1 gap-6 max-w-4xl mx-auto">
           {/* Flow Details */}
-          <div className="space-y-4">
+          <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-4">
             <h3 className="text-lg font-medium text-gray-900">Flow Information</h3>
             
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Flow Name *
-              </label>
-              <input
-                type="text"
-                value={flowName}
-                onChange={(e) => setFlowName(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="e.g., TPRM Assessment for Vendor ABC"
-              />
-            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Flow Name *
+                </label>
+                <input
+                  type="text"
+                  value={flowName}
+                  onChange={(e) => setFlowName(e.target.value)}
+                  className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="e.g., TPRM Assessment for Vendor ABC"
+                />
+              </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Description
-              </label>
-              <textarea
-                value={flowDescription}
-                onChange={(e) => setFlowDescription(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                rows={2}
-                placeholder="Describe what this assessment flow does..."
-              />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Description
+                </label>
+                <textarea
+                  value={flowDescription}
+                  onChange={(e) => setFlowDescription(e.target.value)}
+                  className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  rows={1}
+                  placeholder="Brief description of this assessment flow..."
+                />
+              </div>
             </div>
           </div>
 
           {/* Vendor Selection */}
-          <div className="space-y-4">
+          <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-4">
             <h3 className="text-lg font-medium text-gray-900">Select Vendor</h3>
             
             <div>
@@ -298,7 +289,7 @@ export default function BusinessFlowBuilder({ onSave, onCancel, initialFlow }: B
 
           {/* Agent Selection */}
           {selectedVendorId && (
-            <div className="space-y-4">
+            <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-medium text-gray-900">Select Agents</h3>
                 {vendorAgents.length > 0 && (
@@ -320,12 +311,12 @@ export default function BusinessFlowBuilder({ onSave, onCancel, initialFlow }: B
                   </p>
                 </div>
               ) : (
-                <div className="border border-gray-200 rounded-lg max-h-64 overflow-y-auto">
+                <div className="border border-gray-200 rounded-lg max-h-48 overflow-y-auto">
                   <div className="divide-y divide-gray-200">
                     {vendorAgents.map((agent) => (
                       <label
                         key={agent.id}
-                        className="flex items-start p-4 hover:bg-gray-50 cursor-pointer"
+                        className="flex items-start p-2 hover:bg-gray-50 cursor-pointer"
                       >
                         <input
                           type="checkbox"
@@ -333,32 +324,32 @@ export default function BusinessFlowBuilder({ onSave, onCancel, initialFlow }: B
                           onChange={() => handleAgentToggle(agent.id)}
                           className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                         />
-                        <div className="ml-3 flex-1">
+                        <div className="ml-3 flex-1 min-w-0">
                           <div className="flex items-center justify-between">
-                            <p className="text-sm font-medium text-gray-900">{agent.name}</p>
-                            <span className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded">
-                              {agent.type}
-                            </span>
+                            <p className="text-sm font-medium text-gray-900 truncate">{agent.name}</p>
+                            <div className="flex items-center space-x-1 flex-shrink-0 ml-2">
+                              <span className="text-xs px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded">
+                                {agent.type}
+                              </span>
+                              <span className={`text-xs px-1.5 py-0.5 rounded ${
+                                agent.status === 'approved' 
+                                  ? 'bg-green-100 text-green-800'
+                                  : agent.status === 'in_review'
+                                  ? 'bg-yellow-100 text-yellow-800'
+                                  : 'bg-gray-100 text-gray-800'
+                              }`}>
+                                {agent.status}
+                              </span>
+                            </div>
                           </div>
                           {agent.description && (
-                            <p className="text-xs text-gray-500 mt-1">{agent.description}</p>
+                            <p className="text-xs text-gray-500 mt-1 truncate">{agent.description}</p>
                           )}
-                          <div className="flex items-center space-x-2 mt-2">
-                            <span className={`text-xs px-2 py-1 rounded ${
-                              agent.status === 'approved' 
-                                ? 'bg-green-100 text-green-800'
-                                : agent.status === 'in_review'
-                                ? 'bg-yellow-100 text-yellow-800'
-                                : 'bg-gray-100 text-gray-800'
-                            }`}>
-                              {agent.status}
-                            </span>
-                            {agent.risk_score !== undefined && (
-                              <span className="text-xs text-gray-600">
-                                Risk: {agent.risk_score}%
-                              </span>
-                            )}
-                          </div>
+                          {agent.risk_score !== undefined && (
+                            <p className="text-xs text-gray-600 mt-1">
+                              Risk: {agent.risk_score}%
+                            </p>
+                          )}
                         </div>
                       </label>
                     ))}
@@ -378,7 +369,7 @@ export default function BusinessFlowBuilder({ onSave, onCancel, initialFlow }: B
 
           {/* Assessment Configuration */}
           {selectedAgentIds.length > 0 && (
-            <div className="space-y-4">
+            <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-4">
               <h3 className="text-lg font-medium text-gray-900">Assessment Configuration</h3>
               
               <div>
@@ -388,7 +379,7 @@ export default function BusinessFlowBuilder({ onSave, onCancel, initialFlow }: B
                 <select
                   value={assessmentType}
                   onChange={(e) => setAssessmentType(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="tprm">TPRM - Third-Party Risk Management</option>
                   <option value="vendor_qualification">Vendor Qualification</option>
@@ -399,16 +390,13 @@ export default function BusinessFlowBuilder({ onSave, onCancel, initialFlow }: B
                   <option value="custom">Custom Assessment</option>
                   <option value="general">General Assessment</option>
                 </select>
-                <p className="mt-1 text-xs text-gray-500">
-                  Select the type of assessment to perform on the selected agents
-                </p>
               </div>
             </div>
           )}
 
           {/* Risk Analysis Configuration */}
           {selectedAgentIds.length > 0 && assessmentAgent && (
-            <div className="space-y-4">
+            <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-4">
               <h3 className="text-lg font-medium text-gray-900">Additional Analysis</h3>
               
               <div className="flex items-start">
@@ -417,14 +405,14 @@ export default function BusinessFlowBuilder({ onSave, onCancel, initialFlow }: B
                   id="includeRiskAnalysis"
                   checked={includeRiskAnalysis}
                   onChange={(e) => setIncludeRiskAnalysis(e.target.checked)}
-                  className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  className="mt-0.5 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                 />
-                <label htmlFor="includeRiskAnalysis" className="ml-3 flex-1">
+                <label htmlFor="includeRiskAnalysis" className="ml-2 flex-1">
                   <p className="text-sm font-medium text-gray-900">
                     Include Real-Time Risk Analysis
                   </p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Automatically perform real-time risk analysis after assessment completes
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Automatically perform risk analysis after assessment
                   </p>
                 </label>
               </div>
@@ -452,7 +440,7 @@ export default function BusinessFlowBuilder({ onSave, onCancel, initialFlow }: B
 
           {/* Flow Preview */}
           {selectedAgentIds.length > 0 && (
-            <div className="space-y-4 border-t border-gray-200 pt-4">
+            <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-4">
               <h3 className="text-lg font-medium text-gray-900">Flow Preview</h3>
               <div className="p-4 bg-gray-50 border border-gray-200 rounded">
                 <div className="space-y-2 text-sm">
@@ -471,24 +459,6 @@ export default function BusinessFlowBuilder({ onSave, onCancel, initialFlow }: B
             </div>
           )}
         </div>
-
-        {/* Footer */}
-        <div className="px-6 py-2 border-t border-gray-200 flex items-center justify-end space-x-3">
-          <button
-            onClick={onCancel}
-            className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={!flowName || !selectedVendorId || selectedAgentIds.length === 0}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
-          >
-            Save Flow
-          </button>
-        </div>
-      </div>
-    </div>
+    </StandardModal>
   )
 }

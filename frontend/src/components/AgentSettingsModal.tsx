@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { StudioAgent } from '../lib/studio'
 import { usersApi, User } from '../lib/users'
 import { masterDataListsApi, MasterDataList } from '../lib/masterDataLists'
+import StandardModal from './StandardModal'
 
 interface AgentSettingsModalProps {
   agent: StudioAgent | null
@@ -171,35 +172,15 @@ export default function AgentSettingsModal({ agent, onClose, onSave }: AgentSett
   const canEditCore = !isVakaAgent  // VAKA agents have read-only core properties
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl h-[90vh] flex flex-col my-auto mx-auto overflow-hidden">
-        {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-200 flex items-start justify-between flex-shrink-0">
-          <div className="flex-1 min-w-0 pr-4">
-            <h2 className="text-xl font-medium text-gray-900">Agent Settings</h2>
-            <p className="text-sm text-gray-500 mt-1">
-              {agent.name} ({agent.agent_type})
-            </p>
-            {isVakaAgent && (
-              <p className="text-xs text-blue-600 mt-1">
-                VAKA agents have limited editing - some properties are read-only
-              </p>
-            )}
-          </div>
-          <button
-            onClick={onClose}
-            className="text-gray-600 hover:text-gray-800 flex-shrink-0"
-            aria-label="Close"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-
-        {/* Content - Scrollable */}
-        <div className="flex-1 overflow-y-scroll overflow-x-hidden" style={{ maxHeight: 'calc(90vh - 140px)' }}>
-          <div className="p-6 space-y-6">
+    <StandardModal
+      isOpen={!!agent}
+      onClose={onClose}
+      title="Agent Settings"
+      subtitle={`${agent.name} (${agent.agent_type})${isVakaAgent ? ' - VAKA agents have limited editing' : ''}`}
+      isSaving={isSaving}
+      onSave={handleSave}
+      disableSave={!name.trim()}
+    >
           {/* Basic Information */}
           <div className="w-full">
             <h3 className="text-sm font-medium text-gray-900 mb-4">Basic Information</h3>
@@ -534,27 +515,6 @@ export default function AgentSettingsModal({ agent, onClose, onSave }: AgentSett
               <p className="text-sm text-red-600">{errors.save}</p>
             </div>
           )}
-          </div>
-        </div>
-
-        {/* Footer - Fixed */}
-        <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-end gap-3 flex-shrink-0 bg-white">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
-            disabled={isSaving}
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={isSaving}
-            className="px-4 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {isSaving ? 'Saving...' : 'Save Changes'}
-          </button>
-        </div>
-      </div>
-    </div>
+        </StandardModal>
   )
 }

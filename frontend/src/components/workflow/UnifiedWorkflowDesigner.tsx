@@ -51,8 +51,32 @@ export default function UnifiedWorkflowDesigner({
     status: 'draft'
   })
   const [agents, setAgents] = useState<any[]>([])
-  const [showStageSettings, setShowStageSettings] = useState(false)
   const [selectedStep, setSelectedStep] = useState<WorkflowStep | null>(null)
+  
+  // Available fields from agent submission form
+  const availableFields = [
+    'name',
+    'type',
+    'category',
+    'subcategory',
+    'description',
+    'version',
+    'llm_vendor',
+    'llm_model',
+    'deployment_type',
+    'data_sharing_scope',
+    'data_usage_purpose',
+    'capabilities',
+    'data_types',
+    'regions',
+    'use_cases',
+    'features',
+    'personas',
+    'version_info',
+    'connections',
+    'compliance_requirements',
+    'requirements'
+  ]
 
   // Load user
   useEffect(() => {
@@ -169,7 +193,6 @@ export default function UnifiedWorkflowDesigner({
 
   const handleStepClick = (step: WorkflowStep) => {
     setSelectedStep(step)
-    setShowStageSettings(true)
   }
 
   const handleAddStep = () => {
@@ -375,7 +398,6 @@ export default function UnifiedWorkflowDesigner({
                                   size="sm"
                                   onClick={() => {
                                     setSelectedStep(step)
-                                    setShowStageSettings(true)
                                   }}
                                 >
                                   <Settings className="h-4 w-4 mr-2" />
@@ -401,25 +423,21 @@ export default function UnifiedWorkflowDesigner({
       </div>
 
       {/* Stage Settings Modal */}
-      {showStageSettings && selectedStep && (
-        <StageSettingsModal
-          step={selectedStep}
-          isOpen={showStageSettings}
-          onClose={() => {
-            setShowStageSettings(false)
-            setSelectedStep(null)
-          }}
-          onSave={(updatedStep) => {
-            const updatedSteps = (formData.workflow_steps || []).map(s => 
-              s.step_number === updatedStep.step_number ? updatedStep : s
-            )
-            setFormData(prev => ({ ...prev, workflow_steps: updatedSteps }))
-            setShowStageSettings(false)
-            setSelectedStep(null)
-          }}
-          requestType={formData.workflow_steps?.[0] ? 'agent_onboarding_workflow' : 'assessment_workflow'}
-        />
-      )}
+      <StageSettingsModal
+        step={selectedStep}
+        isOpen={!!selectedStep}
+        onClose={() => setSelectedStep(null)}
+        onSave={(updatedStep) => {
+          // Update the step in formData
+          const updatedSteps = (formData.workflow_steps || []).map(step => 
+            step.step_number === updatedStep.step_number ? updatedStep : step
+          );
+          setFormData(prev => ({ ...prev, workflow_steps: updatedSteps }));
+          setSelectedStep(null);
+          showToast.success('Stage settings saved successfully');
+        }}
+        requestType="agent_onboarding_workflow"
+      />
     </div>
   )
 }

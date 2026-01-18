@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { authApi, User } from '../lib/auth'
 import { masterDataListsApi, MasterDataList, MasterDataListCreate, MasterDataValue } from '../lib/masterDataLists'
 import Layout from '../components/Layout'
+import StandardModal from '../components/StandardModal'
 import { showToast } from '../utils/toast'
 import { useDialogContext } from '../contexts/DialogContext'
 import { Plus, Edit, Trash2, X, Save, Database, Filter } from 'lucide-react'
@@ -465,41 +466,48 @@ export default function MasterData() {
 
         {/* Edit Modal */}
         {showEditModal && selectedList && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-medium">Edit Master Data List</h2>
-                <button onClick={() => setShowEditModal(false)} className="text-gray-500">
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              <div className="space-y-4">
-                {selectedList.is_system && user.role !== 'platform_admin' && (
-                  <div className="bg-blue-50 border border-blue-400 rounded-lg p-3 mb-2">
-                    <p className="text-sm text-blue-800">
-                      <strong>System List:</strong> You can edit values, description, and active status. 
-                      Name and type can only be modified by platform administrators.
-                    </p>
-                  </div>
-                )}
+          <StandardModal
+            isOpen={showEditModal}
+            onClose={() => setShowEditModal(false)}
+            title="Edit Master Data List"
+            subtitle="Modify master data list properties and values"
+            size="lg"
+            isSaving={updateMutation.isPending}
+            onSave={handleUpdate}
+            saveButtonText={updateMutation.isPending ? 'Updating...' : 'Update List'}
+            disableSave={!formData.name || !formData.list_type}
+          >
+            <div className="space-y-6">
+              {selectedList.is_system && user.role !== 'platform_admin' && (
+                <div className="bg-blue-50 border border-blue-400 rounded-lg p-4">
+                  <p className="text-sm text-blue-800">
+                    <strong>System List:</strong> You can edit values, description, and active status. 
+                    Name and type can only be modified by platform administrators.
+                  </p>
+                </div>
+              )}
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1.5">Name *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Name *</label>
                   <input
                     type="text"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300"
+                    className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     disabled={selectedList.is_system && user.role !== 'platform_admin'}
                   />
                 </div>
+                
                 <div>
-                  <label className="block text-sm font-medium mb-1.5">Type *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">Type *</label>
                   <select
                     value={formData.list_type}
                     onChange={(e) => setFormData({ ...formData, list_type: e.target.value })}
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300"
+                    className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     disabled={selectedList.is_system && user.role !== 'platform_admin'}
                   >
+                    <option value="">Select Type</option>
                     {MASTER_DATA_TYPES.map(type => (
                       <option key={type.value} value={type.value}>{type.label}</option>
                     ))}
@@ -509,105 +517,96 @@ export default function MasterData() {
                     )}
                   </select>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1.5">Selection Type *</label>
-                  <select
-                    value={formData.selection_type || 'single'}
-                    onChange={(e) => setFormData({ ...formData, selection_type: e.target.value as 'single' | 'multi' })}
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300"
-                  >
-                    <option value="single">Single Select (Dropdown)</option>
-                    <option value="multi">Multi Select (Checkboxes/Multi-select)</option>
-                  </select>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Controls how this list is displayed in forms: single-select dropdown or multi-select
-                  </p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1.5">Description</label>
-                  <textarea
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300"
-                    rows={2}
-                  />
-                </div>
-                <div className="border-t pt-4">
-                  <h3 className="text-sm font-medium mb-3">Values</h3>
-                  <div className="space-y-2 mb-3 max-h-60 overflow-y-auto">
-                    {formData.values.map((value, idx) => (
-                      <div key={idx} className="flex items-center gap-2 p-2 bg-gray-50 rounded">
-                        <input
-                          type="checkbox"
-                          checked={value.is_active}
-                          onChange={() => toggleValueActive(idx)}
-                          className="w-4 h-4"
-                        />
-                        <span className="flex-1 text-sm">
-                          <span className="font-medium">{value.label}</span>
-                          <span className="text-gray-500 ml-2">({value.value})</span>
-                        </span>
-                        <input
-                          type="number"
-                          value={value.order}
-                          onChange={(e) => {
-                            const newValues = [...formData.values]
-                            newValues[idx] = { ...newValues[idx], order: parseInt(e.target.value) || 0 }
-                            setFormData({ ...formData, values: newValues })
-                          }}
-                          className="w-16 px-2 py-1 text-sm rounded border border-gray-300"
-                          placeholder="Order"
-                        />
-                        <button
-                          onClick={() => removeValue(idx)}
-                          className="text-red-600 hover:text-red-700"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Selection Type *</label>
+                <select
+                  value={formData.selection_type || 'single'}
+                  onChange={(e) => setFormData({ ...formData, selection_type: e.target.value as 'single' | 'multi' })}
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="single">Single Select (Dropdown)</option>
+                  <option value="multi">Multi Select (Checkboxes/Multi-select)</option>
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  Controls how this list is displayed in forms: single-select dropdown or multi-select
+                </p>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Description</label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  rows={3}
+                  placeholder="Optional description"
+                />
+              </div>
+              
+              <div className="border-t pt-6">
+                <h3 className="text-lg font-medium text-gray-900 mb-4">Values</h3>
+                
+                <div className="space-y-3 mb-4 max-h-60 overflow-y-auto bg-gray-50 rounded-lg p-3">
+                  {formData.values.map((value, idx) => (
+                    <div key={idx} className="flex items-center gap-3 p-3 bg-white rounded border">
+                      <input
+                        type="checkbox"
+                        checked={value.is_active}
+                        onChange={() => toggleValueActive(idx)}
+                        className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                      />
+                      <div className="flex-1">
+                        <div className="font-medium text-gray-900">{value.label}</div>
+                        <div className="text-sm text-gray-500">{value.value}</div>
                       </div>
-                    ))}
-                  </div>
-                  <div className="grid grid-cols-3 gap-2">
-                    <input
-                      type="text"
-                      value={newValue.value}
-                      onChange={(e) => setNewValue({ ...newValue, value: e.target.value })}
-                      placeholder="Value (key)"
-                      className="px-3 py-2 text-sm rounded-lg border border-gray-300"
-                    />
-                    <input
-                      type="text"
-                      value={newValue.label}
-                      onChange={(e) => setNewValue({ ...newValue, label: e.target.value })}
-                      placeholder="Label (display)"
-                      className="px-3 py-2 text-sm rounded-lg border border-gray-300"
-                    />
-                    <button
-                      onClick={addValue}
-                      className="px-3 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
-                    >
-                      Add Value
-                    </button>
-                  </div>
+                      <input
+                        type="number"
+                        value={value.order}
+                        onChange={(e) => {
+                          const newValues = [...formData.values]
+                          newValues[idx] = { ...newValues[idx], order: parseInt(e.target.value) || 0 }
+                          setFormData({ ...formData, values: newValues })
+                        }}
+                        className="w-16 px-2 py-1 text-sm rounded border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="Order"
+                      />
+                      <button
+                        onClick={() => removeValue(idx)}
+                        className="text-red-600 hover:text-red-700 p-1"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
                 </div>
-                <div className="flex gap-2 justify-end pt-4 border-t">
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <input
+                    type="text"
+                    value={newValue.value}
+                    onChange={(e) => setNewValue({ ...newValue, value: e.target.value })}
+                    placeholder="Value (key)"
+                    className="px-3 py-2 text-sm rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                  <input
+                    type="text"
+                    value={newValue.label}
+                    onChange={(e) => setNewValue({ ...newValue, label: e.target.value })}
+                    placeholder="Label (display)"
+                    className="px-3 py-2 text-sm rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
                   <button
-                    onClick={() => setShowEditModal(false)}
-                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+                    onClick={addValue}
+                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                   >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleUpdate}
-                    disabled={!formData.name || !formData.list_type || updateMutation.isPending}
-                    className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 disabled:opacity-50"
-                  >
-                    {updateMutation.isPending ? 'Updating...' : 'Update List'}
+                    Add Value
                   </button>
                 </div>
               </div>
             </div>
-          </div>
+          </StandardModal>
         )}
       </div>
     </Layout>

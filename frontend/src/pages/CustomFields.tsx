@@ -12,6 +12,7 @@ import { showToast } from '../utils/toast'
 import { Search, Plus, Edit2, Trash2, Save, X, ChevronDown, ChevronRight, Eye, Pencil, Shield, ToggleLeft, ToggleRight, RefreshCw, Database } from 'lucide-react'
 import CustomFieldFormModal from './CustomFieldFormModal'
 import EntityFieldEditModal from './EntityFieldEditModal'
+import StandardModal from '../components/StandardModal'
 
 export default function CustomFields() {
   const [user, setUser] = useState<any>(null)
@@ -1393,32 +1394,21 @@ export default function CustomFields() {
 
         {/* Permissions Matrix Modal */}
         {showPermissionsMatrix && (selectedField || selectedEntityInfo) && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg shadow-xl max-w-5xl w-full mx-4 max-h-[90vh] overflow-y-auto">
-              <div className="p-6 border-b sticky top-0 bg-white z-10">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-lg font-medium mb-1">
-                      Role Permissions: {selectedEntityInfo ? selectedEntityInfo.entity_label : selectedField?.label}
-                    </h3>
-                    <p className="text-sm text-gray-600">
-                      {selectedEntityInfo 
-                        ? `Configure entity-level permissions for all fields in ${selectedEntityInfo.entity_label}. These permissions serve as the baseline for all fields in this entity.`
-                        : 'Configure which roles can view and edit this field. Fields can then be used in Process Designer.'}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => {
-                      setShowPermissionsMatrix(false)
-                      setSelectedFieldForPermissions(null)
-                      setSelectedEntityForPermissions(null)
-                    }}
-                    className="text-gray-600 hover:text-gray-600"
-                  >
-                    <X className="w-6 h-6" />
-                  </button>
-                </div>
-              </div>
+          <StandardModal
+            isOpen={showPermissionsMatrix}
+            onClose={() => {
+              setShowPermissionsMatrix(false)
+              setSelectedFieldForPermissions(null)
+              setSelectedEntityForPermissions(null)
+              setEntityFieldPermissions(null)
+              setEntityLevelPermissions(null)
+            }}
+            title="Role Permissions"
+            subtitle={selectedEntityInfo 
+              ? `Configure entity-level permissions for all fields in ${selectedEntityInfo.entity_label}. These permissions serve as the baseline for all fields in this entity.`
+              : 'Configure which roles can view and edit this field. Fields can then be used in Process Designer.'}
+            size="xl"
+          >
 
               <div className="p-6">
                 <div className="overflow-x-auto">
@@ -1561,25 +1551,8 @@ export default function CustomFields() {
                   </table>
                 </div>
               </div>
-
-              <div className="p-6 border-t bg-gray-50 flex justify-end">
-                <button
-                  onClick={() => {
-                    setShowPermissionsMatrix(false)
-                    setSelectedFieldForPermissions(null)
-                    setSelectedEntityForPermissions(null)
-                    setEntityFieldPermissions(null)
-                    setEntityLevelPermissions(null)
-                    // Don't show "saved" message here - it's shown when individual permissions are updated
-                  }}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium"
-                >
-                  Done
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+              </StandardModal>
+            )}
 
         {/* Add/Edit Field Modal */}
         {(showAddModal || (editingField && editingField.source === 'custom')) && (
