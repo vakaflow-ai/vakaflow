@@ -1486,8 +1486,8 @@ export default function AssessmentReviewInterface() {
                           {/* Response Display */}
                           <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg p-5 border border-blue-100">
                             {response.response_type === 'long_text' && (
-                              <div className="prose prose-sm max-w-none">
-                                <p className="text-gray-900 text-base leading-relaxed whitespace-pre-wrap">
+                              <div className="prose prose-sm max-w-none overflow-hidden">
+                                <p className="text-gray-900 text-base leading-relaxed whitespace-pre-wrap break-words max-w-full overflow-x-auto">
                                   {response.response_value}
                                 </p>
                               </div>
@@ -1523,7 +1523,7 @@ export default function AssessmentReviewInterface() {
                             )}
                             
                             {(response.response_type === 'short_text' || response.response_type === 'text' || response.response_type === 'textarea') && (
-                              <p className="text-gray-900 text-base leading-relaxed">{response.response_value || <span className="text-gray-400 italic">No response provided</span>}</p>
+                              <p className="text-gray-900 text-base leading-relaxed break-words max-w-full">{response.response_value || <span className="text-gray-400 italic">No response provided</span>}</p>
                             )}
                             
                             {response.response_type === 'overview' && (
@@ -1582,24 +1582,24 @@ export default function AssessmentReviewInterface() {
                                 {response.attachments.map((attachment) => (
                                   <div
                                     key={attachment.id}
-                                    className={`flex items-center justify-between p-3 rounded-lg border transition-colors group ${
+                                    className={`flex items-center justify-between p-3 rounded-lg border transition-colors group max-w-full overflow-hidden ${
                                       attachment.url === '#' 
                                         ? 'bg-gray-50 border-gray-200 cursor-not-allowed' 
                                         : 'bg-blue-50 hover:bg-blue-100 border-blue-200 cursor-pointer'
                                     }`}
                                   >
-                                    <div className="flex items-center gap-3">
-                                      <FileText className={`w-5 h-5 ${
+                                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                                      <FileText className={`w-5 h-5 flex-shrink-0 ${
                                         attachment.url === '#' 
                                           ? 'text-gray-400' 
                                           : 'text-blue-600 group-hover:text-blue-800'
                                       }`} />
-                                      <div>
-                                        <p className={`font-medium ${
+                                      <div className="min-w-0 flex-1">
+                                        <p className={`font-medium truncate ${
                                           attachment.url === '#' 
                                             ? 'text-gray-500' 
                                             : 'text-gray-900 group-hover:text-blue-900'
-                                        }`}>
+                                        }`} title={attachment.filename}>
                                           {attachment.filename}
                                         </p>
                                         {attachment.size > 0 && (

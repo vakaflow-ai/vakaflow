@@ -128,6 +128,14 @@ export default function AssessmentAssignmentPage() {
     retry: false, // Don't retry if workflow doesn't exist
   })
 
+  // Pre-load vendor POC information for instant assignment
+  const { data: vendorPOCInfo } = useQuery({
+    queryKey: ['vendor-poc-info', id],
+    queryFn: () => assessmentsApi.getVendorPOCInfo(id!),
+    enabled: !!id && !!assignmentStatus,
+    staleTime: 60000, // Cache for 1 minute
+  })
+
   // Initialize responses from existing data
   useEffect(() => {
     if (existingResponses && Object.keys(existingResponses).length > 0) {
@@ -281,6 +289,36 @@ export default function AssessmentAssignmentPage() {
       showToast.error(err.message || 'Failed to assign question')
     },
   })
+
+  // Auto-assign questions to vendor POC when page loads and no assignees exist
+  useEffect(() => {
+    if (vendorPOCInfo?.vendor_poc && questions.length > 0 && Object.keys(questionOwners).length === 0) {
+      // Auto-assign all questions to vendor POC
+      questions.forEach((question: any) => {
+        const questionIdStr = String(question.id);
+        if (!questionOwners[questionIdStr]) {
+          // Use setTimeout to avoid overwhelming the API with simultaneous requests
+          setTimeout(() => {
+            const poc = vendorPOCInfo.vendor_poc;
+            if (poc && poc.id) {
+              assignOwnerMutation.mutate({ 
+                questionId: questionIdStr, 
+                ownerData: { owner_id: poc.id } 
+              });
+            } else if (poc) {
+              assignOwnerMutation.mutate({ 
+                questionId: questionIdStr, 
+                ownerData: { 
+                  owner_email: poc.email, 
+                  owner_name: poc.name 
+                } 
+              });
+            }
+          }, Math.random() * 1000); // Stagger assignments to avoid rate limiting
+        }
+      });
+    }
+  }, [vendorPOCInfo, questions, questionOwners, assignOwnerMutation]);
 
   const handleAssignQuestion = (questionId: string, ownerId?: string, ownerEmail?: string, ownerName?: string) => {
     if (ownerId) {

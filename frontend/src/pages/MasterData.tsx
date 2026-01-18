@@ -421,27 +421,35 @@ export default function MasterData() {
                       </div>
                     ))}
                   </div>
-                  <div className="grid grid-cols-3 gap-2">
-                    <input
-                      type="text"
-                      value={newValue.value}
-                      onChange={(e) => setNewValue({ ...newValue, value: e.target.value })}
-                      placeholder="Value (key)"
-                      className="px-3 py-2 text-sm rounded-lg border border-gray-300"
-                    />
-                    <input
-                      type="text"
-                      value={newValue.label}
-                      onChange={(e) => setNewValue({ ...newValue, label: e.target.value })}
-                      placeholder="Label (display)"
-                      className="px-3 py-2 text-sm rounded-lg border border-gray-300"
-                    />
-                    <button
-                      onClick={addValue}
-                      className="px-3 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
-                    >
-                      Add Value
-                    </button>
+                  <div className="w-full overflow-hidden">
+                    <div className="flex flex-col sm:flex-row gap-2 w-full">
+                      <div className="flex-1 min-w-0">
+                        <input
+                          type="text"
+                          value={newValue.value}
+                          onChange={(e) => setNewValue({ ...newValue, value: e.target.value })}
+                          placeholder="Value (key)"
+                          className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300"
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <input
+                          type="text"
+                          value={newValue.label}
+                          onChange={(e) => setNewValue({ ...newValue, label: e.target.value })}
+                          placeholder="Label (display)"
+                          className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300"
+                        />
+                      </div>
+                      <div className="flex-shrink-0">
+                        <button
+                          onClick={addValue}
+                          className="w-full sm:w-auto px-3 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 whitespace-nowrap"
+                        >
+                          Add Value
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
                 <div className="flex gap-2 justify-end pt-4 border-t">
@@ -582,27 +590,35 @@ export default function MasterData() {
                   ))}
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <input
-                    type="text"
-                    value={newValue.value}
-                    onChange={(e) => setNewValue({ ...newValue, value: e.target.value })}
-                    placeholder="Value (key)"
-                    className="px-3 py-2 text-sm rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                  <input
-                    type="text"
-                    value={newValue.label}
-                    onChange={(e) => setNewValue({ ...newValue, label: e.target.value })}
-                    placeholder="Label (display)"
-                    className="px-3 py-2 text-sm rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                  <button
-                    onClick={addValue}
-                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                  >
-                    Add Value
-                  </button>
+                <div className="w-full overflow-hidden">
+                  <div className="flex flex-col sm:flex-row gap-3 w-full">
+                    <div className="flex-1 min-w-0">
+                      <input
+                        type="text"
+                        value={newValue.value}
+                        onChange={(e) => setNewValue({ ...newValue, value: e.target.value })}
+                        placeholder="Value (key)"
+                        className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <input
+                        type="text"
+                        value={newValue.label}
+                        onChange={(e) => setNewValue({ ...newValue, label: e.target.value })}
+                        placeholder="Label (display)"
+                        className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                    <div className="flex-shrink-0">
+                      <button
+                        onClick={addValue}
+                        className="w-full sm:w-auto px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 whitespace-nowrap"
+                      >
+                        Add Value
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

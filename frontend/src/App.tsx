@@ -128,6 +128,9 @@ function App() {
               },
             },
           }}
+          containerStyle={{
+            zIndex: 100
+          }}
         />
         <BrowserRouter
         future={{

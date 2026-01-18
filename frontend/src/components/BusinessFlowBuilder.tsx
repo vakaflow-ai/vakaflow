@@ -289,7 +289,7 @@ export default function BusinessFlowBuilder({ onSave, onCancel, initialFlow }: B
 
           {/* Agent Selection */}
           {selectedVendorId && (
-            <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-4">
+            <div className="bg-white rounded-lg border border-gray-200 p-6 space-y-4 max-w-full overflow-hidden">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-medium text-gray-900">Select Agents</h3>
                 {vendorAgents.length > 0 && (
@@ -311,45 +311,47 @@ export default function BusinessFlowBuilder({ onSave, onCancel, initialFlow }: B
                   </p>
                 </div>
               ) : (
-                <div className="border border-gray-200 rounded-lg max-h-48 overflow-y-auto">
-                  <div className="divide-y divide-gray-200">
+                <div className="border border-gray-200 rounded-lg max-h-48 overflow-y-auto overflow-x-hidden w-full max-w-full">
+                  <div className="divide-y divide-gray-200 min-w-0 w-full max-w-full">
                     {vendorAgents.map((agent) => (
                       <label
                         key={agent.id}
-                        className="flex items-start p-2 hover:bg-gray-50 cursor-pointer"
+                        className="flex items-start p-2 hover:bg-gray-50 w-full max-w-full overflow-hidden cursor-pointer"
                       >
                         <input
                           type="checkbox"
                           checked={selectedAgentIds.includes(agent.id)}
                           onChange={() => handleAgentToggle(agent.id)}
-                          className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                          className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded flex-shrink-0"
                         />
-                        <div className="ml-3 flex-1 min-w-0">
-                          <div className="flex items-center justify-between">
-                            <p className="text-sm font-medium text-gray-900 truncate">{agent.name}</p>
-                            <div className="flex items-center space-x-1 flex-shrink-0 ml-2">
-                              <span className="text-xs px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded">
+                        <div className="ml-3 flex-1 min-w-0 overflow-hidden w-full">
+                          <div className="flex items-start justify-between gap-2 w-full min-w-0">
+                            <div className="flex-1 min-w-0 overflow-hidden w-full">
+                              <p className="text-sm font-medium text-gray-900 truncate" title={agent.name}>{agent.name}</p>
+                              {agent.description && (
+                                <p className="text-xs text-gray-500 mt-1 truncate" title={agent.description}>{agent.description}</p>
+                              )}
+                              {agent.risk_score !== undefined && (
+                                <p className="text-xs text-gray-600 mt-1 truncate">
+                                  Risk: {agent.risk_score}%
+                                </p>
+                              )}
+                            </div>
+                            <div className="flex flex-col items-end flex-shrink-0 gap-1 ml-2 w-fit">
+                              <span className="text-xs px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded truncate max-w-[100px]" title={agent.type}>
                                 {agent.type}
                               </span>
-                              <span className={`text-xs px-1.5 py-0.5 rounded ${
+                              <span className={`text-xs px-1.5 py-0.5 rounded truncate max-w-[100px] ${
                                 agent.status === 'approved' 
                                   ? 'bg-green-100 text-green-800'
                                   : agent.status === 'in_review'
                                   ? 'bg-yellow-100 text-yellow-800'
                                   : 'bg-gray-100 text-gray-800'
-                              }`}>
+                              }`} title={agent.status}>
                                 {agent.status}
                               </span>
                             </div>
                           </div>
-                          {agent.description && (
-                            <p className="text-xs text-gray-500 mt-1 truncate">{agent.description}</p>
-                          )}
-                          {agent.risk_score !== undefined && (
-                            <p className="text-xs text-gray-600 mt-1">
-                              Risk: {agent.risk_score}%
-                            </p>
-                          )}
                         </div>
                       </label>
                     ))}
@@ -358,8 +360,8 @@ export default function BusinessFlowBuilder({ onSave, onCancel, initialFlow }: B
               )}
 
               {selectedAgentIds.length > 0 && (
-                <div className="p-3 bg-green-50 border border-green-200 rounded">
-                  <p className="text-sm text-green-800">
+                <div className="p-3 bg-green-50 border border-green-200 rounded max-w-full overflow-hidden">
+                  <p className="text-sm text-green-800 truncate max-w-full" title={`${selectedAgentIds.length} agent(s) selected for assessment`}>
                     <strong>{selectedAgentIds.length}</strong> agent(s) selected for assessment
                   </p>
                 </div>

@@ -405,7 +405,7 @@ export default function AssessmentResponseGrid({
                   ) : typeof response.value === 'number' ? (
                     <span className="font-mono">{String(response.value)}</span>
                   ) : typeof response.value === 'string' ? (
-                    <div className="whitespace-pre-wrap leading-relaxed">{response.value}</div>
+                    <div className="whitespace-pre-wrap leading-relaxed break-words max-w-full overflow-x-auto">{response.value}</div>
                   ) : Array.isArray(response.value) ? (
                     <ul className="list-disc list-inside space-y-1.5">
                       {response.value.map((item: any, idx: number) => (
@@ -418,13 +418,13 @@ export default function AssessmentResponseGrid({
                 </div>
                 {response.comment && (
                   <div className="bg-gray-100 rounded-md p-3 text-sm text-gray-700 border border-gray-200 mt-3">
-                    <strong className="font-semibold">Vendor Comment:</strong> <span className="ml-1 whitespace-pre-wrap leading-relaxed">{response.comment}</span>
+                    <strong className="font-semibold">Vendor Comment:</strong> <span className="ml-1 whitespace-pre-wrap leading-relaxed break-words max-w-full">{response.comment}</span>
                   </div>
                 )}
                 {response.documents && response.documents.length > 0 && (
                   <div className="pt-2 border-t border-gray-200 mt-3">
                     <div className="text-xs font-medium text-gray-700 mb-1">Attachments:</div>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-2 max-w-full overflow-hidden">
                       {response.documents.map((doc, docIdx) => (
                         <a
                           key={docIdx}
@@ -461,7 +461,7 @@ export default function AssessmentResponseGrid({
                   <div className="text-sm font-semibold text-blue-900 mb-2 flex items-center gap-2">
                     <MessageSquare className="w-4 h-4" /> Your Review:
                   </div>
-                  <div className="text-base text-blue-800 whitespace-pre-wrap leading-relaxed">{questionReview.reviewer_comment}</div>
+                  <div className="text-base text-blue-800 whitespace-pre-wrap leading-relaxed break-words max-w-full">{questionReview.reviewer_comment}</div>
                 </div>
               )}
               {questionReview.vendor_comment && (
@@ -469,7 +469,7 @@ export default function AssessmentResponseGrid({
                   <div className="text-sm font-semibold text-yellow-900 mb-2 flex items-center gap-2">
                     <MessageSquare className="w-4 h-4" /> Vendor Response to Reviewer:
                   </div>
-                  <div className="text-base text-yellow-800 whitespace-pre-wrap leading-relaxed">{questionReview.vendor_comment}</div>
+                  <div className="text-base text-yellow-800 whitespace-pre-wrap leading-relaxed break-words max-w-full">{questionReview.vendor_comment}</div>
                 </div>
               )}
             </div>

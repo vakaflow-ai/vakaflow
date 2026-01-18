@@ -4184,7 +4184,7 @@ async def search_vendor_users(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Search vendor users from the same tenant for question assignment"""
+    """Search vendor users from the same tenant for question assignment - Optimized for speed"""
     from app.core.tenant_utils import get_effective_tenant_id
     effective_tenant_id = get_effective_tenant_id(current_user, db)
     if not effective_tenant_id:
@@ -4205,32 +4205,132 @@ async def search_vendor_users(
             detail="Assignment not found"
         )
     
-    # Search for vendor users in the same tenant
-    query = db.query(User).filter(
-        User.tenant_id == effective_tenant_id,
-        User.role == UserRole.VENDOR_USER,
-        User.is_active == True
-    )
+    # Optimized query with better performance
+    # Use raw SQL for better performance with indexing
+    from sqlalchemy import text
     
+    # Get vendor POC email if available
+    vendor_poc_email = None
+    if assignment.vendor_id:
+        vendor = db.query(Vendor).filter(Vendor.id == assignment.vendor_id).first()
+        if vendor and vendor.contact_email:
+            vendor_poc_email = vendor.contact_email.lower()
+    
+    # Build optimized query
+    base_query = text("""
+        SELECT id, email, name, organization, department
+        FROM users 
+        WHERE tenant_id = :tenant_id 
+        AND UPPER(role) = 'VENDOR_USER' 
+        AND is_active = true
+        ORDER BY 
+            CASE WHEN email = :poc_email THEN 0 ELSE 1 END,
+            name ASC
+        LIMIT 50
+    """)
+    
+    params = {
+        "tenant_id": str(effective_tenant_id),
+        "poc_email": vendor_poc_email or ""
+    }
+    
+    # Add search filtering if provided
     if search_query:
-        search_term = f"%{search_query.lower()}%"
-        query = query.filter(
-            (User.email.ilike(search_term)) |
-            (User.name.ilike(search_term))
+        search_term = search_query.lower().strip()
+        base_query = text("""
+            SELECT id, email, name, organization, department
+            FROM users 
+            WHERE tenant_id = :tenant_id 
+            AND UPPER(role) = 'VENDOR_USER' 
+            AND is_active = true
+            AND (LOWER(email) LIKE :search_term OR LOWER(name) LIKE :search_term)
+            ORDER BY 
+                CASE WHEN email = :poc_email THEN 0 ELSE 1 END,
+                name ASC
+            LIMIT 50
+        """)
+        params["search_term"] = f"%{search_term}%"
+    
+    # Execute query
+    result = db.execute(base_query, params)
+    users = result.fetchall()
+    
+    # Convert to list of dictionaries
+    user_list = [
+        {
+            "id": str(row[0]),
+            "email": row[1],
+            "name": row[2],
+            "organization": row[3],
+            "department": row[4],
+            "is_poc": row[1].lower() == vendor_poc_email if vendor_poc_email else False
+        }
+        for row in users
+    ]
+    
+    return user_list
+
+
+@router.get("/assignments/{assignment_id}/vendor-poc", response_model=Dict[str, Any])
+async def get_vendor_poc_info(
+    assignment_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get vendor Point of Contact information for quick assignment"""
+    from app.core.tenant_utils import get_effective_tenant_id
+    effective_tenant_id = get_effective_tenant_id(current_user, db)
+    if not effective_tenant_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Tenant access required"
         )
     
-    users = query.limit(20).all()
+    # Get assignment to verify access
+    assignment = db.query(AssessmentAssignment).filter(
+        AssessmentAssignment.id == assignment_id,
+        AssessmentAssignment.tenant_id == effective_tenant_id
+    ).first()
     
-    return [
-        {
-            "id": str(u.id),
-            "email": u.email,
-            "name": u.name,
-            "organization": u.organization,
-            "department": u.department
-        }
-        for u in users
-    ]
+    if not assignment:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Assignment not found"
+        )
+    
+    # Get vendor POC information
+    vendor_poc = None
+    if assignment.vendor_id:
+        vendor = db.query(Vendor).filter(Vendor.id == assignment.vendor_id).first()
+        if vendor and vendor.contact_email:
+            # Find user with matching email
+            poc_user = db.query(User).filter(
+                User.email == vendor.contact_email.lower(),
+                User.tenant_id == effective_tenant_id,
+                User.is_active == True
+            ).first()
+            
+            if poc_user:
+                vendor_poc = {
+                    "id": str(poc_user.id),
+                    "email": poc_user.email,
+                    "name": poc_user.name,
+                    "organization": poc_user.organization,
+                    "department": poc_user.department
+                }
+            else:
+                # Return vendor contact info even if user doesn't exist yet
+                vendor_poc = {
+                    "email": vendor.contact_email,
+                    "name": vendor.name + " POC",
+                    "organization": vendor.name,
+                    "needs_account": True
+                }
+    
+    return {
+        "vendor_poc": vendor_poc,
+        "vendor_id": str(assignment.vendor_id) if assignment.vendor_id else None
+    }
 
 
 @router.post("/assignments/{assignment_id}/questions/{question_id}/assign", response_model=Dict[str, Any])

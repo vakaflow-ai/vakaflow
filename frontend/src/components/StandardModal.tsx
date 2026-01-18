@@ -47,7 +47,7 @@ export default function StandardModal({
 
   return (
     <div 
-      className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 bg-black bg-opacity-50 z-[10000] flex items-center justify-center p-4"
       onClick={handleBackdropClick}
     >
       <div className={`bg-white rounded-lg shadow-xl w-full ${sizeClasses[size]} h-[90vh] flex flex-col my-auto mx-auto overflow-hidden`}>

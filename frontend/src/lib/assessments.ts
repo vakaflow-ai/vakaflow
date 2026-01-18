@@ -428,6 +428,21 @@ export const assessmentsApi = {
     return response.data
   },
 
+  getVendorPOCInfo: async (assignmentId: string): Promise<{
+    vendor_poc: {
+      id?: string
+      email: string
+      name: string
+      organization?: string
+      department?: string
+      needs_account?: boolean
+    } | null,
+    vendor_id: string | null
+  }> => {
+    const response = await api.get(`/assessments/assignments/${assignmentId}/vendor-poc`)
+    return response.data
+  },
+
   triggerReview: async (assignmentId: string, policyIds?: string[], requirementIds?: string[]): Promise<{
     success: boolean
     review_id: string

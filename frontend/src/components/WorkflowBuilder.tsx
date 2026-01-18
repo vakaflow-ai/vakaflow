@@ -89,145 +89,164 @@ function SortableStep({ step, isFirst, canDelete, onSetFirst, onStepClick, onSte
 
   if (isEditing && canEdit) {
     return (
-      <div
-        ref={setNodeRef}
-        style={style}
-        className="relative p-4 rounded-lg border-2 border-blue-400 bg-blue-50"
-      >
-        <div className="space-y-3">
-          <div className="flex items-center gap-2">
-            <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-bold border-2 bg-white border-gray-400 text-gray-700">
-              {step.step_number}
+      <>
+        {/* Original step element (invisible but maintains drag position) */}
+        <div
+          ref={setNodeRef}
+          style={style}
+          className="invisible h-0"
+        />
+        
+        {/* Floating edit popover */}
+        <div className="fixed inset-0 z-50" onClick={handleCancel}>
+          <div 
+            className="absolute bg-white rounded-lg border-2 border-blue-400 shadow-xl p-4 max-w-md w-full mx-4"
+            style={{
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              maxHeight: '90vh',
+              overflowY: 'auto'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-bold border-2 bg-white border-gray-400 text-gray-700">
+                  {step.step_number}
+                </div>
+                <h3 className="font-medium text-gray-900">Edit Step</h3>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium mb-1">Step Name *</label>
+                <input
+                  type="text"
+                  value={editedStep.step_name}
+                  onChange={(e) => setEditedStep({ ...editedStep, step_name: e.target.value })}
+                  className="w-full px-2 py-1 text-sm border rounded"
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium mb-1">Step Type</label>
+                <select
+                  value={editedStep.step_type}
+                  onChange={(e) => setEditedStep({ ...editedStep, step_type: e.target.value as any })}
+                  className="w-full px-2 py-1 text-sm border rounded"
+                >
+                  <option value="review">Review</option>
+                  <option value="approval">Approval</option>
+                  <option value="notification">Notification</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium mb-1">Assignment Type</label>
+                <select
+                  value={assignmentType}
+                  onChange={(e) => {
+                    const newType = e.target.value as 'role' | 'user' | 'group' | 'round_robin'
+                    setEditedStep({
+                      ...editedStep,
+                      assignment_rule: { type: newType },
+                      assigned_role: newType === 'role' ? editedStep.assigned_role : undefined,
+                      assigned_user_id: newType === 'user' ? editedStep.assigned_user_id : undefined,
+                      approver_group_id: newType === 'group' ? editedStep.approver_group_id : undefined,
+                    })
+                  }}
+                  className="w-full px-2 py-1 text-sm border rounded"
+                >
+                  <option value="role">Role Based</option>
+                  <option value="user">Specific User</option>
+                  <option value="group">Approver Group</option>
+                  <option value="round_robin">Round Robin</option>
+                </select>
+              </div>
+
+              {assignmentType === 'role' && (
+                <div>
+                  <label className="block text-xs font-medium mb-1">Assigned Role *</label>
+                  <select
+                    value={editedStep.assigned_role || ''}
+                    onChange={(e) => setEditedStep({ 
+                      ...editedStep, 
+                      assigned_role: e.target.value,
+                      assignment_rule: { type: 'role', value: e.target.value }
+                    })}
+                    className="w-full px-2 py-1 text-sm border rounded"
+                  >
+                    <option value="">Select Role</option>
+                    <option value="security_reviewer">Security Reviewer</option>
+                    <option value="compliance_reviewer">Compliance Reviewer</option>
+                    <option value="technical_reviewer">Technical Reviewer</option>
+                    <option value="business_reviewer">Business Reviewer</option>
+                    <option value="approver">Approver</option>
+                    <option value="tenant_admin">Tenant Admin</option>
+                  </select>
+                </div>
+              )}
+
+              {assignmentType === 'group' && approverGroups && approverGroups.length > 0 && (
+                <div>
+                  <label className="block text-xs font-medium mb-1">Approver Group *</label>
+                  <select
+                    value={editedStep.approver_group_id || ''}
+                    onChange={(e) => setEditedStep({ 
+                      ...editedStep, 
+                      approver_group_id: e.target.value,
+                      assignment_rule: { type: 'group', value: e.target.value }
+                    })}
+                    className="w-full px-2 py-1 text-sm border rounded"
+                  >
+                    <option value="">Select Group</option>
+                    {approverGroups.map(group => (
+                      <option key={group.id} value={group.id}>{group.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div className="flex items-center gap-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={editedStep.required}
+                    onChange={(e) => setEditedStep({ ...editedStep, required: e.target.checked })}
+                    className="w-4 h-4"
+                  />
+                  <span className="text-xs">Required</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={editedStep.can_skip}
+                    onChange={(e) => setEditedStep({ ...editedStep, can_skip: e.target.checked })}
+                    className="w-4 h-4"
+                  />
+                  <span className="text-xs">Can Skip</span>
+                </label>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  onClick={handleSave}
+                  className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 flex-1"
+                >
+                  Save
+                </button>
+                <button
+                  onClick={handleCancel}
+                  className="px-3 py-1 text-xs bg-gray-300 text-gray-700 rounded hover:bg-gray-400 flex-1"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
-            <h3 className="font-medium text-gray-900">Edit Step</h3>
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium mb-1">Step Name *</label>
-            <input
-              type="text"
-              value={editedStep.step_name}
-              onChange={(e) => setEditedStep({ ...editedStep, step_name: e.target.value })}
-              className="w-full px-2 py-1 text-sm border rounded"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium mb-1">Step Type</label>
-            <select
-              value={editedStep.step_type}
-              onChange={(e) => setEditedStep({ ...editedStep, step_type: e.target.value as any })}
-              className="w-full px-2 py-1 text-sm border rounded"
-            >
-              <option value="review">Review</option>
-              <option value="approval">Approval</option>
-              <option value="notification">Notification</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium mb-1">Assignment Type</label>
-            <select
-              value={assignmentType}
-              onChange={(e) => {
-                const newType = e.target.value as 'role' | 'user' | 'group' | 'round_robin'
-                setEditedStep({
-                  ...editedStep,
-                  assignment_rule: { type: newType },
-                  assigned_role: newType === 'role' ? editedStep.assigned_role : undefined,
-                  assigned_user_id: newType === 'user' ? editedStep.assigned_user_id : undefined,
-                  approver_group_id: newType === 'group' ? editedStep.approver_group_id : undefined,
-                })
-              }}
-              className="w-full px-2 py-1 text-sm border rounded"
-            >
-              <option value="role">Role Based</option>
-              <option value="user">Specific User</option>
-              <option value="group">Approver Group</option>
-              <option value="round_robin">Round Robin</option>
-            </select>
-          </div>
-
-          {assignmentType === 'role' && (
-            <div>
-              <label className="block text-xs font-medium mb-1">Assigned Role *</label>
-              <select
-                value={editedStep.assigned_role || ''}
-                onChange={(e) => setEditedStep({ 
-                  ...editedStep, 
-                  assigned_role: e.target.value,
-                  assignment_rule: { type: 'role', value: e.target.value }
-                })}
-                className="w-full px-2 py-1 text-sm border rounded"
-              >
-                <option value="">Select Role</option>
-                <option value="security_reviewer">Security Reviewer</option>
-                <option value="compliance_reviewer">Compliance Reviewer</option>
-                <option value="technical_reviewer">Technical Reviewer</option>
-                <option value="business_reviewer">Business Reviewer</option>
-                <option value="approver">Approver</option>
-                <option value="tenant_admin">Tenant Admin</option>
-              </select>
-            </div>
-          )}
-
-          {assignmentType === 'group' && approverGroups && approverGroups.length > 0 && (
-            <div>
-              <label className="block text-xs font-medium mb-1">Approver Group *</label>
-              <select
-                value={editedStep.approver_group_id || ''}
-                onChange={(e) => setEditedStep({ 
-                  ...editedStep, 
-                  approver_group_id: e.target.value,
-                  assignment_rule: { type: 'group', value: e.target.value }
-                })}
-                className="w-full px-2 py-1 text-sm border rounded"
-              >
-                <option value="">Select Group</option>
-                {approverGroups.map(group => (
-                  <option key={group.id} value={group.id}>{group.name}</option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          <div className="flex items-center gap-4">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={editedStep.required}
-                onChange={(e) => setEditedStep({ ...editedStep, required: e.target.checked })}
-                className="w-4 h-4"
-              />
-              <span className="text-xs">Required</span>
-            </label>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={editedStep.can_skip}
-                onChange={(e) => setEditedStep({ ...editedStep, can_skip: e.target.checked })}
-                className="w-4 h-4"
-              />
-              <span className="text-xs">Can Skip</span>
-            </label>
-          </div>
-
-          <div className="flex gap-2">
-            <button
-              onClick={handleSave}
-              className="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
-            >
-              Save
-            </button>
-            <button
-              onClick={handleCancel}
-              className="px-3 py-1 text-xs bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
-            >
-              Cancel
-            </button>
           </div>
         </div>
-      </div>
+      </>
     )
   }
 
