@@ -102,7 +102,7 @@ export default function DashboardGrid({
       {/* @ts-ignore */}
       <ResponsiveGridLayout
         className="layout"
-        layouts={{ lg: layouts }}
+        layouts={{ lg: layouts as any }}
         onLayoutChange={(newLayout: any) => {
           const updatedLayout = Array.isArray(newLayout) ? newLayout : [newLayout];
           setLayouts(updatedLayout);
@@ -110,13 +110,10 @@ export default function DashboardGrid({
         }}
         cols={{ lg: cols, md: cols, sm: cols, xs: cols, xxs: cols }}
         rowHeight={rowHeight}
-        isDraggable={isDraggable}
-        isResizable={isResizable}
-        draggableHandle=".widget-drag-handle"
         margin={[8, 8]}
         containerPadding={[0, 0]}
         width={containerWidth}
-        compactType="vertical"
+
       >
         {children.map((child, index) => (
           <div 

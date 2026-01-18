@@ -1233,6 +1233,7 @@ export default function WorkflowManagement() {
                         isAdmin={isAdmin}
                         approveRequestMutation={approveRequestMutation}
                         rejectRequestMutation={rejectRequestMutation}
+                        dialog={dialog}
                       />
                     )}
                   </div>
@@ -1334,13 +1335,15 @@ function RequestDetailsView({
   user, 
   isAdmin,
   approveRequestMutation,
-  rejectRequestMutation 
+  rejectRequestMutation,
+  dialog
 }: { 
   request: OnboardingRequest
   user: any
   isAdmin: boolean
   approveRequestMutation: any
   rejectRequestMutation: any
+  dialog: ReturnType<typeof useDialogContext>
 }) {
   const [activeTab, setActiveTab] = useState<string>('overview')
   const queryClient = useQueryClient()

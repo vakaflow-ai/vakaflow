@@ -52,6 +52,7 @@ import AssessmentAnalytics from './pages/AssessmentAnalytics'
 import AgentConnections from './pages/AgentConnections'
 import WorkflowManagement from './pages/WorkflowManagement'
 import UnifiedWorkflowManagement from './pages/UnifiedWorkflowManagement'
+import StandardizedWorkflows from './pages/StandardizedWorkflows'
 import InviteVendor from './pages/InviteVendor'
 import VendorRegistration from './pages/VendorRegistration'
 import MyVendors from './pages/MyVendors'
@@ -164,7 +165,7 @@ function App() {
           <Route path="/workflow-configs/:id" element={<WorkflowManagement />} />
           <Route path="/workflows/templates" element={<WorkflowTemplates />} />
           <Route path="/workflows/analytics" element={<WorkflowAnalytics />} />
-          <Route path="/workflows" element={<UnifiedWorkflowManagement />} />
+          <Route path="/workflows" element={<StandardizedWorkflows />} />
           <Route path="/form-designer" element={<FormDesignerList />} />
           <Route path="/compliance/:agentId" element={<ComplianceChecks />} />
           <Route path="/compliance" element={<ComplianceChecks />} />

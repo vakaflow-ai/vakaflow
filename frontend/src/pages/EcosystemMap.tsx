@@ -778,18 +778,18 @@ export default function EcosystemMap() {
         // Fallback: center vendor if selected type not found, otherwise customer
         const vendorNode = nodes.find(n => n.type === 'vendor')
         if (vendorNode) {
-          vendorNode.x = width / 2
-          vendorNode.y = height / 2
-          vendorNode.vx = 0
-          vendorNode.vy = 0
+          vendorNode!.x = width / 2
+          vendorNode!.y = height / 2
+          vendorNode!.vx = 0
+          vendorNode!.vy = 0
         } else {
           // Last resort: center customer
           const customerNode = nodes.find(n => n.type === 'customer')
           if (customerNode) {
-            customerNode.x = width / 2
-            customerNode.y = height / 2
-            customerNode.vx = 0
-            customerNode.vy = 0
+            customerNode!.x = width / 2
+            customerNode!.y = height / 2
+            customerNode!.vx = 0
+            customerNode!.vy = 0
           }
         }
       }

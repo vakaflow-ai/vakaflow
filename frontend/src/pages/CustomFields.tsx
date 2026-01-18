@@ -368,11 +368,9 @@ export default function CustomFields() {
   })
   
   // Clean up relevance scores from entities
-  const cleanedEntities = filteredEntitiesWithSearch.map(({ _entityRelevanceScore, ...entity }) => entity);
-  // Reassign to maintain the variable name for downstream usage
-  filteredEntitiesWithSearch = cleanedEntities;
+  const finalFilteredEntities = filteredEntitiesWithSearch.map(({ _entityRelevanceScore, ...entity }) => entity);
 
-  const total = filteredEntitiesWithSearch.reduce((sum, entity) => sum + entity.fields.length, 0)
+  const total = finalFilteredEntities.reduce((sum, entity) => sum + entity.fields.length, 0)
 
   // Reset to page 1 when filters change
   useEffect(() => {
@@ -432,13 +430,13 @@ export default function CustomFields() {
 
   // Auto-expand entities when filtered to a single entity
   useEffect(() => {
-    if (selectedEntity !== 'all' && filteredEntitiesWithSearch.length === 1) {
-      const entityName = filteredEntitiesWithSearch[0].entity_name
+    if (selectedEntity !== 'all' && finalFilteredEntities.length === 1) {
+      const entityName = finalFilteredEntities[0].entity_name
       if (!expandedEntities.has(entityName)) {
         setExpandedEntities(prev => new Set([...prev, entityName]))
       }
     }
-  }, [selectedEntity, filteredEntitiesWithSearch.length])
+  }, [selectedEntity, finalFilteredEntities.length])
 
   // Load permissions when modal opens (for both entity-level and field-level)
   useEffect(() => {
@@ -864,7 +862,7 @@ export default function CustomFields() {
 
   // Find selected entity info
   const selectedEntityInfo = selectedEntityForPermissions
-    ? filteredEntitiesWithSearch.find((e) => e.entity_name === selectedEntityForPermissions)
+    ? finalFilteredEntities.find((e) => e.entity_name === selectedEntityForPermissions)
     : null
 
   return (
@@ -1034,7 +1032,7 @@ export default function CustomFields() {
           <div className="bg-red-50 border border-red-200 rounded-lg p-4">
             <div className="text-red-800">Error loading field definitions: {error instanceof Error ? error.message : 'Unknown error'}</div>
           </div>
-        ) : filteredEntitiesWithSearch.length === 0 ? (
+        ) : finalFilteredEntities.length === 0 ? (
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
             <div className="text-gray-500 mb-4">
               {searchTerm ? 'No field definitions match your search' : 'No field definitions found'}
@@ -1066,10 +1064,10 @@ export default function CustomFields() {
           </div>
         ) : (
           <div className="space-y-4">
-            {filteredEntitiesWithSearch.map((entity) => {
+            {finalFilteredEntities.map((entity) => {
               // For custom fields in custom mode, we don't need the header if it's the only one
               const isCustomGroup = entity.entity_name === 'custom_fields'
-              const showHeader = !isCustomGroup || viewMode !== 'custom' || filteredEntitiesWithSearch.length > 1
+              const showHeader = !isCustomGroup || viewMode !== 'custom' || finalFilteredEntities.length > 1
               const isEntityExpanded = expandedEntities.has(entity.entity_name) || (isCustomGroup && viewMode === 'custom')
               const entityFieldCount = entity.fields.length
               

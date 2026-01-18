@@ -3622,11 +3622,11 @@ Please try:
   ]
 
   // Helper function to render special field types that need custom UI (like category/subcategory dropdowns)
-  const renderSpecialField = (fieldName: string, fieldValue: any, idx?: number) => {
+  const renderSpecialField = (fieldName: string, fieldValue: any, fieldIndex?: number) => {
     // Get label from available fields if configured in form designer
     const availableField = availableFieldsMap.get(fieldName)
     
-    const elementKey = idx !== undefined ? `${fieldName}-${idx}` : fieldName
+    const elementKey = fieldIndex !== undefined ? `${fieldName}-${fieldIndex}` : fieldName
 
     // Handle category field with dropdown - use options from field_config
     if (fieldName === 'category') {
@@ -4212,17 +4212,17 @@ Please try:
     if (fieldName === 'connection_diagram') {
       // Initialize edited diagram when starting to edit
       const handleStartEdit = () => {
-        setEditedConnectionDiagram(formData.connection_diagram || '')
+        setEditedConnectionDiagram(formData.mermaid_diagram || '')
         setIsEditingConnectionDiagram(true)
       }
       
       const handleSave = () => {
-        setFormData({ ...formData, connection_diagram: editedConnectionDiagram })
+        setFormData({ ...formData, mermaid_diagram: editedConnectionDiagram })
         setIsEditingConnectionDiagram(false)
       }
       
       const handleCancel = () => {
-        setEditedConnectionDiagram(formData.connection_diagram || '')
+        setEditedConnectionDiagram(formData.mermaid_diagram || '')
         setIsEditingConnectionDiagram(false)
       }
       
@@ -4265,9 +4265,9 @@ Please try:
             </div>
           ) : (
             <div className="space-y-4 border border-gray-200 rounded-lg p-4">
-              {formData.connection_diagram ? (
+              {formData.mermaid_diagram ? (
                 <>
-                  <MermaidDiagram diagram={formData.connection_diagram} id={`connection-diagram-${fieldName}`} />
+                  <MermaidDiagram diagram={formData.mermaid_diagram} id={`connection-diagram-${fieldName}`} />
                   <button
                     onClick={handleStartEdit}
                     className="compact-button-secondary"
@@ -4691,7 +4691,7 @@ Please try:
                     value={typeof formData.capabilities === 'string' 
                       ? formData.capabilities 
                       : (Array.isArray(formData.capabilities) 
-                          ? formData.capabilities.map((c: any) => `<p>${c}</p>`).join('') 
+                          ? (formData.capabilities as string[]).map((c: string) => `<p>${c}</p>`).join('')
                           : '')}
                     onChange={(content: string) => {
                       setFormData({
@@ -4842,7 +4842,7 @@ Please try:
                     value={typeof formData.use_cases === 'string' 
                       ? formData.use_cases 
                       : (Array.isArray(formData.use_cases) 
-                          ? formData.use_cases.map((uc: any) => `<p>${uc}</p>`).join('') 
+                          ? (formData.use_cases as unknown as string[]).map((uc: string) => `<p>${uc}</p>`).join('')
                           : '')}
                     onChange={(content: string) => {
                       setFormData({
@@ -4882,8 +4882,8 @@ Please try:
                     theme="snow"
                     value={typeof formData.personas === 'string' 
                       ? formData.personas 
-                      : (Array.isArray(formData.personas) && formData.personas.length > 0 && typeof formData.personas[0] === 'object' && 'name' in formData.personas[0]
-                          ? (formData.personas as Array<{ name: string; description: string }>).map((p: any) => `<p><strong>${p.name || 'Persona'}:</strong> ${p.description || ''}</p>`).join('') 
+                      : (Array.isArray(formData.personas) && (formData.personas as any[]).length > 0 && typeof (formData.personas as any[])[0] === 'object' && 'name' in (formData.personas as any[])[0]
+                          ? (formData.personas as unknown as Array<{ name: string; description: string }>).map((p: { name: string; description: string }) => `<p><strong>${p.name || 'Persona'}:</strong> ${p.description || ''}</p>`).join('') 
                           : '')}
                     onChange={(content: string) => {
                       setFormData({
@@ -5612,7 +5612,7 @@ Please try:
                     <span className="text-sm text-muted-foreground">Capabilities:</span>
                     <div className="flex flex-wrap gap-2 mt-1">
                       {formData.capabilities.length > 0 ? (
-                        formData.capabilities.map((cap, idx) => (
+                        (formData.capabilities as unknown as string[]).map((cap: string, idx: number) => (
                           <span key={idx} className="text-xs px-2 py-1 rounded bg-primary/10 text-primary">
                             {cap}
                           </span>
@@ -5663,7 +5663,7 @@ Please try:
                         const useCasesValue = typeof formData.use_cases === 'string' 
                           ? formData.use_cases 
                           : (Array.isArray(formData.use_cases) 
-                              ? formData.use_cases.map(uc => `<p>${uc}</p>`).join('') 
+                              ? (formData.use_cases as unknown as string[]).map((uc: string) => `<p>${uc}</p>`).join('')
                               : '')
                         return useCasesValue.trim() ? (
                           <div dangerouslySetInnerHTML={{ __html: useCasesValue }} />
@@ -5680,7 +5680,7 @@ Please try:
                 const personasValue = typeof formData.personas === 'string' 
                   ? formData.personas 
                   : (Array.isArray(formData.personas) 
-                      ? formData.personas.map(p => `<p><strong>${p.name || 'Persona'}:</strong> ${p.description || ''}</p>`).join('') 
+                      ? (formData.personas as unknown as Array<{name: string; description: string}>).map((p: {name: string; description: string}) => `<p><strong>${p.name || 'Persona'}:</strong> ${p.description || ''}</p>`).join('')
                       : '')
                 return personasValue.trim() ? (
                   <div className="compact-card">

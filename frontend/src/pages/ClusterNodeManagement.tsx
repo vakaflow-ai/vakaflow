@@ -374,7 +374,7 @@ export default function ClusterNodeManagement() {
                   </span>
                 </label>
 
-                <div className="flex gap-3 justify-end pt-4 border-t bg-surface-variant/5 -mx-6 -mb-6 p-6 mt-6">
+                <div className="flex gap-3 justify-end pt-4 border-t bg-surface-variant/5 p-6 mt-6">
                   <MaterialButton
                     variant="text"
                     type="button"

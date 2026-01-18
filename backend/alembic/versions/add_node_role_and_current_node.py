@@ -11,7 +11,7 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = 'add_node_role_current'
-down_revision = None  # Update this with the latest revision
+down_revision = '019_add_cluster_nodes'  # Depends on cluster_nodes table creation
 branch_labels = None
 depends_on = None
 

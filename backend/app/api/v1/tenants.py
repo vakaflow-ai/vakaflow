@@ -3,6 +3,7 @@ Tenant management API endpoints (Platform Admin only)
 """
 from fastapi import APIRouter, Depends, HTTPException, status, Query, UploadFile, File
 from sqlalchemy.orm import Session
+from sqlalchemy import cast, String
 from pydantic import BaseModel, Field
 from typing import Optional, Dict, List
 from uuid import UUID

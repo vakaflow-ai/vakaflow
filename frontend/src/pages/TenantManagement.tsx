@@ -289,183 +289,239 @@ export default function TenantManagement() {
 
         {/* Create Tenant Modal - Material Design */}
         {showCreateModal && (
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in duration-200">
-            <MaterialCard elevation={24} className="max-w-2xl w-full mx-4 border-none overflow-hidden flex flex-col max-h-[90vh]">
-              <div className="p-6 border-b bg-surface-variant/10 flex items-center justify-between">
-                <h2 className="text-xl font-medium text-gray-900">Create Tenant</h2>
-                <MaterialButton variant="text" size="small" onClick={() => setShowCreateModal(false)} className="!p-2 text-gray-600">
-                  <XIcon className="w-6 h-6" />
-                </MaterialButton>
-              </div>
-              <form onSubmit={handleCreate} className="p-6 space-y-5 bg-background overflow-y-auto">
-                <MaterialInput
-                  label="Company Name *"
-                  type="text"
-                  required
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                />
-                <MaterialInput
-                  label="Slug *"
-                  type="text"
-                  required
-                  pattern="[a-z0-9\-]+"
-                  value={formData.slug}
-                  onChange={(e) => setFormData({ ...formData, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-') })}
-                  placeholder="acme-corp"
-                  helperText="Lowercase letters, numbers, and hyphens only"
-                />
-                <MaterialInput
-                  label="Contact Email *"
-                  type="email"
-                  required
-                  value={formData.contact_email}
-                  onChange={(e) => setFormData({ ...formData, contact_email: e.target.value })}
-                />
-                <MaterialInput
-                  label="Contact Name"
-                  type="text"
-                  value={formData.contact_name}
-                  onChange={(e) => setFormData({ ...formData, contact_name: e.target.value })}
-                />
-                <div className="space-y-1">
-                  <label className="block text-xs font-medium text-gray-500 tracking-tight ml-1">License Tier *</label>
-                  <select
-                    required
-                    className="compact-input w-full"
-                    value={formData.license_tier}
-                    onChange={(e) => setFormData({ ...formData, license_tier: e.target.value })}
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
+            <div className="max-w-2xl w-full mx-4 bg-white rounded-xl shadow-2xl border max-h-[90vh] flex flex-col">
+              {/* Fixed Header */}
+              <div className="p-6 border-b bg-gray-50 flex-shrink-0">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-medium text-gray-900">Create Tenant</h2>
+                  <button 
+                    onClick={() => setShowCreateModal(false)}
+                    className="p-2 text-gray-600 hover:bg-gray-100 rounded-full"
                   >
-                    <option value="trial">Trial</option>
-                    <option value="basic">Basic</option>
-                    <option value="professional">Professional</option>
-                    <option value="enterprise">Enterprise</option>
-                  </select>
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <MaterialInput
-                    label="Max Agents"
-                    type="number"
-                    value={formData.max_agents || ''}
-                    onChange={(e) => setFormData({ ...formData, max_agents: e.target.value ? parseInt(e.target.value) : undefined })}
-                    placeholder="Unlimited"
-                  />
-                  <MaterialInput
-                    label="Max Users"
-                    type="number"
-                    value={formData.max_users || ''}
-                    onChange={(e) => setFormData({ ...formData, max_users: e.target.value ? parseInt(e.target.value) : undefined })}
-                    placeholder="Unlimited"
-                  />
-                </div>
-                <div className="border-t pt-4">
-                  <h3 className="text-sm font-medium mb-3 text-gray-700">Tenant Admin (Optional)</h3>
-                  <div className="space-y-4">
-                    <MaterialInput
-                      label="Admin Email"
-                      type="email"
-                      value={formData.tenant_admin_email}
-                      onChange={(e) => setFormData({ ...formData, tenant_admin_email: e.target.value })}
-                      placeholder="admin@company.com"
-                    />
-                    {formData.tenant_admin_email && (
-                      <>
-                        <MaterialInput
-                          label="Admin Name *"
-                          type="text"
-                          required={!!formData.tenant_admin_email}
-                          value={formData.tenant_admin_name}
-                          onChange={(e) => setFormData({ ...formData, tenant_admin_name: e.target.value })}
+              </div>
+              
+              {/* Scrollable Content Area */}
+              <form onSubmit={handleCreate} className="flex-1 min-h-0 flex flex-col">
+                <div className="flex-1 overflow-y-auto p-6">
+                  <div className="space-y-5">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Company Name *</label>
+                      <input
+                        type="text"
+                        required
+                        value={formData.name}
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Slug *</label>
+                      <input
+                        type="text"
+                        required
+                        pattern="[a-z0-9\-]+"
+                        value={formData.slug}
+                        onChange={(e) => setFormData({ ...formData, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-') })}
+                        placeholder="acme-corp"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Lowercase letters, numbers, and hyphens only</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Contact Email *</label>
+                      <input
+                        type="email"
+                        required
+                        value={formData.contact_email}
+                        onChange={(e) => setFormData({ ...formData, contact_email: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Contact Name</label>
+                      <input
+                        type="text"
+                        value={formData.contact_name}
+                        onChange={(e) => setFormData({ ...formData, contact_name: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">License Tier *</label>
+                      <select
+                        required
+                        value={formData.license_tier}
+                        onChange={(e) => setFormData({ ...formData, license_tier: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      >
+                        <option value="trial">Trial</option>
+                        <option value="basic">Basic</option>
+                        <option value="professional">Professional</option>
+                        <option value="enterprise">Enterprise</option>
+                      </select>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Max Agents</label>
+                        <input
+                          type="number"
+                          value={formData.max_agents || ''}
+                          onChange={(e) => setFormData({ ...formData, max_agents: e.target.value ? parseInt(e.target.value) : undefined })}
+                          placeholder="Unlimited"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         />
-                        <MaterialInput
-                          label="Admin Password *"
-                          type="password"
-                          required={!!formData.tenant_admin_email}
-                          minLength={8}
-                          value={formData.tenant_admin_password}
-                          onChange={(e) => setFormData({ ...formData, tenant_admin_password: e.target.value })}
-                          placeholder="Min 8 characters"
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Max Users</label>
+                        <input
+                          type="number"
+                          value={formData.max_users || ''}
+                          onChange={(e) => setFormData({ ...formData, max_users: e.target.value ? parseInt(e.target.value) : undefined })}
+                          placeholder="Unlimited"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                         />
-                      </>
-                    )}
+                      </div>
+                    </div>
+                    <div className="border-t pt-4">
+                      <h3 className="text-sm font-medium mb-3 text-gray-700">Tenant Admin (Optional)</h3>
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Admin Email</label>
+                          <input
+                            type="email"
+                            value={formData.tenant_admin_email}
+                            onChange={(e) => setFormData({ ...formData, tenant_admin_email: e.target.value })}
+                            placeholder="admin@company.com"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          />
+                        </div>
+                        {formData.tenant_admin_email && (
+                          <>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Admin Name *</label>
+                              <input
+                                type="text"
+                                required={!!formData.tenant_admin_email}
+                                value={formData.tenant_admin_name}
+                                onChange={(e) => setFormData({ ...formData, tenant_admin_name: e.target.value })}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">Admin Password *</label>
+                              <input
+                                type="password"
+                                required={!!formData.tenant_admin_email}
+                                minLength={8}
+                                value={formData.tenant_admin_password}
+                                onChange={(e) => setFormData({ ...formData, tenant_admin_password: e.target.value })}
+                                placeholder="Min 8 characters"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                              />
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
-                <div className="flex gap-3 justify-end pt-4 border-t bg-surface-variant/5 -mx-6 -mb-6 p-6 mt-6">
-                  <MaterialButton
-                    variant="text"
+              </form>
+              
+              {/* Fixed Footer */}
+              <div className="p-6 border-t bg-gray-50 flex-shrink-0">
+                <div className="flex gap-3 justify-end">
+                  <button
                     type="button"
                     onClick={() => setShowCreateModal(false)}
-                    className="text-gray-600"
+                    className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-md font-medium"
                   >
                     Cancel
-                  </MaterialButton>
-                  <MaterialButton
+                  </button>
+                  <button
                     type="submit"
                     disabled={createMutation.isPending}
-                    className="shadow-md-elevation-4"
+                    className="px-4 py-2 bg-blue-600 text-white rounded-md font-medium hover:bg-blue-700 disabled:opacity-50"
                   >
                     {createMutation.isPending ? 'Creating...' : 'Create Tenant'}
-                  </MaterialButton>
+                  </button>
                 </div>
-              </form>
-            </MaterialCard>
+              </div>
+            </div>
           </div>
         )}
 
         {/* Branding Modal - Material Design */}
         {showBrandingModal && selectedTenant && (
           <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in duration-200">
-            <MaterialCard elevation={24} className="max-w-2xl w-full mx-4 border-none overflow-hidden flex flex-col max-h-[90vh]">
-              <div className="p-6 border-b bg-surface-variant/10 flex items-center justify-between">
-                <h2 className="text-xl font-medium text-gray-900">Tenant Branding - {selectedTenant.name}</h2>
-                <MaterialButton variant="text" size="small" onClick={() => setShowBrandingModal(false)} className="!p-2 text-gray-600">
-                  <XIcon className="w-6 h-6" />
-                </MaterialButton>
-              </div>
-              <div className="p-6 space-y-6 bg-background">
-                {/* Logo Upload */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-3">Company Logo</label>
-                  {selectedTenant.custom_branding?.logo_url && (
-                    <div className="mb-4">
-                      <MaterialCard elevation={0} className="inline-block p-4 bg-surface-variant/5 border border-outline/10">
-                        <img 
-                          src={`http://localhost:8000${selectedTenant.custom_branding.logo_url}`} 
-                          alt="Current logo" 
-                          className="h-20 object-contain"
-                        />
-                      </MaterialCard>
-                    </div>
-                  )}
-                  <div className="space-y-3">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => {
-                        if (e.target.files && e.target.files[0]) {
-                          setLogoFile(e.target.files[0])
-                        }
-                      }}
-                      className="compact-input w-full pt-1.5 h-9 border-dashed cursor-pointer hover:bg-gray-50"
-                    />
-                    <p className="text-sm text-gray-500 italic ml-1">PNG, JPG, GIF, SVG or WebP (max 5MB)</p>
-                  </div>
-                  {logoFile && (
-                    <MaterialButton
-                      type="button"
-                      onClick={() => {
-                        uploadLogoMutation.mutate({ tenantId: selectedTenant.id, file: logoFile })
-                      }}
-                      disabled={uploadLogoMutation.isPending}
-                      className="mt-4"
-                      size="small"
-                    >
-                      {uploadLogoMutation.isPending ? 'Uploading...' : 'Upload Logo'}
-                    </MaterialButton>
-                  )}
+            <MaterialCard elevation={24} className="max-w-2xl w-full mx-4 border-none max-h-[90vh] flex flex-col">
+              {/* Fixed Header */}
+              <div className="p-6 border-b bg-surface-variant/10 flex-shrink-0">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-medium text-gray-900">Tenant Branding - {selectedTenant.name}</h2>
+                  <MaterialButton variant="text" size="small" onClick={() => setShowBrandingModal(false)} className="!p-2 text-gray-600">
+                    <XIcon className="w-6 h-6" />
+                  </MaterialButton>
                 </div>
-
-                <div className="flex gap-3 justify-end pt-4 border-t bg-surface-variant/5 -mx-6 -mb-6 p-6 mt-6">
+              </div>
+              
+              {/* Scrollable Content Area */}
+              <div className="flex-1 min-h-0 flex flex-col">
+                <div className="flex-1 overflow-y-auto p-6">
+                  <div className="space-y-6">
+                    {/* Logo Upload */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-3">Company Logo</label>
+                      {selectedTenant.custom_branding?.logo_url && (
+                        <div className="mb-4">
+                          <MaterialCard elevation={0} className="inline-block p-4 bg-surface-variant/5 border border-outline/10">
+                            <img 
+                              src={`http://localhost:8000${selectedTenant.custom_branding.logo_url}`} 
+                              alt="Current logo" 
+                              className="h-20 object-contain"
+                            />
+                          </MaterialCard>
+                        </div>
+                      )}
+                      <div className="space-y-3">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => {
+                            if (e.target.files && e.target.files[0]) {
+                              setLogoFile(e.target.files[0])
+                            }
+                          }}
+                          className="compact-input w-full pt-1.5 h-9 border-dashed cursor-pointer hover:bg-gray-50"
+                        />
+                        <p className="text-sm text-gray-500 italic ml-1">PNG, JPG, GIF, SVG or WebP (max 5MB)</p>
+                      </div>
+                      {logoFile && (
+                        <MaterialButton
+                          type="button"
+                          onClick={() => {
+                            uploadLogoMutation.mutate({ tenantId: selectedTenant.id, file: logoFile })
+                          }}
+                          disabled={uploadLogoMutation.isPending}
+                          className="mt-4"
+                          size="small"
+                        >
+                          {uploadLogoMutation.isPending ? 'Uploading...' : 'Upload Logo'}
+                        </MaterialButton>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Fixed Footer */}
+              <div className="p-6 border-t bg-surface-variant/5 flex-shrink-0">
+                <div className="flex gap-3 justify-end">
                   <MaterialButton
                     variant="text"
                     type="button"
@@ -486,13 +542,18 @@ export default function TenantManagement() {
         {/* Edit Tenant Modal - Material Design */}
         {showEditModal && selectedTenant && (
           <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in duration-200">
-            <MaterialCard elevation={24} className="max-w-2xl w-full mx-4 border-none overflow-hidden flex flex-col max-h-[90vh]">
-              <div className="p-6 border-b bg-surface-variant/10 flex items-center justify-between">
-                <h2 className="text-xl font-medium text-gray-900">Edit Tenant - {selectedTenant.name}</h2>
-                <MaterialButton variant="text" size="small" onClick={() => setShowEditModal(false)} className="!p-2 text-gray-600">
-                  <XIcon className="w-6 h-6" />
-                </MaterialButton>
+            <MaterialCard elevation={24} className="max-w-2xl w-full mx-4 border-none max-h-[90vh] flex flex-col">
+              {/* Fixed Header */}
+              <div className="p-6 border-b bg-surface-variant/10 flex-shrink-0">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-medium text-gray-900">Edit Tenant - {selectedTenant.name}</h2>
+                  <MaterialButton variant="text" size="small" onClick={() => setShowEditModal(false)} className="!p-2 text-gray-600">
+                    <XIcon className="w-6 h-6" />
+                  </MaterialButton>
+                </div>
               </div>
+              
+              {/* Scrollable Content Area */}
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
@@ -514,108 +575,116 @@ export default function TenantManagement() {
                     });
                   }
                 }}
-                className="p-6 space-y-5 bg-background overflow-y-auto"
+                className="flex-1 min-h-0 flex flex-col"
               >
-                <MaterialInput
-                  label="Company Name *"
-                  type="text"
-                  required
-                  value={selectedTenant?.name || ''}
-                  onChange={(e) => setSelectedTenant({ ...selectedTenant!, name: e.target.value })}
-                />
-                <MaterialInput
-                  label="Slug *"
-                  type="text"
-                  required
-                  value={selectedTenant?.slug || ''}
-                  onChange={(e) => setSelectedTenant({ ...selectedTenant!, slug: e.target.value })}
-                />
-                <MaterialInput
-                  label="Contact Email"
-                  type="email"
-                  value={selectedTenant?.contact_email || ''}
-                  onChange={(e) => setSelectedTenant({ ...selectedTenant!, contact_email: e.target.value })}
-                />
-                <MaterialInput
-                  label="Contact Name"
-                  type="text"
-                  value={selectedTenant?.contact_name || ''}
-                  onChange={(e) => setSelectedTenant({ ...selectedTenant!, contact_name: e.target.value })}
-                />
-                <MaterialInput
-                  label="Website"
-                  type="text"
-                  value={selectedTenant?.website || ''}
-                  onChange={(e) => setSelectedTenant({ ...selectedTenant!, website: e.target.value })}
-                  placeholder="https://example.com"
-                  onBlur={() => {
-                    if (selectedTenant?.website) {
-                      tenantsApi.fetchLogoFromWebsite(selectedTenant.website)
-                        .then(() => {
-                           queryClient.invalidateQueries({ queryKey: ['tenants'] })
-                        })
-                        .catch((err) => console.error('Failed to fetch logo', err));
-                    }
-                  }}
-                  helperText="Enter website URL to auto-fetch logo"
-                />
-                <MaterialInput
-                  label="Company Address"
-                  type="text"
-                  value={(selectedTenant as any)?.company_address || ''}
-                  onChange={(e) => setSelectedTenant({ ...selectedTenant!, company_address: e.target.value } as any)}
-                  placeholder="123 Main St, City, Country"
-                />
-                <MaterialInput
-                  label="Admin Email"
-                  type="email"
-                  value={selectedTenant?.tenant_admin_email || ''}
-                  onChange={(e) => setSelectedTenant({ ...selectedTenant!, tenant_admin_email: e.target.value })}
-                  helperText="Updating this will change the email of the current tenant admin"
-                />
-                <div className="space-y-1">
-                  <label className="block text-xs font-medium text-gray-500 tracking-tight ml-1">Status</label>
-                  <select
-                    className="compact-input w-full"
-                    value={selectedTenant?.status || ''}
-                    onChange={(e) => setSelectedTenant({ ...selectedTenant!, status: e.target.value })}
-                  >
-                    <option value="pending">Pending</option>
-                    <option value="active">Active</option>
-                    <option value="suspended">Suspended</option>
-                    <option value="cancelled">Cancelled</option>
-                  </select>
+                <div className="flex-1 overflow-y-auto p-6">
+                  <div className="space-y-5">
+                    <MaterialInput
+                      label="Company Name *"
+                      type="text"
+                      required
+                      value={selectedTenant?.name || ''}
+                      onChange={(e) => setSelectedTenant({ ...selectedTenant!, name: e.target.value })}
+                    />
+                    <MaterialInput
+                      label="Slug *"
+                      type="text"
+                      required
+                      value={selectedTenant?.slug || ''}
+                      onChange={(e) => setSelectedTenant({ ...selectedTenant!, slug: e.target.value })}
+                    />
+                    <MaterialInput
+                      label="Contact Email"
+                      type="email"
+                      value={selectedTenant?.contact_email || ''}
+                      onChange={(e) => setSelectedTenant({ ...selectedTenant!, contact_email: e.target.value })}
+                    />
+                    <MaterialInput
+                      label="Contact Name"
+                      type="text"
+                      value={selectedTenant?.contact_name || ''}
+                      onChange={(e) => setSelectedTenant({ ...selectedTenant!, contact_name: e.target.value })}
+                    />
+                    <MaterialInput
+                      label="Website"
+                      type="text"
+                      value={selectedTenant?.website || ''}
+                      onChange={(e) => setSelectedTenant({ ...selectedTenant!, website: e.target.value })}
+                      placeholder="https://example.com"
+                      onBlur={() => {
+                        if (selectedTenant?.website) {
+                          tenantsApi.fetchLogoFromWebsite(selectedTenant.website)
+                            .then(() => {
+                               queryClient.invalidateQueries({ queryKey: ['tenants'] })
+                            })
+                            .catch((err) => console.error('Failed to fetch logo', err));
+                        }
+                      }}
+                      helperText="Enter website URL to auto-fetch logo"
+                    />
+                    <MaterialInput
+                      label="Company Address"
+                      type="text"
+                      value={(selectedTenant as any)?.company_address || ''}
+                      onChange={(e) => setSelectedTenant({ ...selectedTenant!, company_address: e.target.value } as any)}
+                      placeholder="123 Main St, City, Country"
+                    />
+                    <MaterialInput
+                      label="Admin Email"
+                      type="email"
+                      value={selectedTenant?.tenant_admin_email || ''}
+                      onChange={(e) => setSelectedTenant({ ...selectedTenant!, tenant_admin_email: e.target.value })}
+                      helperText="Updating this will change the email of the current tenant admin"
+                    />
+                    <div className="space-y-1">
+                      <label className="block text-xs font-medium text-gray-500 tracking-tight ml-1">Status</label>
+                      <select
+                        className="compact-input w-full"
+                        value={selectedTenant?.status || ''}
+                        onChange={(e) => setSelectedTenant({ ...selectedTenant!, status: e.target.value })}
+                      >
+                        <option value="pending">Pending</option>
+                        <option value="active">Active</option>
+                        <option value="suspended">Suspended</option>
+                        <option value="cancelled">Cancelled</option>
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="block text-xs font-medium text-gray-500 tracking-tight ml-1">License Tier</label>
+                      <select
+                        className="compact-input w-full"
+                        value={selectedTenant?.license_tier || ''}
+                        onChange={(e) => setSelectedTenant({ ...selectedTenant!, license_tier: e.target.value })}
+                      >
+                        <option value="trial">Trial</option>
+                        <option value="basic">Basic</option>
+                        <option value="professional">Professional</option>
+                        <option value="enterprise">Enterprise</option>
+                      </select>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <MaterialInput
+                        label="Max Agents"
+                        type="number"
+                        value={selectedTenant?.max_agents?.toString() || ''}
+                        onChange={(e) => setSelectedTenant({ ...selectedTenant!, max_agents: e.target.value ? parseInt(e.target.value) : undefined })}
+                        placeholder="Unlimited"
+                      />
+                      <MaterialInput
+                        label="Max Users"
+                        type="number"
+                        value={selectedTenant?.max_users?.toString() || ''}
+                        onChange={(e) => setSelectedTenant({ ...selectedTenant!, max_users: e.target.value ? parseInt(e.target.value) : undefined })}
+                        placeholder="Unlimited"
+                      />
+                    </div>
+                  </div>
                 </div>
-                <div className="space-y-1">
-                  <label className="block text-xs font-medium text-gray-500 tracking-tight ml-1">License Tier</label>
-                  <select
-                    className="compact-input w-full"
-                    value={selectedTenant?.license_tier || ''}
-                    onChange={(e) => setSelectedTenant({ ...selectedTenant!, license_tier: e.target.value })}
-                  >
-                    <option value="trial">Trial</option>
-                    <option value="basic">Basic</option>
-                    <option value="professional">Professional</option>
-                    <option value="enterprise">Enterprise</option>
-                  </select>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <MaterialInput
-                    label="Max Agents"
-                    type="number"
-                    value={selectedTenant?.max_agents?.toString() || ''}
-                    onChange={(e) => setSelectedTenant({ ...selectedTenant!, max_agents: e.target.value ? parseInt(e.target.value) : undefined })}
-                    placeholder="Unlimited"
-                  />
-                  <MaterialInput
-                    label="Max Users"
-                    type="number"
-                    value={selectedTenant?.max_users?.toString() || ''}
-                    onChange={(e) => setSelectedTenant({ ...selectedTenant!, max_users: e.target.value ? parseInt(e.target.value) : undefined })}
-                    placeholder="Unlimited"
-                  />
-                </div>
-                <div className="flex gap-3 justify-end pt-4 border-t bg-surface-variant/5 -mx-6 -mb-6 p-6 mt-6">
+              </form>
+              
+              {/* Fixed Footer */}
+              <div className="p-6 border-t bg-surface-variant/5 flex-shrink-0">
+                <div className="flex gap-3 justify-end">
                   <MaterialButton
                     variant="text"
                     type="button"
@@ -632,7 +701,7 @@ export default function TenantManagement() {
                     {updateMutation.isPending ? 'Updating...' : 'Update Tenant'}
                   </MaterialButton>
                 </div>
-              </form>
+              </div>
             </MaterialCard>
           </div>
         )}

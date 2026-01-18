@@ -376,7 +376,7 @@ export default function AssessmentAnalytics() {
               <div className="flex-1 min-w-0">
                 <h3 className="text-sm font-semibold text-foreground mb-1">{item.assessment_name}</h3>
                 <p className="text-xs text-muted-foreground">
-                  {item.vendor_name} • {item.assessment_type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                  {item.vendor_name} • {item.assessment_type.replace('_', ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())}
                 </p>
               </div>
               <div className="flex items-center gap-4 ml-6">
@@ -524,11 +524,12 @@ export default function AssessmentAnalytics() {
                   borderRadius: '8px',
                   padding: '12px'
                 }}
-                formatter={(value: number, name: string) => {
+                formatter={(value: number | undefined, name: string | undefined) => {
+                  if (value === undefined) return [0, name || '']
                   if (name === 'risk_score') {
                     return [`${value.toFixed(1)}`, 'Risk Score']
                   }
-                  return [value, name]
+                  return [value, name || '']
                 }}
               />
               <Legend />

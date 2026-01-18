@@ -79,81 +79,92 @@ export default function WorkflowFlowchart({
       {/* Edit Modal */}
       {editingStep && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in duration-200">
-          <MaterialCard elevation={24} className="max-w-md w-full mx-4 border-none overflow-hidden flex flex-col">
-            <div className="p-6 border-b bg-surface-variant/10 flex items-center justify-between">
-              <h2 className="text-xl font-medium text-gray-900">Edit Step: {editingStep.step_name}</h2>
-              <MaterialButton variant="text" size="small" onClick={handleCancel} className="!p-2 text-gray-600">
-                <XIcon className="w-6 h-6" />
-              </MaterialButton>
+          <MaterialCard elevation={24} className="max-w-md w-full mx-4 border-none max-h-[90vh] flex flex-col">
+            {/* Fixed Header */}
+            <div className="p-6 border-b bg-surface-variant/10 flex-shrink-0">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-medium text-gray-900">Edit Step: {editingStep.step_name}</h2>
+                <MaterialButton variant="text" size="small" onClick={handleCancel} className="!p-2 text-gray-600">
+                  <XIcon className="w-6 h-6" />
+                </MaterialButton>
+              </div>
             </div>
             
-            <div className="p-6 space-y-5 bg-background">
-              <MaterialInput
-                label="Step Name *"
-                type="text"
-                value={editingStep.step_name}
-                onChange={(e) => setEditingStep({ ...editingStep, step_name: e.target.value })}
-              />
-
-              <div className="relative w-full">
-                <label className="block text-sm font-medium mb-1.5 text-gray-700">
-                  Step Type
-                </label>
-                <select
-                  value={editingStep.step_type}
-                  onChange={(e) => setEditingStep({ ...editingStep, step_type: e.target.value as any })}
-                  className="w-full px-3 py-1.5 h-9 text-sm border border-gray-200 rounded-md bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-0 focus:border-blue-500 focus:ring-primary-500/50 transition-all duration-200"
-                >
-                  <option value="review">Review</option>
-                  <option value="approval">Approval</option>
-                  <option value="notification">Notification</option>
-                </select>
-              </div>
-
-              <div className="relative w-full">
-                <label className="block text-sm font-medium mb-1.5 text-gray-700">
-                  Assigned Role
-                </label>
-                <select
-                  value={editingStep.assigned_role || ''}
-                  onChange={(e) => setEditingStep({ 
-                    ...editingStep, 
-                    assigned_role: e.target.value || undefined
-                  })}
-                  className="w-full px-3 py-1.5 h-9 text-sm border border-gray-200 rounded-md bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-0 focus:border-blue-500 focus:ring-primary-500/50 transition-all duration-200"
-                >
-                  <option value="">Select Role</option>
-                  <option value="security_reviewer">Security Reviewer</option>
-                  <option value="compliance_reviewer">Compliance Reviewer</option>
-                  <option value="technical_reviewer">Technical Reviewer</option>
-                  <option value="business_reviewer">Business Reviewer</option>
-                  <option value="approver">Approver</option>
-                  <option value="tenant_admin">Tenant Admin</option>
-                </select>
-              </div>
-
-              <div className="flex items-center gap-6 p-1">
-                <label className="flex items-center gap-2 cursor-pointer group">
-                  <input
-                    type="checkbox"
-                    checked={editingStep.required}
-                    onChange={(e) => setEditingStep({ ...editingStep, required: e.target.checked })}
-                    className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-primary-500"
+            {/* Scrollable Content Area */}
+            <div className="flex-1 min-h-0 flex flex-col">
+              <div className="flex-1 overflow-y-auto p-6">
+                <div className="space-y-5">
+                  <MaterialInput
+                    label="Step Name *"
+                    type="text"
+                    value={editingStep.step_name}
+                    onChange={(e) => setEditingStep({ ...editingStep, step_name: e.target.value })}
                   />
-                  <span className="text-sm font-medium text-gray-600 group-hover:text-gray-900 transition-colors">Required</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer group">
-                  <input
-                    type="checkbox"
-                    checked={editingStep.can_skip}
-                    onChange={(e) => setEditingStep({ ...editingStep, can_skip: e.target.checked })}
-                    className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-primary-500"
-                  />
-                  <span className="text-sm font-medium text-gray-600 group-hover:text-gray-900 transition-colors">Can Skip</span>
-                </label>
-              </div>
 
-              <div className="flex gap-3 justify-end pt-4 border-t bg-surface-variant/5 -mx-6 -mb-6 p-6 mt-6">
+                  <div className="relative w-full">
+                    <label className="block text-sm font-medium mb-1.5 text-gray-700">
+                      Step Type
+                    </label>
+                    <select
+                      value={editingStep.step_type}
+                      onChange={(e) => setEditingStep({ ...editingStep, step_type: e.target.value as any })}
+                      className="w-full px-3 py-1.5 h-9 text-sm border border-gray-200 rounded-md bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-0 focus:border-blue-500 focus:ring-primary-500/50 transition-all duration-200"
+                    >
+                      <option value="review">Review</option>
+                      <option value="approval">Approval</option>
+                      <option value="notification">Notification</option>
+                    </select>
+                  </div>
+
+                  <div className="relative w-full">
+                    <label className="block text-sm font-medium mb-1.5 text-gray-700">
+                      Assigned Role
+                    </label>
+                    <select
+                      value={editingStep.assigned_role || ''}
+                      onChange={(e) => setEditingStep({ 
+                        ...editingStep, 
+                        assigned_role: e.target.value || undefined
+                      })}
+                      className="w-full px-3 py-1.5 h-9 text-sm border border-gray-200 rounded-md bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-0 focus:border-blue-500 focus:ring-primary-500/50 transition-all duration-200"
+                    >
+                      <option value="">Select Role</option>
+                      <option value="security_reviewer">Security Reviewer</option>
+                      <option value="compliance_reviewer">Compliance Reviewer</option>
+                      <option value="technical_reviewer">Technical Reviewer</option>
+                      <option value="business_reviewer">Business Reviewer</option>
+                      <option value="approver">Approver</option>
+                      <option value="tenant_admin">Tenant Admin</option>
+                    </select>
+                  </div>
+
+                  <div className="flex items-center gap-6 p-1">
+                    <label className="flex items-center gap-2 cursor-pointer group">
+                      <input
+                        type="checkbox"
+                        checked={editingStep.required}
+                        onChange={(e) => setEditingStep({ ...editingStep, required: e.target.checked })}
+                        className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-primary-500"
+                      />
+                      <span className="text-sm font-medium text-gray-600 group-hover:text-gray-900 transition-colors">Required</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer group">
+                      <input
+                        type="checkbox"
+                        checked={editingStep.can_skip}
+                        onChange={(e) => setEditingStep({ ...editingStep, can_skip: e.target.checked })}
+                        className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-primary-500"
+                      />
+                      <span className="text-sm font-medium text-gray-600 group-hover:text-gray-900 transition-colors">Can Skip</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Fixed Footer */}
+            <div className="p-6 border-t bg-surface-variant/5 flex-shrink-0">
+              <div className="flex gap-3 justify-end">
                 <MaterialButton
                   variant="text"
                   onClick={handleCancel}

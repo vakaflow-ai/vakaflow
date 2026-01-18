@@ -1,0 +1,415 @@
+/* Standardized CSS Utilities for VAKA Platform */
+
+/* ========================================
+   TYPOGRAPHY CLASSES
+   ======================================== */
+
+/* Page Titles */
+.unified-page-title {
+  @apply text-3xl font-bold text-gray-900 mb-2;
+}
+
+.unified-page-subtitle {
+  @apply text-sm text-gray-500;
+}
+
+/* Section Titles */
+.unified-section-title {
+  @apply text-xl font-semibold text-gray-900 mb-4;
+}
+
+/* Card Titles */
+.unified-card-title {
+  @apply text-lg font-semibold text-gray-900;
+}
+
+.unified-card-subtitle {
+  @apply text-sm text-gray-600;
+}
+
+/* Labels */
+.unified-label {
+  @apply text-sm font-medium text-gray-700 mb-1;
+}
+
+/* Body Text */
+.unified-body {
+  @apply text-sm text-gray-700;
+}
+
+.unified-body-secondary {
+  @apply text-sm text-gray-600;
+}
+
+.unified-caption {
+  @apply text-xs text-gray-500;
+}
+
+/* ========================================
+   BUTTON CLASSES
+   ======================================== */
+
+/* Standard Button Base */
+.unified-btn {
+  @apply inline-flex items-center justify-center rounded-lg font-normal transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 disabled:pointer-events-none disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+/* Button Sizes */
+.unified-btn-sm {
+  @apply unified-btn h-8 px-3 text-sm;
+}
+
+.unified-btn-md {
+  @apply unified-btn h-10 px-4 text-sm;
+}
+
+.unified-btn-lg {
+  @apply unified-btn h-12 px-6 text-base;
+}
+
+/* Button Variants */
+.unified-btn-primary {
+  @apply bg-blue-600 text-white hover:bg-blue-700;
+}
+
+.unified-btn-secondary {
+  @apply bg-gray-200 text-gray-800 hover:bg-gray-300;
+}
+
+.unified-btn-danger {
+  @apply bg-red-600 text-white hover:bg-red-700;
+}
+
+.unified-btn-outline {
+  @apply border-2 border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-400;
+}
+
+.unified-btn-ghost {
+  @apply hover:bg-gray-100 text-gray-700;
+}
+
+/* ========================================
+   INPUT CLASSES
+   ======================================== */
+
+/* Standard Input */
+.unified-input {
+  @apply w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed;
+}
+
+.unified-input-error {
+  @apply unified-input border-red-500 focus:ring-red-500 focus:border-red-500;
+}
+
+/* Search Input */
+.unified-search {
+  @apply unified-input pl-10;
+}
+
+/* Select Input */
+.unified-select {
+  @apply unified-input appearance-none bg-no-repeat pr-8;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+  background-position: right 0.5rem center;
+  background-size: 1.5em 1.5em;
+}
+
+/* Textarea */
+.unified-textarea {
+  @apply unified-input min-h-[100px];
+}
+
+/* ========================================
+   CARD CLASSES
+   ======================================== */
+
+.unified-card {
+  @apply bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden;
+}
+
+.unified-card-header {
+  @apply px-6 py-4 border-b border-gray-200 flex items-center justify-between;
+}
+
+.unified-card-body {
+  @apply p-6;
+}
+
+.unified-card-footer {
+  @apply px-6 py-4 border-t border-gray-200 bg-gray-50;
+}
+
+/* ========================================
+   TABLE CLASSES
+   ======================================== */
+
+.unified-table-container {
+  @apply overflow-x-auto;
+}
+
+.unified-table {
+  @apply w-full;
+}
+
+.unified-table-header {
+  @apply h-12 px-6 text-left align-middle font-semibold text-sm text-gray-700;
+}
+
+.unified-table-row {
+  @apply border-b border-gray-200 hover:bg-gray-50/50 transition-colors;
+}
+
+.unified-table-cell {
+  @apply h-14 px-6 align-middle text-sm text-gray-600;
+}
+
+.unified-table-cell-primary {
+  @apply unified-table-cell font-medium text-gray-900;
+}
+
+.unified-table-empty {
+  @apply h-32 text-center text-gray-500;
+}
+
+/* ========================================
+   MODAL CLASSES
+   ======================================== */
+
+.unified-modal-backdrop {
+  @apply fixed inset-0 z-50 bg-black/50 backdrop-blur-sm transition-opacity;
+}
+
+.unified-modal-container {
+  @apply relative z-50 w-full bg-white rounded-xl shadow-2xl overflow-hidden;
+  animation: modalAppear 0.2s ease-out;
+}
+
+.unified-modal-header {
+  @apply px-6 py-4 border-b border-gray-200 flex items-center justify-between;
+}
+
+.unified-modal-title {
+  @apply text-xl font-semibold text-gray-900;
+}
+
+.unified-modal-content {
+  @apply p-6;
+}
+
+.unified-modal-footer {
+  @apply px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-end gap-3;
+}
+
+/* ========================================
+   LAYOUT CLASSES
+   ======================================== */
+
+/* Page Container */
+.unified-page-container {
+  @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6;
+}
+
+.unified-page-header {
+  @apply mb-6;
+}
+
+.unified-page-actions {
+  @apply flex items-center gap-2;
+}
+
+/* Divider */
+.unified-divider {
+  @apply border-gray-200 my-6;
+}
+
+/* Spacing */
+.unified-space-y-sm {
+  @apply space-y-4;
+}
+
+.unified-space-y-md {
+  @apply space-y-6;
+}
+
+.unified-space-y-lg {
+  @apply space-y-8;
+}
+
+/* Flex Layouts */
+.unified-flex-center {
+  @apply flex items-center justify-center;
+}
+
+.unified-flex-between {
+  @apply flex items-center justify-between;
+}
+
+.unified-flex-start {
+  @apply flex items-center justify-start;
+}
+
+.unified-flex-end {
+  @apply flex items-center justify-end;
+}
+
+.unified-gap-sm {
+  @apply gap-2;
+}
+
+.unified-gap-md {
+  @apply gap-4;
+}
+
+.unified-gap-lg {
+  @apply gap-6;
+}
+
+/* ========================================
+   STATUS BADGES
+   ======================================== */
+
+.unified-badge {
+  @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+}
+
+.unified-badge-success {
+  @apply unified-badge bg-green-100 text-green-800;
+}
+
+.unified-badge-warning {
+  @apply unified-badge bg-amber-100 text-amber-800;
+}
+
+.unified-badge-error {
+  @apply unified-badge bg-red-100 text-red-800;
+}
+
+.unified-badge-info {
+  @apply unified-badge bg-blue-100 text-blue-800;
+}
+
+.unified-badge-neutral {
+  @apply unified-badge bg-gray-100 text-gray-800;
+}
+
+/* ========================================
+   UTILITY CLASSES
+   ======================================== */
+
+/* Loading States */
+.unified-loading {
+  @apply animate-pulse bg-gray-200 rounded;
+}
+
+.unified-skeleton {
+  @apply unified-loading min-h-[20px];
+}
+
+/* Hover Effects */
+.unified-hover-card {
+  @apply hover:shadow-md transition-shadow duration-200;
+}
+
+.unified-hover-scale {
+  @apply hover:scale-105 transition-transform duration-200;
+}
+
+/* Focus States */
+.unified-focus-ring {
+  @apply focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1;
+}
+
+/* Responsive Helpers */
+.unified-responsive-grid {
+  @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6;
+}
+
+.unified-responsive-stack {
+  @apply flex flex-col md:flex-row gap-4;
+}
+
+/* ========================================
+   COMPONENT SPECIFIC
+   ======================================== */
+
+/* Search Filter Bar */
+.unified-search-bar {
+  @apply flex flex-col md:flex-row gap-4;
+}
+
+.unified-search-input-container {
+  @apply flex-1 relative;
+}
+
+.unified-search-icon {
+  @apply absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400;
+}
+
+/* Action Buttons Group */
+.unified-action-group {
+  @apply flex items-center gap-2 flex-wrap;
+}
+
+/* Form Layout */
+.unified-form-grid {
+  @apply grid grid-cols-1 md:grid-cols-2 gap-4;
+}
+
+.unified-form-section {
+  @apply space-y-4;
+}
+
+/* Data Display */
+.unified-data-grid {
+  @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4;
+}
+
+.unified-data-item {
+  @apply bg-white p-4 rounded-lg border border-gray-200;
+}
+
+/* ========================================
+   DARK MODE SUPPORT (if needed)
+   ======================================== */
+
+@media (prefers-color-scheme: dark) {
+  .unified-card {
+    @apply bg-gray-800 border-gray-700;
+  }
+  
+  .unified-page-title,
+  .unified-section-title,
+  .unified-card-title {
+    @apply text-white;
+  }
+  
+  .unified-body,
+  .unified-body-secondary {
+    @apply text-gray-300;
+  }
+  
+  .unified-input {
+    @apply bg-gray-800 border-gray-600 text-white;
+  }
+  
+  .unified-table-row {
+    @apply border-gray-700 hover:bg-gray-700/50;
+  }
+}
+
+/* Animation keyframes */
+@keyframes modalAppear {
+  from { 
+    opacity: 0; 
+    transform: scale(0.95);
+  }
+  to { 
+    opacity: 1; 
+    transform: scale(1);
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}

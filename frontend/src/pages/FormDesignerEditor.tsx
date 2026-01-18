@@ -333,6 +333,7 @@ export default function FormDesignerEditor() {
   const groupId = searchParams.get('group_id')
 
   const [user, setUser] = useState<any>(null)
+  const { confirm, alert, prompt } = useDialogContext()
   const [activeTab, setActiveTab] = useState<'fields' | 'steps' | 'roles' | 'preview' | 'table-layout'>('steps') // Default to steps for simplicity
   // Initialize editingLayout - start with null, will be set in useEffect
   const [editingLayout, setEditingLayout] = useState<Partial<FormLayoutCreate> | null>(null)
@@ -1142,6 +1143,7 @@ export default function FormDesignerEditor() {
         id: step.id,
         title: step.title || `Step ${step.step_number}`,
         description: step.description,
+        order: step.step_number || 0,
         fields: (step.field_names || []).map((fieldName, fieldIndex) => {
           const fieldInfo = fieldInfoMap.get(fieldName)
           return {
@@ -1879,7 +1881,7 @@ export default function FormDesignerEditor() {
   const handleApplyTemplate = async (template: FormLayout) => {
     if (!template) return
     
-    const confirmed = await dialog.confirm({
+    const confirmed = await confirm({
       title: 'Apply Template',
       message: `Apply design from "${template.name}"? This will replace your current design sections and fields.`,
       variant: 'default'
@@ -2188,7 +2190,7 @@ export default function FormDesignerEditor() {
                             agent_category: undefined,
                             field_dependencies: undefined,
                             custom_fields: [],
-                            is_active: true,
+
                             is_default: false,
                             is_template: false,
                           })
@@ -4365,19 +4367,18 @@ function TableLayoutTab({
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   
+  // Default display configuration
+  const defaultDisplayConfig: TableDisplayConfig = {
+    default_expanded: true,
+    group_by: 'category',
+    show_attachments_by_default: true,
+    enable_collapse: true
+  }
+
   // Display configuration state
-  const [vendorDisplayConfig, setVendorDisplayConfig] = useState<TableDisplayConfig>({
-    default_expanded: true,
-    group_by: 'category',
-    show_attachments_by_default: true,
-    enable_collapse: true
-  })
-  const [approverDisplayConfig, setApproverDisplayConfig] = useState<TableDisplayConfig>({
-    default_expanded: true,
-    group_by: 'category',
-    show_attachments_by_default: true,
-    enable_collapse: true
-  })
+  const [vendorDisplayConfig, setVendorDisplayConfig] = useState<TableDisplayConfig>(defaultDisplayConfig)
+
+  const [approverDisplayConfig, setApproverDisplayConfig] = useState<TableDisplayConfig>(defaultDisplayConfig)
 
   // Load available columns and existing layouts
   useEffect(() => {
@@ -4403,7 +4404,7 @@ function TableLayoutTab({
               id: 'default',
               tenant_id: null,
               name: 'Default Vendor Submission Layout',
-              view_type: 'vendor_submission',
+              view_type: 'vendor_submission' as const,
               description: 'Default column configuration',
               columns: vendorAvail.filter((col: any) => col.default_visible).map((col: any, idx: number) => ({
                 id: col.id,
@@ -4415,6 +4416,12 @@ function TableLayoutTab({
                 sortable: false,
                 type: col.type
               })),
+              display_config: {
+                default_expanded: true,
+                group_by: 'category',
+                show_attachments_by_default: true,
+                enable_collapse: true
+              },
               is_active: true,
               is_default: true,
               created_by: null,
@@ -4429,7 +4436,7 @@ function TableLayoutTab({
               id: 'default',
               tenant_id: null,
               name: 'Default Approver Layout',
-              view_type: 'approver',
+              view_type: 'approver' as const,
               description: 'Default column configuration',
               columns: approverAvail.filter((col: any) => col.default_visible).map((col: any, idx: number) => ({
                 id: col.id,
@@ -4441,6 +4448,12 @@ function TableLayoutTab({
                 sortable: false,
                 type: col.type
               })),
+              display_config: {
+                default_expanded: true,
+                group_by: 'category' as const,
+                show_attachments_by_default: true,
+                enable_collapse: true
+              },
               is_active: true,
               is_default: true,
               created_by: null,
@@ -4496,23 +4509,25 @@ function TableLayoutTab({
           }))
         }
         
-        setVendorLayout(vendorDefault)
+        setVendorLayout(vendorDefault as AssessmentTableLayout)
         setVendorColumns(vendorCols)
-        setVendorDisplayConfig(vendorDefault.display_config || {
+        const defaultVendorDisplayConfig: TableDisplayConfig = {
           default_expanded: true,
           group_by: 'category',
           show_attachments_by_default: true,
           enable_collapse: true
-        })
+        }
+        setVendorDisplayConfig((vendorDefault.display_config || defaultVendorDisplayConfig) as TableDisplayConfig)
         
-        setApproverLayout(approverDefault)
+        setApproverLayout(approverDefault as AssessmentTableLayout)
         setApproverColumns(approverCols)
-        setApproverDisplayConfig(approverDefault.display_config || {
+        const defaultApproverDisplayConfig: TableDisplayConfig = {
           default_expanded: true,
           group_by: 'category',
           show_attachments_by_default: true,
           enable_collapse: true
-        })
+        }
+        setApproverDisplayConfig((approverDefault.display_config || defaultApproverDisplayConfig) as TableDisplayConfig)
         
         console.log('📋 Table Layout Columns Loaded:', {
           vendorColumns: vendorCols.length,
