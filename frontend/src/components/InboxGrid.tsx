@@ -449,7 +449,7 @@ function renderCell(item: ActionItem, columnKey: keyof InboxColumnVisibilityConf
         'closed': 'Closed'
       }
       
-      const stageLabel = stageLabels[workflowStage] || workflowStage.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+      const stageLabel = stageLabels[workflowStage] || workflowStage.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase())
       
       // Color coding for workflow stages
       const getStageColor = (stage: string) => {

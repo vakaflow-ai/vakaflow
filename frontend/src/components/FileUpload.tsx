@@ -13,6 +13,14 @@ export default function FileUpload({ agentId, artifactType = 'DOCUMENTATION', on
   const [error, setError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  const resetState = () => {
+    setUploading(false)
+    setProgress(0)
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
+  }
+
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -22,31 +30,20 @@ export default function FileUpload({ agentId, artifactType = 'DOCUMENTATION', on
     setProgress(0)
 
     try {
-      const formData = new FormData()
-      formData.append('file', file)
+      // Show immediate progress
+      setProgress(30)
       
-      // Simulate progress
-      const progressInterval = setInterval(() => {
-        setProgress(prev => Math.min(prev + 10, 90))
-      }, 200)
-
       await agentsApi.uploadArtifact(agentId, file, artifactType)
       
-      clearInterval(progressInterval)
+      // Show completion
       setProgress(100)
       
-      setTimeout(() => {
-        setUploading(false)
-        setProgress(0)
-        if (fileInputRef.current) {
-          fileInputRef.current.value = ''
-        }
-        onUploadComplete?.()
-      }, 500)
+      // Reset after delay
+      setTimeout(resetState, 500)
+      onUploadComplete?.()
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Upload failed')
-      setUploading(false)
-      setProgress(0)
+      resetState()
     }
   }
 

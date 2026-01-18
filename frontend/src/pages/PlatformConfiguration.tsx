@@ -661,7 +661,7 @@ export default function PlatformConfiguration() {
                   <MaterialButton
                     type="button"
                     variant="outlined"
-                    color="gray"
+                    color="neutral"
                     onClick={() => {
                       setShowCreateForm(false)
                       resetForm()

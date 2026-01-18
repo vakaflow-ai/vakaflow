@@ -7,6 +7,7 @@ import { DialogProvider } from './contexts/DialogContext'
 import Login from './pages/Login'
 import AgentSubmission from './pages/AgentSubmission'
 import AgentDetail from './pages/AgentDetail'
+import { WorkflowPageRoute } from './components/workflow/WorkflowPageRoute'
 import ReviewerDashboard from './pages/ReviewerDashboard'
 import ReviewInterface from './pages/ReviewInterface'
 import AgentCatalog from './pages/AgentCatalog'
@@ -50,6 +51,7 @@ import MyActions from './pages/MyActions'
 import AssessmentAnalytics from './pages/AssessmentAnalytics'
 import AgentConnections from './pages/AgentConnections'
 import WorkflowManagement from './pages/WorkflowManagement'
+import UnifiedWorkflowManagement from './pages/UnifiedWorkflowManagement'
 import InviteVendor from './pages/InviteVendor'
 import VendorRegistration from './pages/VendorRegistration'
 import MyVendors from './pages/MyVendors'
@@ -82,6 +84,7 @@ import OnboardingHub from './pages/OnboardingHub'
 import ProductOnboarding from './pages/ProductOnboarding'
 import ServiceOnboarding from './pages/ServiceOnboarding'
 import VendorOnboarding from './pages/VendorOnboarding'
+import AssessmentReviewInterface from './pages/AssessmentReviewInterface'
 
 const queryClient = new QueryClient()
 
@@ -161,7 +164,7 @@ function App() {
           <Route path="/workflow-configs/:id" element={<WorkflowManagement />} />
           <Route path="/workflows/templates" element={<WorkflowTemplates />} />
           <Route path="/workflows/analytics" element={<WorkflowAnalytics />} />
-          <Route path="/workflows" element={<WorkflowManagement />} />
+          <Route path="/workflows" element={<UnifiedWorkflowManagement />} />
           <Route path="/form-designer" element={<FormDesignerList />} />
           <Route path="/compliance/:agentId" element={<ComplianceChecks />} />
           <Route path="/compliance" element={<ComplianceChecks />} />
@@ -180,7 +183,7 @@ function App() {
           <Route path="/submission-requirements" element={<Navigate to="/admin/submission-requirements" replace />} />
           <Route path="/admin/assessments" element={<AssessmentsManagement />} />
           <Route path="/assessments/analytics" element={<AssessmentAnalytics />} />
-          <Route path="/assessments/review/:id" element={<AssessmentApprover />} />
+          <Route path="/assessments/review/:assessmentId" element={<AssessmentReviewInterface />} />
           <Route path="/approver/:sourceType/:sourceId" element={<GenericApprover />} />
           <Route path="/assessments/assignments/:id" element={<AssessmentAssignmentPage />} />
           <Route path="/assessments/:id" element={<AssessmentAssignmentPage />} />
@@ -213,6 +216,8 @@ function App() {
           <Route path="/submissions" element={<MySubmissions />} />
           <Route path="/my-actions" element={<MyActions />} />
           <Route path="/messages" element={<Messages />} />
+          {/* Universal Workflow Route */}
+          <Route path="/workflow/:sourceType/:sourceId" element={<WorkflowPageRoute />} />
           {/* Approvals route removed - consolidated into /my-actions with filterType=approval */}
           <Route path="/approvals/:id" element={<ApprovalInterface />} />
           <Route path="/offboarding" element={<OffboardingManagement />} />

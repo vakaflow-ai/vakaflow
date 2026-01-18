@@ -304,7 +304,7 @@ export default function MyAssessmentsPage() {
                     <MaterialButton
                       onClick={() => navigate(`/assessments/assignments/${assignment.id}`)}
                       variant={assignment.status === 'in_progress' ? 'contained' : 'outlined'}
-                      color={assignment.status === 'in_progress' ? 'primary' : 'gray'}
+                      color={assignment.status === 'in_progress' ? 'primary' : 'neutral'}
                       size="small"
                       endIcon={<ArrowRight className="w-4 h-4" />}
                     >

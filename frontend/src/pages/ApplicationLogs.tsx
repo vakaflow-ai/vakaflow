@@ -158,7 +158,7 @@ export default function ApplicationLogs() {
               <div className="flex items-center gap-3">
                 <MaterialButton
                   variant="outlined"
-                  color="gray"
+                  color="neutral"
                   size="small"
                   onClick={(e) => {
                     e.stopPropagation()
@@ -273,7 +273,7 @@ export default function ApplicationLogs() {
             <div className="flex items-end">
               <MaterialButton
                 variant="outlined"
-                color="gray"
+                color="neutral"
                 onClick={() => {
                   setLevelFilter('')
                   setStartDate('')
@@ -300,7 +300,7 @@ export default function ApplicationLogs() {
                 </div>
                 <MaterialButton
                   variant="outlined"
-                  color="gray"
+                  color="neutral"
                   size="small"
                   onClick={() => refetch()}
                 >
@@ -398,7 +398,7 @@ export default function ApplicationLogs() {
                     value={clearOptions.log_type || ''}
                     onChange={(e) => setClearOptions({
                       ...clearOptions,
-                      log_type: e.target.value || undefined
+                      log_type: (e.target.value as "application" | "errors" | null) || null
                     })}
                   >
                     <option value="">All Logs (application + errors)</option>
@@ -427,7 +427,7 @@ export default function ApplicationLogs() {
               <div className="flex gap-3 mt-8">
                 <MaterialButton
                   variant="text"
-                  color="gray"
+                  color="neutral"
                   onClick={() => {
                     setShowClearModal(false)
                     setClearOptions({

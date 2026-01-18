@@ -307,7 +307,7 @@ function IncidentDetail({ incidentId, user }: { incidentId: string; user: any })
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['incident-report', incidentId] })
       if (result.success) {
-        toast.success(`Incident pushed to ${externalSystem} successfully`)
+        toast.success(`Incident pushed successfully`)
       } else {
         toast.error(result.error || 'Failed to push incident')
       }

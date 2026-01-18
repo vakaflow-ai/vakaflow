@@ -69,28 +69,28 @@ export default function Recommendations() {
           <div className="flex gap-3 mb-8 flex-wrap">
             <MaterialButton
               variant={selectedType === 'similar' ? 'contained' : 'outlined'}
-              color={selectedType === 'similar' ? 'primary' : 'gray'}
+              color={selectedType === 'similar' ? 'primary' : 'neutral'}
               onClick={() => setSelectedType('similar')}
             >
               Similar Agents
             </MaterialButton>
             <MaterialButton
               variant={selectedType === 'historical' ? 'contained' : 'outlined'}
-              color={selectedType === 'historical' ? 'primary' : 'gray'}
+              color={selectedType === 'historical' ? 'primary' : 'neutral'}
               onClick={() => setSelectedType('historical')}
             >
               Historical Cases
             </MaterialButton>
             <MaterialButton
               variant={selectedType === 'review' ? 'contained' : 'outlined'}
-              color={selectedType === 'review' ? 'primary' : 'gray'}
+              color={selectedType === 'review' ? 'primary' : 'neutral'}
               onClick={() => setSelectedType('review')}
             >
               Review Recommendations
             </MaterialButton>
             <MaterialButton
               variant={selectedType === 'compliance' ? 'contained' : 'outlined'}
-              color={selectedType === 'compliance' ? 'primary' : 'gray'}
+              color={selectedType === 'compliance' ? 'primary' : 'neutral'}
               onClick={() => setSelectedType('compliance')}
             >
               Compliance Tips

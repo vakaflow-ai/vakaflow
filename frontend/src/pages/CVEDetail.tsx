@@ -3,7 +3,7 @@ import { useNavigate, useParams, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { authApi } from '../lib/auth'
 import { tenantsApi } from '../lib/tenants'
-import { securityIncidentsApi, VendorSecurityTracking, IncidentActionHistory } from '../lib/securityIncidents'
+import { securityIncidentsApi, VendorSecurityTracking, IncidentActionHistory, IncidentActionRequest } from '../lib/securityIncidents'
 import Layout from '../components/Layout'
 import { Shield, AlertTriangle, CheckCircle, XCircle, ExternalLink, ArrowLeft, RefreshCw, Eye, EyeOff, Ban, History, MessageSquare } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -71,7 +71,7 @@ export default function CVEDetail() {
   })
 
   const performAction = useMutation({
-    mutationFn: (action: { action: string; notes?: string }) =>
+    mutationFn: (action: IncidentActionRequest) =>
       securityIncidentsApi.performAction(id!, action),
     onSuccess: () => {
       toast.success('Action performed successfully')

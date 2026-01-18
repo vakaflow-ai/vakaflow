@@ -1,7 +1,7 @@
 import React from 'react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from './ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from './shared/Dialog'
+import { Button } from './shared/Button'
 import { AlertTriangle } from 'lucide-react'
-import { MaterialButton } from './material'
 
 interface ConfirmationDialogProps {
   isOpen: boolean
@@ -26,9 +26,7 @@ export default function ConfirmationDialog({
   variant = 'default',
   isLoading = false
 }: ConfirmationDialogProps) {
-  const handleConfirm = () => {
-    onConfirm()
-  }
+
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -47,23 +45,23 @@ export default function ConfirmationDialog({
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
-          <MaterialButton
-            variant="outlined"
-            onClick={onClose}
+          <Button 
+            variant="outline" 
+            onClick={onClose} 
             disabled={isLoading}
           >
             {cancelLabel}
-          </MaterialButton>
-          <MaterialButton
-            variant="contained"
-            color={variant === 'destructive' ? 'error' : 'primary'}
-            onClick={handleConfirm}
+          </Button>
+          <Button
+            variant={variant === 'destructive' ? 'danger' : 'primary'}
+            onClick={onConfirm}
             disabled={isLoading}
+            loading={isLoading}
           >
-            {isLoading ? 'Processing...' : confirmLabel}
-          </MaterialButton>
+            {confirmLabel}
+          </Button>
         </DialogFooter>
-        <DialogClose onClose={onClose} />
+
       </DialogContent>
     </Dialog>
   )

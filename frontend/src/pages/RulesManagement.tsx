@@ -1092,7 +1092,7 @@ export default function RulesManagement() {
                 <div className="flex gap-3 justify-end pt-6 border-t border-outline/10 mt-8">
                   <MaterialButton
                     variant="text"
-                    color="gray"
+                    color="neutral"
                     onClick={() => {
                       setShowCreateRule(false)
                       setSelectedRule(null)
@@ -1573,7 +1573,7 @@ export default function RulesManagement() {
                 <div className="flex gap-3 justify-end pt-8 border-t border-outline/10">
                   <MaterialButton
                     variant="outlined"
-                    color="gray"
+                    color="neutral"
                     onClick={() => setRuleWizardStep(1)}
                     startIcon={<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg>}
                   >
@@ -1581,7 +1581,7 @@ export default function RulesManagement() {
                   </MaterialButton>
                   <MaterialButton
                     variant="text"
-                    color="gray"
+                    color="neutral"
                     onClick={() => {
                       setShowCreateRule(false)
                       setSelectedRule(null)
@@ -1668,7 +1668,7 @@ export default function RulesManagement() {
                           <MaterialButton
                             variant="outlined"
                             size="small"
-                            color={rule.is_active ? 'gray' : 'success'}
+                            color={rule.is_active ? 'neutral' : 'primary'}
                             onClick={async () => {
                               try {
                                 await businessRulesApi.updateRule(rule.id, {

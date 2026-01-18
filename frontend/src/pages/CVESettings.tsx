@@ -43,13 +43,15 @@ export default function CVESettings() {
   const { data: existingConfig, isLoading } = useQuery({
     queryKey: ['monitoring-config'],
     queryFn: () => securityIncidentsApi.getMonitoringConfig(),
-    enabled: !!user && tenantFeatures.cve_tracking === true,
-    onSuccess: (data) => {
-      if (data) {
-        setConfig(data)
-      }
-    }
+    enabled: !!user && tenantFeatures.cve_tracking === true
   })
+
+  // Set config when data is loaded
+  useEffect(() => {
+    if (existingConfig) {
+      setConfig(existingConfig)
+    }
+  }, [existingConfig])
 
   const updateConfig = useMutation({
     mutationFn: (data: Partial<MonitoringConfig>) => securityIncidentsApi.updateMonitoringConfig(data),

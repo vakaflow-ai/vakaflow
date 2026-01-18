@@ -236,6 +236,8 @@ export default function Layout({ children, user }: LayoutProps) {
     '/suppliers-master': 'menu.suppliers_master',
     '/products': 'menu.products',
     '/services': 'menu.services',
+    // Workflow individual routes (used internally)
+    '/workflow': 'menu.workflow_access',
   }
 
   const checkPermission = useCallback((path: string): boolean => {

@@ -6,6 +6,7 @@ import { incidentConfigsApi, IncidentConfig, IncidentConfigCreate } from '../lib
 import Layout from '../components/Layout'
 import { MaterialButton, MaterialCard, MaterialInput, MaterialChip } from '../components/material'
 import { PlusIcon, EditIcon, TrashIcon, SaveIcon, XIcon } from '../components/Icons'
+import { useDialogContext } from '../contexts/DialogContext'
 import toast from 'react-hot-toast'
 
 export default function IncidentConfigs() {

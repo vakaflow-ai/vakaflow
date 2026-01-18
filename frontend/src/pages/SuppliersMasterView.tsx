@@ -182,7 +182,7 @@ export default function SuppliersMasterView() {
                     {supplier.vendor.compliance_score !== null && (
                       <div className="mt-2">
                         <span className="text-sm text-gray-600">Compliance Score: </span>
-                        <span className={`text-sm font-semibold ${supplier.vendor.compliance_score >= 80 ? 'text-green-600' : supplier.vendor.compliance_score >= 60 ? 'text-yellow-600' : 'text-red-600'}`}>
+                        <span className={`text-sm font-semibold ${(supplier.vendor.compliance_score ?? 0) >= 80 ? 'text-green-600' : (supplier.vendor.compliance_score ?? 0) >= 60 ? 'text-yellow-600' : 'text-red-600'}`}>
                           {supplier.vendor.compliance_score}%
                         </span>
                       </div>

@@ -637,7 +637,7 @@ export default function SubmissionRequirementsManagement() {
           <div className="flex gap-2 flex-shrink-0">
             <MaterialButton
               variant={showFilters ? 'contained' : 'outlined'}
-              color={showFilters ? 'primary' : 'gray'}
+              color={showFilters ? 'primary' : 'neutral'}
               onClick={() => setShowFilters(!showFilters)}
               startIcon={<Filter className="w-4 h-4" />}
               title="Toggle filters"
@@ -646,7 +646,7 @@ export default function SubmissionRequirementsManagement() {
             </MaterialButton>
             <MaterialButton
               variant="outlined"
-              color="gray"
+              color="neutral"
               onClick={() => setShowExportModal(true)}
               startIcon={<Download className="w-4 h-4" />}
             >
@@ -654,7 +654,7 @@ export default function SubmissionRequirementsManagement() {
             </MaterialButton>
             <MaterialButton
               variant="outlined"
-              color="gray"
+              color="neutral"
               onClick={() => setShowImportModal(true)}
               startIcon={<Upload className="w-4 h-4" />}
             >
@@ -1633,7 +1633,7 @@ export default function SubmissionRequirementsManagement() {
                                   <MaterialButton
                                     variant="text"
                                     size="small"
-                                    color="gray"
+                                    color="neutral"
                                     onClick={() => {
                                       setExpandedGroups(prev => {
                                         const next = new Set(prev)
@@ -1917,7 +1917,7 @@ export default function SubmissionRequirementsManagement() {
                       setSelectedRequirement(null)
                     }}
                     variant="outlined"
-                    color="gray"
+                    color="neutral"
                   >
                     Close
                   </MaterialButton>

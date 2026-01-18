@@ -242,7 +242,7 @@ export function generateDiagramFromAgentData(
     connections,
     layout: {
       direction: config.generation_rules?.layout || 'LR',
-      theme: config.generation_rules?.theme || 'default',
+      theme: (config.generation_rules?.theme as 'default' | 'neutral' | 'base' | 'dark' | 'forest' | undefined) || 'default',
     },
     metadata: {
       generated: true,

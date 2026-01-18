@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { authApi } from '../lib/auth'
 import { webhooksApi, Webhook, WebhookDelivery } from '../lib/webhooks'
 import Layout from '../components/Layout'
+import { useDialogContext } from '../contexts/DialogContext'
 
 export default function WebhookManagement() {
   const navigate = useNavigate()

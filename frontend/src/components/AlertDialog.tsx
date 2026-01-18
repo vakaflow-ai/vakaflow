@@ -1,7 +1,7 @@
 import React from 'react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from './ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from './shared/Dialog'
+import { Button } from './shared/Button'
 import { AlertCircle, CheckCircle, Info, AlertTriangle } from 'lucide-react'
-import { MaterialButton } from './material'
 
 interface AlertDialogProps {
   isOpen: boolean
@@ -20,39 +20,34 @@ export default function AlertDialog({
   variant = 'info',
   buttonLabel = 'OK'
 }: AlertDialogProps) {
-  const getIcon = () => {
-    switch (variant) {
-      case 'success':
-        return <CheckCircle className="w-5 h-5 text-green-600" />
-      case 'warning':
-        return <AlertTriangle className="w-5 h-5 text-amber-600" />
-      case 'error':
-        return <AlertCircle className="w-5 h-5 text-red-600" />
-      default:
-        return <Info className="w-5 h-5 text-blue-600" />
+  const variantStyles = {
+    success: { 
+      icon: <CheckCircle className="w-5 h-5 text-green-600" />, 
+      bg: 'bg-green-100' 
+    },
+    warning: { 
+      icon: <AlertTriangle className="w-5 h-5 text-amber-600" />, 
+      bg: 'bg-amber-100' 
+    },
+    error: { 
+      icon: <AlertCircle className="w-5 h-5 text-red-600" />, 
+      bg: 'bg-red-100' 
+    },
+    info: { 
+      icon: <Info className="w-5 h-5 text-blue-600" />, 
+      bg: 'bg-blue-100' 
     }
   }
 
-  const getIconBg = () => {
-    switch (variant) {
-      case 'success':
-        return 'bg-green-100'
-      case 'warning':
-        return 'bg-amber-100'
-      case 'error':
-        return 'bg-red-100'
-      default:
-        return 'bg-blue-100'
-    }
-  }
+  const { icon, bg } = variantStyles[variant]
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <div className="flex items-center gap-3">
-            <div className={`p-2 rounded-lg ${getIconBg()}`}>
-              {getIcon()}
+            <div className={`p-2 rounded-lg ${bg}`}>
+              {icon}
             </div>
             <DialogTitle>{title}</DialogTitle>
           </div>
@@ -61,15 +56,11 @@ export default function AlertDialog({
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
-          <MaterialButton
-            variant="contained"
-            color="primary"
-            onClick={onClose}
-          >
+          <Button onClick={onClose}>
             {buttonLabel}
-          </MaterialButton>
+          </Button>
         </DialogFooter>
-        <DialogClose onClose={onClose} />
+
       </DialogContent>
     </Dialog>
   )

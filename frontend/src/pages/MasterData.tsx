@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { authApi } from '../lib/auth'
+import { authApi, User } from '../lib/auth'
 import { masterDataListsApi, MasterDataList, MasterDataListCreate, MasterDataValue } from '../lib/masterDataLists'
 import Layout from '../components/Layout'
 import { showToast } from '../utils/toast'
@@ -18,11 +18,7 @@ const MASTER_DATA_TYPES = [
   { value: 'user_role', label: 'User Roles' },
 ]
 
-interface User {
-  id: string
-  role: string
-  tenant_id?: string
-}
+
 
 export default function MasterData() {
   const queryClient = useQueryClient()

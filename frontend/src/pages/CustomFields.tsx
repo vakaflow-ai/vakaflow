@@ -100,35 +100,23 @@ export default function CustomFields() {
   }> = [
     // Custom fields (user-created)
     ...customFields.map(f => ({
-      id: f.id,
-      field_name: f.field_name,
-      label: f.label,
-      description: f.description,
-      field_type: f.field_type,
-      is_required: f.is_required || false,
-      is_enabled: f.is_enabled ?? true,
-      is_standard: f.is_standard,
+      ...f,
       source: 'custom' as const,
-      role_permissions: f.role_permissions,
-      ...f
+      description: f.description ?? undefined,
+      is_required: f.is_required ?? false // Ensure is_required is always boolean
     })),
     // Entity fields (auto-discovered)
     ...entityFields.map(f => ({
-      id: f.id,
-      field_name: f.field_name,
-      label: f.field_label,
-      description: f.field_description,
-      field_type: f.field_type_display,
-      is_required: f.is_required,
-      is_enabled: f.is_enabled,
-      is_standard: !f.is_custom,
+      ...f,
       source: 'entity' as const,
-      entity_name: f.entity_name,
-      entity_label: f.entity_label,
-      entity_user_level: f.entity_user_level || 'business', // Entity-level categorization
-      role_permissions: {}, // Entity fields use entity-level permissions
-      field_config: f.field_config || null, // Include field_config for special fields
-      ...f
+      label: f.field_label,
+      description: f.field_description ?? undefined,
+      field_type: f.field_type_display,
+      is_required: f.is_required, // Explicitly set is_required to ensure boolean type
+      is_standard: !f.is_custom,
+      entity_user_level: f.entity_user_level || 'business',
+      role_permissions: {},
+      field_config: f.field_config || null
     }))
   ]
   
@@ -380,7 +368,9 @@ export default function CustomFields() {
   })
   
   // Clean up relevance scores from entities
-  filteredEntitiesWithSearch = filteredEntitiesWithSearch.map(({ _entityRelevanceScore, ...entity }) => entity)
+  const cleanedEntities = filteredEntitiesWithSearch.map(({ _entityRelevanceScore, ...entity }) => entity);
+  // Reassign to maintain the variable name for downstream usage
+  filteredEntitiesWithSearch = cleanedEntities;
 
   const total = filteredEntitiesWithSearch.reduce((sum, entity) => sum + entity.fields.length, 0)
 
@@ -643,7 +633,7 @@ export default function CustomFields() {
   }
 
   // Handle field deletion
-  const handleDeleteField = (field: CustomFieldCatalog) => {
+  const handleDeleteField = (field: any) => {
     if (field.is_standard) {
       showToast.error('Cannot delete standard fields')
       return
@@ -891,7 +881,7 @@ export default function CustomFields() {
           <div className="flex items-center gap-2">
             <MaterialButton
               variant="outlined"
-              color="gray"
+              color="secondary"
               onClick={handleSyncEntityFields}
               disabled={syncing}
               loading={syncing}
@@ -953,31 +943,29 @@ export default function CustomFields() {
             {/* Source Filter */}
             <div className="flex items-center gap-2 border-l border-gray-200 pl-3">
               <span className="text-xs font-medium text-gray-700 whitespace-nowrap">Source</span>
-              <MaterialInput
-                type="select"
+              <select
                 value={viewMode}
                 onChange={(e) => setViewMode(e.target.value as 'all' | 'custom' | 'entities')}
-                options={[
-                  { value: 'custom', label: 'Custom Only' },
-                  { value: 'entities', label: 'System Only' },
-                  { value: 'all', label: 'All Fields' }
-                ]}
-              />
+                className="enterprise-input w-[120px]"
+              >
+                <option value="custom">Custom Only</option>
+                <option value="entities">System Only</option>
+                <option value="all">All Fields</option>
+              </select>
             </div>
             
             {/* Category Filter */}
             <div className="flex items-center gap-2 border-l border-gray-200 pl-3">
               <span className="text-xs font-medium text-gray-700 whitespace-nowrap">Category</span>
-              <MaterialInput
-                type="select"
+              <select
                 value={entityUserLevelFilter}
                 onChange={(e) => setEntityUserLevelFilter(e.target.value as 'all' | 'business' | 'advanced')}
-                options={[
-                  { value: 'all', label: 'All' },
-                  { value: 'business', label: 'Business' },
-                  { value: 'advanced', label: 'Advanced' }
-                ]}
-              />
+                className="enterprise-input w-[100px]"
+              >
+                <option value="all">All</option>
+                <option value="business">Business</option>
+                <option value="advanced">Advanced</option>
+              </select>
             </div>
             
             {/* Field Type Filter */}
@@ -1234,7 +1222,7 @@ export default function CustomFields() {
                                       <MaterialButton
                                         variant="text"
                                         size="small"
-                                        color="gray"
+                                        color="secondary"
                                         onClick={() => {
                                           setSelectedFieldForPermissions(field.id)
                                           setShowPermissionsMatrix(true)
@@ -1259,7 +1247,7 @@ export default function CustomFields() {
                                           variant="text"
                                           size="small"
                                           color="error"
-                                          onClick={() => handleDeleteField(field as CustomFieldCatalog)}
+                                          onClick={() => handleDeleteField(field)}
                                           className="!p-1.5"
                                           title="Delete field"
                                         >

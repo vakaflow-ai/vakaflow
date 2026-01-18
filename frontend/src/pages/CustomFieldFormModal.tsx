@@ -359,7 +359,7 @@ export default function CustomFieldFormModal({
           <MaterialButton
             type="button"
             variant="text"
-            color="gray"
+            color="secondary"
             onClick={onCancel}
           >
             Cancel

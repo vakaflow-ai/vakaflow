@@ -85,6 +85,29 @@ export default function AgentSubmission() {
     // Integrations
     connections: [] as ConnectionCreate[],
     mermaid_diagram: '', // Architecture diagram
+    
+    // Rich text fields
+    use_cases: '', // Use cases (rich text)
+    personas: '', // Target personas (rich text)
+    features: '', // Features (rich text)
+    version_info: {
+      release_notes: '',
+      changelog: '',
+      compatibility: '',
+      known_issues: ''
+    },
+    
+    // Additional fields
+    subcategory: '',
+    data_sharing_scope: {
+      shares_pii: false,
+      shares_phi: false,
+      shares_financial_data: false,
+      shares_biometric_data: false,
+      data_retention_period: '',
+      data_processing_location: [] as string[]
+    },
+    data_usage_purpose: ''
   })
 
   // Removed capabilityInput, useCaseInput, featureInput, personaInput - now using rich text editors directly
@@ -655,7 +678,7 @@ export default function AgentSubmission() {
     },
     enabled: !!user,
     staleTime: 0, // Always fetch fresh data to ensure we get the latest layout with all sections
-    cacheTime: 0, // Don't cache to ensure we always get the latest from server
+    gcTime: 0, // Don't cache to ensure we always get the latest from server
     // Note: onError is deprecated in newer versions of react-query, errors are handled via error state
   })
 
@@ -1132,7 +1155,7 @@ export default function AgentSubmission() {
           requiredReqs.forEach(req => {
             const value = requirementResponses[req.id]
             if (value === undefined || value === null || value === '') {
-              missing.push(req.name || req.id)
+              missing.push(req.label || req.id)
             }
           })
         }
@@ -2167,6 +2190,9 @@ Please try:
   // Render a field based on its type from layout configuration
   // Simple logic: Get field type from requirements/available fields/custom fields -> Render accordingly
   const renderFieldFromLayout = (fieldName: string, stepNumber: number, isReadOnly: boolean = false, fieldIndex: number = 0, isRequiredOverride?: boolean) => {
+    // Declare fieldValue early to ensure availability in all scopes
+    const fieldValue = formData && typeof formData === 'object' ? ((formData as any)[fieldName] || '') : ''
+    
     try {
       // Safety check: ensure fieldName is a valid string
       if (!fieldName || typeof fieldName !== 'string') {
@@ -2192,6 +2218,7 @@ Please try:
       // Use override if provided, otherwise fall back to field definition
       const isRequired = isRequiredOverride !== undefined ? isRequiredOverride : (fieldDef?.is_required || false)
       
+      // Declare fieldValue early to ensure availability in all scopes
       const fieldValue = formData && typeof formData === 'object' ? ((formData as any)[fieldName] || '') : ''
     
     // For special fields that need custom UI, use renderSpecialField
@@ -2293,7 +2320,7 @@ Please try:
                   <ReactQuillWrapper
                     theme="snow"
                     value={fieldValue || ''}
-                    onChange={(content) => {
+                    onChange={(content: string) => {
                       setFormData((prev: any) => ({ ...prev, [fieldName]: content }))
                     }}
                     placeholder={customField.placeholder || 'Enter formatted text...'}
@@ -2345,7 +2372,7 @@ Please try:
                       <input
                         type="checkbox"
                         checked={selectedValues.includes(opt.value)}
-                        onChange={(e) => {
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                           const newValues = e.target.checked
                             ? [...selectedValues, opt.value]
                             : selectedValues.filter((v: string) => v !== opt.value)
@@ -2517,7 +2544,7 @@ Please try:
                   <ReactQuillWrapper
                     theme="snow"
                     value={fieldValue || ''}
-                    onChange={(content) => {
+                    onChange={(content: string) => {
                       setFormData((prev: any) => ({ ...prev, [fieldName]: content }))
                     }}
                     placeholder={customField.placeholder || 'Enter formatted text...'}
@@ -2602,6 +2629,9 @@ Please try:
       
       // Get field_config early so it can be used in diagram field handling
       const fieldConfig = (availableField as any).field_config || {}
+      
+      // Get field value early for use in diagram field handling
+      let fieldValue = (formData as any)[fieldName]
       
       // Handle diagram field types from available fields (mermaid_diagram, architecture_diagram, visualization)
       if (fieldName === 'mermaid_diagram' || fieldName === 'architecture_diagram' || fieldName === 'visualization' ||
@@ -2829,7 +2859,8 @@ Please try:
       // }
       
       // Get field value - handle arrays properly for multi-select fields
-      let fieldValue = (formData as any)[fieldName]
+      // fieldValue already declared earlier for diagram field handling
+      // let fieldValue = (formData as any)[fieldName]
       
       // Normalize field value based on field type
       if (fieldType === 'multi_select' || (fieldType === 'json' && fieldOptions.length > 0)) {
@@ -3239,7 +3270,7 @@ Please try:
                   <ReactQuillWrapper
                     theme="snow"
                     value={fieldValue || ''}
-                    onChange={(content) => {
+                    onChange={(content: string) => {
                       if (!isReadOnly) {
                         setFormData((prev: any) => ({ ...prev, [fieldName]: content }))
                       }
@@ -3521,7 +3552,7 @@ Please try:
           )
         }
       })
-      .filter(f => {
+      .filter((f: any) => {
         const isFiltered = f === null || f === undefined
         if (isFiltered) {
           console.warn('Filtered out field element:', f)
@@ -3986,7 +4017,7 @@ Please try:
             <ReactQuillWrapper
               theme="snow"
               value={formData.data_usage_purpose || ''}
-              onChange={(content) => setFormData({ ...formData, data_usage_purpose: content })}
+              onChange={(content: string) => setFormData({ ...formData, data_usage_purpose: content })}
               placeholder="Describe how the agent uses data with the LLM. For example:&#10;- Training the model&#10;- Generating responses&#10;- Analyzing user queries&#10;- Personalizing experiences"
               modules={{
                 toolbar: [
@@ -4660,9 +4691,9 @@ Please try:
                     value={typeof formData.capabilities === 'string' 
                       ? formData.capabilities 
                       : (Array.isArray(formData.capabilities) 
-                          ? formData.capabilities.map(c => `<p>${c}</p>`).join('') 
+                          ? formData.capabilities.map((c: any) => `<p>${c}</p>`).join('') 
                           : '')}
-                    onChange={(content) => {
+                    onChange={(content: string) => {
                       setFormData({
                         ...formData,
                         capabilities: content,
@@ -4811,9 +4842,9 @@ Please try:
                     value={typeof formData.use_cases === 'string' 
                       ? formData.use_cases 
                       : (Array.isArray(formData.use_cases) 
-                          ? formData.use_cases.map(uc => `<p>${uc}</p>`).join('') 
+                          ? formData.use_cases.map((uc: any) => `<p>${uc}</p>`).join('') 
                           : '')}
-                    onChange={(content) => {
+                    onChange={(content: string) => {
                       setFormData({
                         ...formData,
                         use_cases: content,
@@ -4852,9 +4883,9 @@ Please try:
                     value={typeof formData.personas === 'string' 
                       ? formData.personas 
                       : (Array.isArray(formData.personas) && formData.personas.length > 0 && typeof formData.personas[0] === 'object' && 'name' in formData.personas[0]
-                          ? (formData.personas as Array<{ name: string; description: string }>).map(p => `<p><strong>${p.name || 'Persona'}:</strong> ${p.description || ''}</p>`).join('') 
+                          ? (formData.personas as Array<{ name: string; description: string }>).map((p: any) => `<p><strong>${p.name || 'Persona'}:</strong> ${p.description || ''}</p>`).join('') 
                           : '')}
-                    onChange={(content) => {
+                    onChange={(content: string) => {
                       setFormData({
                         ...formData,
                         personas: content,

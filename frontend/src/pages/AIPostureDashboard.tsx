@@ -290,7 +290,7 @@ export default function AIPostureDashboard() {
                   cx="50%"
                   cy="50%"
                   labelLine={true}
-                  label={({ name, percent }) => percent > 0.05 ? `${name}: ${(percent * 100).toFixed(0)}%` : ''}
+                  label={({ name, percent }) => (percent ?? 0) > 0.05 ? `${name}: ${((percent ?? 0) * 100).toFixed(0)}%` : ''}
                   outerRadius={100}
                   innerRadius={60}
                   paddingAngle={5}
@@ -328,7 +328,7 @@ export default function AIPostureDashboard() {
                   cx="50%"
                   cy="50%"
                   labelLine={true}
-                  label={({ name, percent }) => percent > 0.05 ? `${name}: ${(percent * 100).toFixed(0)}%` : ''}
+                  label={({ name, percent }) => (percent ?? 0) > 0.05 ? `${name}: ${((percent ?? 0) * 100).toFixed(0)}%` : ''}
                   outerRadius={100}
                   innerRadius={60}
                   paddingAngle={5}
@@ -730,7 +730,7 @@ export default function AIPostureDashboard() {
                       <YAxis tick={{ fontSize: 10, fill: '#666' }} stroke="#e0e0e0" />
                       <Tooltip
                         labelFormatter={(value) => new Date(value).toLocaleDateString()}
-                        formatter={(value: number) => `$${value.toFixed(2)}`}
+                        formatter={(value: number | undefined) => `$${(value ?? 0).toFixed(2)}`}
                       />
                       <Line
                         type="monotone"
@@ -955,7 +955,7 @@ export default function AIPostureDashboard() {
                   stroke="#e0e0e0"
                 />
                 <YAxis tick={{ fontSize: 10, fill: '#666' }} stroke="#e0e0e0" />
-                <Tooltip formatter={(value: number) => `$${value.toFixed(2)}`} />
+                <Tooltip formatter={(value: number | undefined) => `$${(value ?? 0).toFixed(2)}`} />
                 <Legend wrapperStyle={{ fontSize: '11px', fontWeight: 500 }} />
                 <Bar dataKey="cost" fill="#ef4444" name="Cost ($)" radius={[4, 4, 0, 0]} />
               </BarChart>

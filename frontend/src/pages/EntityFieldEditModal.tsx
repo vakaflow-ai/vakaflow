@@ -106,8 +106,8 @@ export default function EntityFieldEditModal({
     })
     
     // Basic field properties
-    setLabel(fieldToUse.field_label || fieldToUse.label || '')
-    setDescription(fieldToUse.field_description || fieldToUse.description || '')
+    setLabel(fieldToUse.field_label || '')
+    setDescription(fieldToUse.field_description || '')
     setIsRequired(fieldToUse.is_required || false)
     setIsEnabled(fieldToUse.is_enabled ?? true)
     setFieldTypeDisplay(fieldToUse.field_type_display || fieldToUse.field_type || 'text')
@@ -462,7 +462,7 @@ export default function EntityFieldEditModal({
                         <MaterialButton
                           type="button"
                           variant="text"
-                          color="gray"
+                          color="neutral"
                           size="small"
                           onClick={() => handleRemoveOption(idx)}
                         >
@@ -579,7 +579,7 @@ export default function EntityFieldEditModal({
                                 <MaterialButton
                                   type="button"
                                   variant="text"
-                                  color="gray"
+                                  color="neutral"
                                   size="small"
                                   onClick={() => handleRemoveDependentOption(parentValue, idx)}
                                 >
@@ -614,7 +614,7 @@ export default function EntityFieldEditModal({
             <MaterialButton
               type="button"
               variant="outlined"
-              color="gray"
+              color="neutral"
               onClick={onCancel}
             >
               Cancel

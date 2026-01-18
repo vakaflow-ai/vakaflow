@@ -10,7 +10,7 @@ import {
   Building2, FileText, Shield, AlertTriangle, CheckCircle, XCircle,
   Users, Package, FileCheck, Search, Filter, Download, Eye, ChevronLeft, RefreshCw,
   Calendar, DollarSign, Tag, ExternalLink, File, ClipboardList, BarChart3,
-  Clock, Mail, Phone, Globe, MapPin, FileX, CheckCircle2, XCircle2, AlertCircle,
+  Clock, Mail, Phone, Globe, MapPin, FileX, CheckCircle2, AlertCircle,
   TrendingUp, Activity, History, Award, Lock
 } from 'lucide-react'
 import { MaterialCard, MaterialButton, MaterialChip } from '../components/material'
@@ -309,16 +309,12 @@ export default function VendorProfile() {
                     )}
                   </div>
                   <div className="flex items-center gap-3">
-                    <MaterialChip className="bg-green-100 text-green-800">Active</MaterialChip>
+                    <MaterialChip label="Active" className="bg-green-100 text-green-800" />
                     {vendor.compliance_score !== null && (
-                      <MaterialChip className="bg-blue-100 text-blue-800">
-                        Compliance: {vendor.compliance_score}%
-                      </MaterialChip>
+                      <MaterialChip label={`Compliance: ${vendor.compliance_score}%`} className="bg-blue-100 text-blue-800" />
                     )}
                     {vendor.registration_number && (
-                      <MaterialChip variant="outlined">
-                        Reg: {vendor.registration_number}
-                      </MaterialChip>
+                      <MaterialChip label={`Reg: ${vendor.registration_number}`} variant="outlined" />
                     )}
                   </div>
                 </div>

@@ -61,6 +61,7 @@ export default function GenericApproverPage({}: GenericApproverPageProps) {
   const { sourceType, sourceId } = useParams<{ sourceType: string; sourceId: string }>()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const dialog = useDialogContext()
   const [user, setUser] = useState<any>(null)
   const [activeTab, setActiveTab] = useState<string>('overview') // Default to 'overview' tab
   const [showForwardDialog, setShowForwardDialog] = useState(false)

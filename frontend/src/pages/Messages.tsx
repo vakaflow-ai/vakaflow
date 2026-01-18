@@ -222,7 +222,7 @@ export default function Messages() {
                             <MaterialButton
                               variant="outlined"
                               size="small"
-                              color="gray"
+                              color="neutral"
                               onClick={() => navigate(`/${message.resource_type}s/${message.resource_id}`)}
                               className="text-sm font-semibold h-9 rounded-md px-4"
                             >

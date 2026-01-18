@@ -72,7 +72,7 @@ export default function PromptDialog({
           <MaterialInput
             label={label}
             value={value}
-            onChange={(e) => {
+            onChange={(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
               setValue(e.target.value)
               if (error) setError('')
             }}
@@ -81,7 +81,7 @@ export default function PromptDialog({
             helperText={error || (required ? 'This field is required' : 'Optional')}
             multiline={type === 'textarea'}
             autoFocus
-            onKeyDown={(e) => {
+            onKeyDown={(e: React.KeyboardEvent) => {
               if (e.key === 'Enter' && !e.shiftKey && type !== 'textarea') {
                 e.preventDefault()
                 handleSubmit()

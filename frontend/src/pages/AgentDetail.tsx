@@ -514,11 +514,11 @@ export default function AgentDetail() {
                     </div>
                     <div className="text-right">
                       <div className={`text-sm font-bold tracking-tight ${
-                        agent.compliance_score >= 80 ? 'text-green-600' :
-                        agent.compliance_score >= 60 ? 'text-warning-600' : 'text-red-600'
+                        (agent.compliance_score ?? 0) >= 80 ? 'text-green-600' :
+                        (agent.compliance_score ?? 0) >= 60 ? 'text-warning-600' : 'text-red-600'
                       }`}>
-                        {agent.compliance_score >= 80 ? 'High Confidence' :
-                         agent.compliance_score >= 60 ? 'Moderate Risk' : 'High Risk'}
+                        {(agent.compliance_score ?? 0) >= 80 ? 'High Confidence' :
+                         (agent.compliance_score ?? 0) >= 60 ? 'Moderate Risk' : 'High Risk'}
                       </div>
                     </div>
                   </div>
@@ -526,10 +526,10 @@ export default function AgentDetail() {
                   <div className="progress-bar-modern h-4 bg-gray-100 border border-gray-50 shadow-inner">
                     <div
                       className={`h-full rounded-full transition-all duration-1000 shadow-md ${
-                        agent.compliance_score >= 80 ? 'bg-success-500' :
-                        agent.compliance_score >= 60 ? 'bg-warning-500' : 'bg-error-500'
+                        (agent.compliance_score ?? 0) >= 80 ? 'bg-success-500' :
+                        (agent.compliance_score ?? 0) >= 60 ? 'bg-warning-500' : 'bg-error-500'
                       }`}
-                      style={{ width: `${agent.compliance_score}%` }}
+                      style={{ width: `${agent.compliance_score ?? 0}%` }}
                     />
                   </div>
                 </div>
@@ -586,16 +586,16 @@ export default function AgentDetail() {
                     strokeWidth="12"
                     fill="none"
                     strokeDasharray={`${2 * Math.PI * 70}`}
-                    strokeDashoffset={`${2 * Math.PI * 70 * (1 - agent.compliance_score / 100)}`}
+                    strokeDashoffset={`${2 * Math.PI * 70 * (1 - (agent.compliance_score ?? 0) / 100)}`}
                     strokeLinecap="round"
                     className={`transition-all duration-1000 ${
-                      agent.compliance_score >= 80 ? 'text-success-500' :
-                      agent.compliance_score >= 60 ? 'text-warning-500' : 'text-error-500'
+                      (agent.compliance_score ?? 0) >= 80 ? 'text-success-500' :
+                      (agent.compliance_score ?? 0) >= 60 ? 'text-warning-500' : 'text-error-500'
                     }`}
                   />
                 </svg>
                 <div className="absolute inset-0 flex items-center justify-center flex-col pt-4">
-                  <span className="text-4xl font-semibold text-gray-900">{agent.compliance_score}</span>
+                  <span className="text-4xl font-semibold text-gray-900">{agent.compliance_score ?? 0}</span>
                   <span className="text-xs font-medium text-gray-700 tracking-tight mt-1">Compliance</span>
                 </div>
               </div>
@@ -966,7 +966,7 @@ export default function AgentDetail() {
 
                 <div className="space-y-4">
                   <div className="text-xs font-medium text-gray-700 tracking-tight px-2">Registered Connection Nodes</div>
-                  {connections?.length > 0 ? (
+                  {connections && connections.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {connections.map((conn) => (
                         <MaterialCard key={conn.id} elevation={1} className="border-none p-5 group">

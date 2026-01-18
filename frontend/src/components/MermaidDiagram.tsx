@@ -98,8 +98,7 @@ export default function MermaidDiagram({ diagram, id = 'mermaid-diagram', showZo
         padding: 30
       },
       er: {
-        fontSize: '18px',
-        padding: 30
+        fontSize: 18
       }
     })
 

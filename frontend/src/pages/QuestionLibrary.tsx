@@ -321,32 +321,7 @@ export default function QuestionLibrary() {
     navigate(`/admin/question-library/${question.id}/edit`)
   }
 
-  const handleUpdate = () => {
-    if (selectedQuestion) {
-      // Prepare update data - only include fields that have changed or are required
-      const updateData: Partial<QuestionLibraryType> = {
-        title: formData.title,
-        question_text: formData.question_text,
-        description: formData.description || undefined,
-        assessment_type: formData.assessment_type, // Ensure it's an array
-        category: formData.category || undefined,
-        field_type: formData.field_type,
-        response_type: formData.response_type,
-        is_required: formData.is_required,
-        options: formData.options && formData.options.length > 0 ? formData.options : undefined,
-      }
-      
-      // Remove undefined values to avoid sending them
-      Object.keys(updateData).forEach(key => {
-        if (updateData[key as keyof typeof updateData] === undefined) {
-          delete updateData[key as keyof typeof updateData]
-        }
-      })
-      
-      console.log('Updating question with data:', updateData)
-      updateMutation.mutate({ id: selectedQuestion.id, data: updateData })
-    }
-  }
+
 
   const handleDelete = async (id: string) => {
     const confirmed = await dialog.confirm({

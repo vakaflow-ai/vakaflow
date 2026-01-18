@@ -6,16 +6,11 @@ import { assessmentsApi } from '../lib/assessments'
 import { authApi } from '../lib/auth'
 import Layout from '../components/Layout'
 import PageContainer, { PageHeader } from '../components/PageContainer'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Badge } from '../components/ui/badge'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/shared/Card'
+import { Button } from '@/components/shared/Button'
+import { Input } from '@/components/shared/Input'
 import { showToast } from '../utils/toast'
-import { 
-  InboxIcon, CheckCircleIcon, ClockIcon, AlertCircleIcon, 
-  FileTextIcon, ShieldCheckIcon
-} from '../components/Icons'
-import { Clock, CheckCircle, AlertCircle } from 'lucide-react'
+import { Clock, CheckCircle, AlertCircle, Search } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import InboxGrid from '../components/InboxGrid'
 
@@ -46,12 +41,16 @@ export default function MyActions() {
     enabled: !!user?.tenant_id,
   })
 
-  const items = inboxData?.items || []
+  const items = activeTab === 'pending' ? (inboxData?.pending || []) :
+                activeTab === 'completed' ? (inboxData?.completed || []) :
+                activeTab === 'overdue' ? (inboxData?.overdue || []) :
+                (inboxData?.items || [])
   // Always use counts from API response - these are calculated from ALL items, not filtered
   // The counts endpoint returns accurate counts, and inboxData also includes accurate counts
-  const pendingCount = countsData?.pending ?? inboxData?.pending_count ?? 0
-  const completedCount = countsData?.completed ?? inboxData?.completed_count ?? 0
-  const overdueCount = countsData?.overdue ?? inboxData?.overdue_count ?? 0
+  // If counts are 0 but we have items in the arrays, use the array length as fallback
+  const pendingCount = countsData?.pending ?? inboxData?.pending_count ?? (inboxData?.pending?.length || 0)
+  const completedCount = countsData?.completed ?? inboxData?.completed_count ?? (inboxData?.completed?.length || 0)
+  const overdueCount = countsData?.overdue ?? inboxData?.overdue_count ?? (inboxData?.overdue?.length || 0)
 
   const filteredItems = items.filter(item => {
     if (!searchQuery) return true
@@ -131,12 +130,12 @@ export default function MyActions() {
             <div className="flex items-center gap-4">
               <div className="flex-1 relative">
                 <Input
+                  label=""
                   placeholder="Search actions..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 bg-background text-foreground"
                 />
-                <InboxIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               </div>
             </div>
           </CardContent>
@@ -159,19 +158,25 @@ export default function MyActions() {
               items={filteredItems}
               isLoading={isLoading}
               onItemClick={(item) => {
-                // Use generic approver route with source_type and source_id from business process
-                if (item.type === 'approval' || item.source_type === 'assessment_approval' || item.source_type === 'assessment_review') {
-                  // For approvers: navigate to generic approver page
-                  if (item.source_type && item.source_id) {
-                    navigate(`/approver/${item.source_type}/${item.source_id}`)
-                  } else if (item.action_url) {
-                    navigate(item.action_url)
-                  }
-                } else if (item.source_type === 'assessment_assignment' && item.source_id) {
-                  // For vendors: navigate to assessment completion page
-                  navigate(`/assessments/${item.source_id}`)
+                // Special handling for assessment reviews
+                if (item.source_type === 'assessment_review' && item.source_id) {
+                  navigate(`/assessments/review/${item.source_id}`);
+                }
+                // Unified workflow routing
+                else if (item.source_type && item.source_id) {
+                  // Use the new universal workflow renderer
+                  navigate(`/workflow/${item.source_type}/${item.source_id}`);
                 } else if (item.action_url) {
-                  navigate(item.action_url)
+                  navigate(item.action_url);
+                } else {
+                  // Fallback to legacy routes
+                  if (item.type === 'approval' || item.source_type?.includes('assessment')) {
+                    if (item.source_type && item.source_id) {
+                      navigate(`/approver/${item.source_type}/${item.source_id}`);
+                    }
+                  } else if (item.source_type === 'assessment_assignment' && item.source_id) {
+                    navigate(`/assessments/${item.source_id}`);
+                  }
                 }
               }}
             />

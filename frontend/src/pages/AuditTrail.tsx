@@ -370,7 +370,7 @@ export default function AuditTrail() {
                       <div className="flex gap-2">
                         <MaterialButton
                           variant={purgeOptions.older_than_days === 180 ? 'contained' : 'outlined'}
-                          color="gray"
+                          color="secondary"
                           size="small"
                           onClick={() => setPurgeOptions({
                             ...purgeOptions,
@@ -383,7 +383,7 @@ export default function AuditTrail() {
                         </MaterialButton>
                         <MaterialButton
                           variant={purgeOptions.older_than_days === 365 ? 'contained' : 'outlined'}
-                          color="gray"
+                          color="secondary"
                           size="small"
                           onClick={() => setPurgeOptions({
                             ...purgeOptions,
@@ -403,7 +403,7 @@ export default function AuditTrail() {
                       <div className="flex gap-2">
                         <MaterialButton
                           variant={purgeOptions.older_than_years === 1 ? 'contained' : 'outlined'}
-                          color="gray"
+                          color="secondary"
                           size="small"
                           onClick={() => setPurgeOptions({
                             ...purgeOptions,
@@ -416,7 +416,7 @@ export default function AuditTrail() {
                         </MaterialButton>
                         <MaterialButton
                           variant={purgeOptions.older_than_years === 2 ? 'contained' : 'outlined'}
-                          color="gray"
+                          color="secondary"
                           size="small"
                           onClick={() => setPurgeOptions({
                             ...purgeOptions,
@@ -429,7 +429,7 @@ export default function AuditTrail() {
                         </MaterialButton>
                         <MaterialButton
                           variant={purgeOptions.older_than_years === 3 ? 'contained' : 'outlined'}
-                          color="gray"
+                          color="secondary"
                           size="small"
                           onClick={() => setPurgeOptions({
                             ...purgeOptions,
@@ -449,7 +449,7 @@ export default function AuditTrail() {
               <div className="flex gap-3 mt-8">
                 <MaterialButton
                   variant="text"
-                  color="gray"
+                  color="secondary"
                   onClick={() => {
                     setShowPurgeModal(false)
                     setPurgeOptions({

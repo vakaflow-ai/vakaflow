@@ -213,7 +213,7 @@ export default function OffboardingManagement() {
                                 onClick={() => extractKnowledgeMutation.mutate(request.id)}
                                 disabled={extractKnowledgeMutation.isPending}
                                 variant="contained"
-                                color="warning"
+                                color="primary"
                                 size="small"
                                 className="text-sm font-bold tracking-tight"
                               >
@@ -227,7 +227,7 @@ export default function OffboardingManagement() {
                               onClick={() => completeMutation.mutate(request.id)}
                               disabled={completeMutation.isPending}
                               variant="contained"
-                              color="success"
+                              color="primary"
                               size="small"
                               className="text-sm font-bold tracking-tight px-6"
                             >

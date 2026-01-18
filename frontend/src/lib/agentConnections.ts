@@ -46,8 +46,12 @@ export interface ConnectionCreate {
   compliance_requirements?: string[]
   data_types_exchanged?: string[]
   data_flow_direction?: 'inbound' | 'outbound' | 'bidirectional'
+  data_format?: string
+  data_volume?: string
+  exchange_frequency?: string
   source_system?: string
   destination_system?: string
+  data_schema?: string
 }
 
 export interface ConnectionUpdate {
@@ -65,6 +69,14 @@ export interface ConnectionUpdate {
   is_encrypted?: boolean
   data_classification?: string
   compliance_requirements?: string[]
+  data_types_exchanged?: string[]
+  data_flow_direction?: 'inbound' | 'outbound' | 'bidirectional'
+  data_format?: string
+  data_volume?: string
+  exchange_frequency?: string
+  source_system?: string
+  destination_system?: string
+  data_schema?: string
 }
 
 export const agentConnectionsApi = {

@@ -238,31 +238,31 @@ export default function ClusterNodeManagement() {
         <MaterialCard elevation={0} className="p-4 bg-surface-variant/5 border-none">
           <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-1">
-              <MaterialInput
-                label="Filter by Node Type"
-                type="select"
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Filter by Node Type</label>
+              <select
                 value={selectedNodeType}
                 onChange={(e) => setSelectedNodeType(e.target.value)}
-                options={[
-                  { value: '', label: 'All Types' },
-                  ...NODE_TYPES
-                ]}
-              />
+                className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              >
+                <option value="">All Types</option>
+                {NODE_TYPES.map(type => (
+                  <option key={type.value} value={type.value}>{type.label}</option>
+                ))}
+              </select>
             </div>
             <div className="flex-1">
-              <MaterialInput
-                label="Filter by Status"
-                type="select"
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Filter by Status</label>
+              <select
                 value={selectedStatus}
                 onChange={(e) => setSelectedStatus(e.target.value)}
-                options={[
-                  { value: '', label: 'All Statuses' },
-                  { value: 'healthy', label: 'Healthy' },
-                  { value: 'unhealthy', label: 'Unhealthy' },
-                  { value: 'offline', label: 'Offline' },
-                  { value: 'unknown', label: 'Unknown' }
-                ]}
-              />
+                className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              >
+                <option value="">All Statuses</option>
+                <option value="healthy">Healthy</option>
+                <option value="unhealthy">Unhealthy</option>
+                <option value="offline">Offline</option>
+                <option value="unknown">Unknown</option>
+              </select>
             </div>
           </div>
         </MaterialCard>
@@ -299,14 +299,19 @@ export default function ClusterNodeManagement() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  <MaterialInput
-                    label="Node Type *"
-                    type="select"
-                    value={formData.node_type}
-                    onChange={(e) => setFormData({ ...formData, node_type: e.target.value })}
-                    required
-                    options={NODE_TYPES}
-                  />
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">Node Type *</label>
+                    <select
+                      value={formData.node_type}
+                      onChange={(e) => setFormData({ ...formData, node_type: e.target.value })}
+                      className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      required
+                    >
+                      {NODE_TYPES.map(type => (
+                        <option key={type.value} value={type.value}>{type.label}</option>
+                      ))}
+                    </select>
+                  </div>
                   <MaterialInput
                     label="SSH Port"
                     type="number"

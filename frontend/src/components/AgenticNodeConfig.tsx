@@ -274,7 +274,7 @@ export default function AgenticNodeConfig({ value, onChange, nodeInputData }: Ag
                 <MaterialButton
                   variant="outlined"
                   size="small"
-                  color="gray"
+                  color="neutral"
                   onClick={() => {
                     let initialType: 'user' | 'vendor' | 'custom' = 'custom'
                     let initialValue = ''
@@ -563,7 +563,7 @@ export default function AgenticNodeConfig({ value, onChange, nodeInputData }: Ag
               <MaterialButton
                 variant="outlined"
                 size="small"
-                color="success"
+                color="primary"
                 onClick={() => {
                   const newSources = [...(config.collect_data?.sources || []), { type: 'api' as const, endpoint: '' }]
                   updateCollectData({ sources: newSources })

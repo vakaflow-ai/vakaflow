@@ -200,7 +200,6 @@ export default function VendorOnboarding() {
               />
               <MaterialInput
                 label="Address"
-                type="text"
                 value={formData.address || ''}
                 onChange={(e) => updateField('address', e.target.value)}
                 placeholder="Street address, City, State, ZIP"
@@ -216,7 +215,6 @@ export default function VendorOnboarding() {
               />
               <MaterialInput
                 label="Description"
-                type="text"
                 value={formData.description || ''}
                 onChange={(e) => updateField('description', e.target.value)}
                 placeholder="Brief description of the vendor"

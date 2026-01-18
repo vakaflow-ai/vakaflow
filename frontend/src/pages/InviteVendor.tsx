@@ -89,25 +89,43 @@ export default function InviteVendor() {
   const {
     values,
     errors,
-    touched,
     handleChange,
-    handleBlur,
-    handleSubmit,
+    validateForm,
     reset
-  } = useFormValidation(
-    { email: '', message: '' },
-    {
-      email: {
-        required: true,
-        email: true,
-        message: 'Please enter a valid email address'
-      },
-      message: {
-        maxLength: 1000,
-        message: 'Message must be no more than 1000 characters'
-      }
+  } = useFormValidation({
+    initialValues: { email: '', message: '' },
+    validationRules: {
+      email: [
+        {
+          validator: (value: string) => !!value && value.trim().length > 0,
+          message: 'Email is required'
+        },
+        {
+          validator: (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value),
+          message: 'Please enter a valid email address'
+        }
+      ],
+      message: [
+        {
+          validator: (value: string) => !value || value.length <= 1000,
+          message: 'Message must be no more than 1000 characters'
+        }
+      ]
     }
-  )
+  })
+
+  const [touched, setTouched] = useState<Record<string, boolean>>({})
+  
+  const handleBlur = (field: string) => {
+    setTouched(prev => ({ ...prev, [field]: true }))
+  }
+  
+  const handleFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (validateForm()) {
+      onSubmit(values)
+    }
+  }
 
   // Handle invitation type selection
   const handleInvitationTypeChange = (type: InvitationType) => {
@@ -141,7 +159,11 @@ export default function InviteVendor() {
       if (data.email_sent === false && data.email_error) {
         await dialog.alert({
           title: 'Invitation Created',
-          message: `Invitation created successfully, but the email could not be sent.\n\n${data.email_error}\n\nPlease configure SMTP settings in Integration Management, then you can resend the invitation email.`,
+          message: `Invitation created successfully, but the email could not be sent.
+
+${data.email_error}
+
+Please configure SMTP settings in Integration Management, then you can resend the invitation email.`,
           variant: 'warning'
         })
       } else if (data.email_sent === false) {
@@ -311,7 +333,7 @@ export default function InviteVendor() {
         {/* Invitation Form */}
         <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-6">Send Invitation</h2>
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          <form onSubmit={handleFormSubmit} className="space-y-6">
             <FormField
               label="Vendor Email"
               name="email"

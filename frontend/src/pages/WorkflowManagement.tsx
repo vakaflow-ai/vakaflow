@@ -58,7 +58,7 @@ export default function WorkflowManagement() {
     status: 'draft'
   })
   const [newStep, setNewStep] = useState<Partial<WorkflowStep>>({
-    step_type: 'review',
+    step_type: 'approval',
     step_name: '',
     assigned_role: '',
     required: true,
@@ -384,7 +384,7 @@ export default function WorkflowManagement() {
       status: 'draft'
     })
     setNewStep({
-      step_type: 'review',
+      step_type: 'approval',
       step_name: '',
       assigned_role: '',
       required: true,
@@ -402,7 +402,7 @@ export default function WorkflowManagement() {
     const stepNumber = (formData.workflow_steps?.length || 0) + 1
     const step: WorkflowStep = {
       step_number: stepNumber,
-      step_type: newStep.step_type || 'review',
+      step_type: newStep.step_type || 'approval',
       step_name: newStep.step_name,
       assigned_role: newStep.assigned_role,
       required: newStep.required ?? true,
@@ -417,7 +417,7 @@ export default function WorkflowManagement() {
     })
 
     setNewStep({
-      step_type: 'review',
+      step_type: 'approval',
       step_name: '',
       assigned_role: '',
       required: true,
@@ -637,7 +637,7 @@ export default function WorkflowManagement() {
                       const maxStepNumber = formData.workflow_steps?.length || 0
                       const newStep: WorkflowStep = {
                         step_number: maxStepNumber + 1,
-                        step_type: 'review',
+                        step_type: 'approval',
                         step_name: `Step ${maxStepNumber + 1}`,
                         assigned_role: '',
                         required: true,
