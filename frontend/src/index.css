@@ -2,6 +2,20 @@
 @import "./styles/unified.css";
 
 /* Cache bust: 2025-01-02 - Fixed font-size/letter-spacing conflicts */
+
+/* CSS Reset to suppress browser warnings */
+* {
+  /* Suppress -webkit-text-size-adjust warnings */
+  -webkit-text-size-adjust: 100%;
+  /* Normalize column-gap for modern browsers */
+  column-gap: normal;
+}
+
+/* Suppress specific property warnings */
+html {
+  -webkit-text-size-adjust: none;
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

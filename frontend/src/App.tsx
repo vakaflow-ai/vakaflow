@@ -62,6 +62,7 @@ import FormDesignerList from './pages/FormDesignerList'
 import FormDesignerEditor from './pages/FormDesignerEditor'
 import RequestTypeManagement from './pages/RequestTypeManagement'
 import FormLibrary from './pages/FormLibrary'
+import UnifiedRequestTypeDashboard from './pages/UnifiedRequestTypeDashboard'
 import MasterData from './pages/MasterData'
 import Studio from './pages/Studio'
 import AgentStudioPage from './components/AgentStudioPage'
@@ -201,8 +202,9 @@ function App() {
           <Route path="/admin/form-designer" element={<FormDesignerList />} />
           <Route path="/admin/form-designer/new" element={<FormDesignerEditor />} />
           <Route path="/admin/form-designer/:id" element={<FormDesignerEditor />} />
-          <Route path="/admin/request-types" element={<RequestTypeManagement />} />
+          <Route path="/admin/request-types" element={<UnifiedRequestTypeDashboard />} />
           <Route path="/admin/forms" element={<FormLibrary />} />
+          <Route path="/admin/workflow-config" element={<UnifiedRequestTypeDashboard />} />
           <Route path="/admin/master-data" element={<MasterData />} />
           <Route path="/suppliers-master" element={<SuppliersMasterView />} />
           <Route path="/vendors/:vendorId" element={<VendorProfile />} />

@@ -224,8 +224,7 @@ export default function Layout({ children, user }: LayoutProps) {
     '/workflows/templates': 'menu.workflow_templates',
     '/workflows/analytics': 'menu.workflow_analytics',
     '/form-designer': 'menu.form_designer',
-    '/admin/request-types': 'menu.request_types',
-    '/admin/forms': 'menu.form_library',
+    '/admin/workflow-config': 'menu.workflow_config',
     '/assessments': 'menu.assessments',
     '/question-library': 'menu.question_library',
     '/submission-requirements': 'menu.submission_requirements',
@@ -382,11 +381,8 @@ export default function Layout({ children, user }: LayoutProps) {
     if (isAdmin && checkPermission('/form-designer')) {
       workflowItems.push({ path: '/form-designer', label: 'Form Designer', icon: DocumentTextIcon, show: true })
     }
-    if (isAdmin && checkPermission('/admin/request-types')) {
-      workflowItems.push({ path: '/admin/request-types', label: 'Request Types', icon: DocumentTextIcon, show: true })
-    }
-    if (isAdmin && checkPermission('/admin/forms')) {
-      workflowItems.push({ path: '/admin/forms', label: 'Form Library', icon: DocumentIcon, show: true })
+    if (isAdmin && checkPermission('/admin/workflow-config')) {
+      workflowItems.push({ path: '/admin/workflow-config', label: 'Workflow Configuration', icon: CogIcon, show: true })
     }
     if (isAdmin && checkPermission('/studio')) {
       workflowItems.push({ path: '/studio', label: 'Studio', icon: CogIcon, show: true })

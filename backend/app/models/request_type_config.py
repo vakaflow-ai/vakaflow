@@ -72,6 +72,32 @@ class RequestTypeConfig(Base):
     )
 
 
+class RequestTypeFormAssociation(Base):
+    """Junction table for many-to-many relationship between RequestTypeConfig and FormLayout"""
+    __tablename__ = "request_type_form_associations"
+    
+    id: uuid.UUID = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)  # type: ignore
+    
+    # References
+    request_type_config_id: uuid.UUID = Column(UUID(as_uuid=True), ForeignKey("request_type_configs.id"), nullable=False, index=True)  # type: ignore
+    form_layout_id: uuid.UUID = Column(UUID(as_uuid=True), ForeignKey("form_layouts.id"), nullable=False, index=True)  # type: ignore
+    
+    # Association metadata
+    display_order: int = Column(Integer, default=0, nullable=False)  # Order in which forms appear for this request type  # type: ignore
+    is_primary: bool = Column(Boolean, default=False, nullable=False)  # Primary/default form for this request type  # type: ignore
+    form_variation_type: Optional[str] = Column(String(100), nullable=True)  # e.g., "standard", "advanced", "minimal"  # type: ignore
+    
+    # Metadata
+    created_at: datetime = Column(DateTime, default=datetime.utcnow)  # type: ignore
+    updated_at: Optional[datetime] = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)  # type: ignore
+    
+    # Constraints
+    __table_args__ = (
+        UniqueConstraint('request_type_config_id', 'form_layout_id', name='uq_request_type_form'),
+        {'comment': 'Junction table linking request types to their associated form layouts'}
+    )
+
+
 class RequestTypeTenantMapping(Base):
     """Mapping of request types across tenants for external portal display"""
     __tablename__ = "request_type_tenant_mappings"

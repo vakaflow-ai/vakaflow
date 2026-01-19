@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { MaterialButton, MaterialCard, MaterialChip, MaterialInput, MaterialSelect } from '../components/material'
 import { requestTypeConfigApi, RequestTypeConfig, RequestTypeConfigCreate, RequestTypeConfigUpdate, VisibilityScope } from '../lib/requestTypeConfig'
-import { workflowConfigApi } from '../lib/workflowConfig'
+import { workflowConfigApi, WorkflowConfig } from '../lib/workflowConfig'
 import { authApi } from '../lib/auth'
 import Layout from '../components/Layout'
 import { PlusIcon, EditIcon, TrashIcon, SaveIcon, XIcon, EyeIcon, SearchIcon, FileTextIcon, CogIcon } from '../components/Icons'
@@ -42,18 +42,26 @@ export default function RequestTypeManagement() {
     })
   }, [navigate])
 
-  // Fetch request type configurations
-  const { data: configs = [], isLoading: configsLoading } = useQuery({
-    queryKey: ['request-type-configs'],
+  // Fetch request type configurations with optimized caching
+  const { data: configs = [], isLoading: configsLoading, isError: configsError } = useQuery<RequestTypeConfig[]>({
+    queryKey: ['request-type-configs', user?.tenant_id],
     queryFn: () => requestTypeConfigApi.getAll(),
-    enabled: !!user
+    enabled: !!user,
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes (renamed from cacheTime)
+    retry: 2,
+    retryDelay: 1000
   })
 
-  // Fetch available workflows for mapping
-  const { data: workflows = [], isLoading: workflowsLoading } = useQuery({
-    queryKey: ['workflows', 'active'],
+  // Fetch available workflows with optimized caching
+  const { data: workflows = [], isLoading: workflowsLoading, isError: workflowsError } = useQuery<WorkflowConfig[]>({
+    queryKey: ['workflows', 'active', user?.tenant_id],
     queryFn: () => workflowConfigApi.list(),
-    enabled: !!user
+    enabled: !!user,
+    staleTime: 10 * 60 * 1000, // Cache for 10 minutes
+    gcTime: 15 * 60 * 1000, // Keep in cache for 15 minutes (renamed from cacheTime)
+    retry: 2,
+    retryDelay: 1000
   })
 
   // Create mutation
@@ -133,10 +141,15 @@ export default function RequestTypeManagement() {
     }
   }
 
-  const filteredConfigs = configs.filter((config: RequestTypeConfig) =>
-    config.request_type.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    config.display_name.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  // Memoize filtered configs to prevent re-computation
+  const filteredConfigs = useMemo(() => {
+    if (!searchTerm) return configs;
+    const term = searchTerm.toLowerCase();
+    return configs.filter((config: RequestTypeConfig) =>
+      config.request_type.toLowerCase().includes(term) ||
+      config.display_name.toLowerCase().includes(term)
+    );
+  }, [configs, searchTerm]);
 
   const getVisibilityBadge = (scope: VisibilityScope) => {
     switch (scope) {
@@ -157,6 +170,26 @@ export default function RequestTypeManagement() {
         size="small" 
       />
     )
+  }
+
+  // Error handling
+  if (configsError || workflowsError) {
+    return (
+      <Layout user={user}>
+        <div className="p-6">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+            <h3 className="text-lg font-medium text-red-800 mb-2">Unable to load data</h3>
+            <p className="text-red-600 mb-4">There was an error loading request types or workflows. Please try again.</p>
+            <button 
+              onClick={() => window.location.reload()} 
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+            >
+              Reload Page
+            </button>
+          </div>
+        </div>
+      </Layout>
+    );
   }
 
   if (!user) return null
@@ -198,9 +231,22 @@ export default function RequestTypeManagement() {
         </div>
 
         {/* Loading State */}
-        {configsLoading ? (
-          <div className="flex justify-center items-center h-64">
+        {(configsLoading || workflowsLoading) ? (
+          <div className="flex flex-col items-center justify-center h-64 space-y-4">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            <p className="text-gray-600">
+              {configsLoading && workflowsLoading 
+                ? 'Loading request types and workflows...' 
+                : configsLoading 
+                  ? 'Loading request types...' 
+                  : 'Loading workflows...'}
+            </p>
+            <div className="w-64 bg-gray-200 rounded-full h-2">
+              <div 
+                className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+                style={{ width: configsLoading && workflowsLoading ? '50%' : '75%' }}
+              ></div>
+            </div>
           </div>
         ) : (
           /* Request Types List */
@@ -271,7 +317,7 @@ export default function RequestTypeManagement() {
                         <div className="flex items-center gap-2">
                           <CogIcon className="w-4 h-4 text-gray-500" />
                           <span className="text-sm font-medium text-gray-900">
-                            {workflows.find(w => w.id === config.workflow_id)?.name || 'Unknown'}
+                            {workflows.find((w: WorkflowConfig) => w.id === config.workflow_id)?.name || 'Unknown'}
                           </span>
                         </div>
                       </div>
@@ -399,7 +445,7 @@ export default function RequestTypeManagement() {
                       })}
                       options={[
                         { value: '', label: 'No workflow assigned' },
-                        ...workflows.map(workflow => ({
+                        ...(workflows as WorkflowConfig[]).map((workflow: WorkflowConfig) => ({
                           value: workflow.id,
                           label: workflow.name
                         }))
@@ -464,7 +510,7 @@ export default function RequestTypeManagement() {
                     color="primary"
                     startIcon={<SaveIcon />}
                     onClick={editingConfig ? handleUpdate : handleCreate}
-                    loading={createMutation.isPending || updateMutation.isPending}
+                    disabled={createMutation.isPending || updateMutation.isPending}
                   >
                     {editingConfig ? 'Update' : 'Create'}
                   </MaterialButton>

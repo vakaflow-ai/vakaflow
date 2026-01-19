@@ -10,7 +10,8 @@ from uuid import UUID
 from datetime import datetime
 from app.core.database import get_db
 from app.models.user import User
-from app.models.request_type_config import RequestTypeConfig, RequestTypeTenantMapping, VisibilityScope
+from app.models.request_type_config import RequestTypeConfig, RequestTypeTenantMapping, RequestTypeFormAssociation, VisibilityScope
+from app.models.form_layout import FormLayout
 from app.api.v1.auth import get_current_user
 from app.core.tenant_utils import get_effective_tenant_id
 
@@ -118,6 +119,41 @@ class OnboardingOption(BaseModel):
     allowed_roles: Optional[List[str]]
 
 
+class FormAssociationCreate(BaseModel):
+    """Create form association with request type"""
+    form_layout_id: UUID
+    display_order: int = 0
+    is_primary: bool = False
+    form_variation_type: Optional[str] = None
+
+
+class FormAssociationUpdate(BaseModel):
+    """Update form association"""
+    display_order: Optional[int] = None
+    is_primary: Optional[bool] = None
+    form_variation_type: Optional[str] = None
+
+
+class FormAssociationResponse(BaseModel):
+    """Form association response with form details"""
+    id: str
+    request_type_config_id: str
+    form_layout_id: str
+    display_order: int
+    is_primary: bool
+    form_variation_type: Optional[str]
+    created_at: str
+    updated_at: str
+    
+    # Form details
+    form_name: str
+    form_description: Optional[str]
+    form_is_active: bool
+    
+    class Config:
+        from_attributes = True
+
+
 @router.post("/", response_model=RequestTypeConfigResponse, status_code=status.HTTP_201_CREATED)
 async def create_request_type_config(
     config_data: RequestTypeConfigCreate,
@@ -183,15 +219,17 @@ async def create_request_type_config(
 async def list_request_type_configs(
     is_active: Optional[bool] = Query(None),
     visibility_scope: Optional[VisibilityScope] = Query(None),
+    limit: Optional[int] = Query(100, le=500),  # Add reasonable limit
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """List request type configurations"""
+    """List request type configurations with performance optimization"""
     # Get effective tenant ID
     effective_tenant_id = get_effective_tenant_id(current_user, db)
     if not effective_tenant_id:
         return []
     
+    # Build query with indexes
     query = db.query(RequestTypeConfig).filter(
         RequestTypeConfig.tenant_id == effective_tenant_id
     )
@@ -202,6 +240,10 @@ async def list_request_type_configs(
     if visibility_scope:
         query = query.filter(RequestTypeConfig.visibility_scope == visibility_scope)
     
+    # Add limit for performance
+    query = query.limit(limit)
+    
+    # Optimize ordering - use indexed column
     configs = query.order_by(RequestTypeConfig.created_at.desc()).all()
     return configs
 
@@ -523,3 +565,282 @@ async def get_onboarding_hub_options(
     options.sort(key=lambda x: (x.portal_order or 999, x.display_name))
     
     return options
+
+
+# Form Association Endpoints
+
+@router.get("/{config_id}/forms", response_model=List[FormAssociationResponse])
+async def get_request_type_forms(
+    config_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get all forms associated with a request type configuration"""
+    # Get effective tenant ID
+    effective_tenant_id = get_effective_tenant_id(current_user, db)
+    if not effective_tenant_id:
+        return []
+    
+    # Verify the request type config exists and belongs to tenant
+    config = db.query(RequestTypeConfig).filter(
+        RequestTypeConfig.id == config_id,
+        RequestTypeConfig.tenant_id == effective_tenant_id
+    ).first()
+    
+    if not config:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Request type configuration not found"
+        )
+    
+    # Get form associations with form details
+    associations = db.query(RequestTypeFormAssociation, FormLayout).join(
+        FormLayout, RequestTypeFormAssociation.form_layout_id == FormLayout.id
+    ).filter(
+        RequestTypeFormAssociation.request_type_config_id == config_id
+    ).order_by(RequestTypeFormAssociation.display_order, RequestTypeFormAssociation.created_at).all()
+    
+    # Build response
+    response = []
+    for assoc, form in associations:
+        response.append(FormAssociationResponse(
+            id=str(assoc.id),
+            request_type_config_id=str(assoc.request_type_config_id),
+            form_layout_id=str(assoc.form_layout_id),
+            display_order=assoc.display_order,
+            is_primary=assoc.is_primary,
+            form_variation_type=assoc.form_variation_type,
+            created_at=assoc.created_at.isoformat(),
+            updated_at=assoc.updated_at.isoformat() if assoc.updated_at else assoc.created_at.isoformat(),
+            form_name=form.name,
+            form_description=form.description,
+            form_is_active=form.is_active
+        ))
+    
+    return response
+
+
+@router.post("/{config_id}/forms", response_model=FormAssociationResponse, status_code=status.HTTP_201_CREATED)
+async def add_form_to_request_type(
+    config_id: UUID,
+    association_data: FormAssociationCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Associate a form layout with a request type configuration"""
+    # Check permissions
+    if current_user.role.value not in ["tenant_admin", "platform_admin"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only tenant administrators can manage form associations"
+        )
+    
+    # Get effective tenant ID
+    effective_tenant_id = get_effective_tenant_id(current_user, db)
+    if not effective_tenant_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Tenant ID required"
+        )
+    
+    # Verify the request type config exists and belongs to tenant
+    config = db.query(RequestTypeConfig).filter(
+        RequestTypeConfig.id == config_id,
+        RequestTypeConfig.tenant_id == effective_tenant_id
+    ).first()
+    
+    if not config:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Request type configuration not found"
+        )
+    
+    # Verify the form layout exists and belongs to same tenant
+    form = db.query(FormLayout).filter(
+        FormLayout.id == association_data.form_layout_id,
+        FormLayout.tenant_id == effective_tenant_id
+    ).first()
+    
+    if not form:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Form layout not found or access denied"
+        )
+    
+    # Check if association already exists
+    existing_assoc = db.query(RequestTypeFormAssociation).filter(
+        RequestTypeFormAssociation.request_type_config_id == config_id,
+        RequestTypeFormAssociation.form_layout_id == association_data.form_layout_id
+    ).first()
+    
+    if existing_assoc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Form is already associated with this request type"
+        )
+    
+    # If setting as primary, unset other primary associations
+    if association_data.is_primary:
+        db.query(RequestTypeFormAssociation).filter(
+            RequestTypeFormAssociation.request_type_config_id == config_id
+        ).update({RequestTypeFormAssociation.is_primary: False})
+    
+    # Create new association
+    association = RequestTypeFormAssociation(
+        request_type_config_id=config_id,
+        form_layout_id=association_data.form_layout_id,
+        display_order=association_data.display_order,
+        is_primary=association_data.is_primary,
+        form_variation_type=association_data.form_variation_type
+    )
+    
+    db.add(association)
+    db.commit()
+    db.refresh(association)
+    
+    # Return response with form details
+    return FormAssociationResponse(
+        id=str(association.id),
+        request_type_config_id=str(association.request_type_config_id),
+        form_layout_id=str(association.form_layout_id),
+        display_order=association.display_order,
+        is_primary=association.is_primary,
+        form_variation_type=association.form_variation_type,
+        created_at=association.created_at.isoformat(),
+        updated_at=association.updated_at.isoformat() if association.updated_at else association.created_at.isoformat(),
+        form_name=form.name,
+        form_description=form.description,
+        form_is_active=form.is_active
+    )
+
+
+@router.delete("/{config_id}/forms/{form_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def remove_form_from_request_type(
+    config_id: UUID,
+    form_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Remove form association from request type configuration"""
+    # Check permissions
+    if current_user.role.value not in ["tenant_admin", "platform_admin"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only tenant administrators can manage form associations"
+        )
+    
+    # Get effective tenant ID
+    effective_tenant_id = get_effective_tenant_id(current_user, db)
+    if not effective_tenant_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Tenant ID required"
+        )
+    
+    # Verify the request type config exists and belongs to tenant
+    config = db.query(RequestTypeConfig).filter(
+        RequestTypeConfig.id == config_id,
+        RequestTypeConfig.tenant_id == effective_tenant_id
+    ).first()
+    
+    if not config:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Request type configuration not found"
+        )
+    
+    # Find and delete the association
+    association = db.query(RequestTypeFormAssociation).filter(
+        RequestTypeFormAssociation.request_type_config_id == config_id,
+        RequestTypeFormAssociation.form_layout_id == form_id
+    ).first()
+    
+    if not association:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Form association not found"
+        )
+    
+    db.delete(association)
+    db.commit()
+
+
+@router.patch("/{config_id}/forms/{form_id}", response_model=FormAssociationResponse)
+async def update_form_association(
+    config_id: UUID,
+    form_id: UUID,
+    update_data: FormAssociationUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Update form association details"""
+    # Check permissions
+    if current_user.role.value not in ["tenant_admin", "platform_admin"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only tenant administrators can manage form associations"
+        )
+    
+    # Get effective tenant ID
+    effective_tenant_id = get_effective_tenant_id(current_user, db)
+    if not effective_tenant_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Tenant ID required"
+        )
+    
+    # Verify the request type config exists and belongs to tenant
+    config = db.query(RequestTypeConfig).filter(
+        RequestTypeConfig.id == config_id,
+        RequestTypeConfig.tenant_id == effective_tenant_id
+    ).first()
+    
+    if not config:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Request type configuration not found"
+        )
+    
+    # Find the association
+    association = db.query(RequestTypeFormAssociation).filter(
+        RequestTypeFormAssociation.request_type_config_id == config_id,
+        RequestTypeFormAssociation.form_layout_id == form_id
+    ).first()
+    
+    if not association:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Form association not found"
+        )
+    
+    # If setting as primary, unset other primary associations
+    if update_data.is_primary is not None and update_data.is_primary:
+        db.query(RequestTypeFormAssociation).filter(
+            RequestTypeFormAssociation.request_type_config_id == config_id
+        ).update({RequestTypeFormAssociation.is_primary: False})
+    
+    # Update fields
+    update_dict = update_data.dict(exclude_unset=True)
+    for field, value in update_dict.items():
+        setattr(association, field, value)
+    
+    association.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(association)
+    
+    # Get form details for response
+    form = db.query(FormLayout).filter(FormLayout.id == form_id).first()
+    
+    return FormAssociationResponse(
+        id=str(association.id),
+        request_type_config_id=str(association.request_type_config_id),
+        form_layout_id=str(association.form_layout_id),
+        display_order=association.display_order,
+        is_primary=association.is_primary,
+        form_variation_type=association.form_variation_type,
+        created_at=association.created_at.isoformat(),
+        updated_at=association.updated_at.isoformat() if association.updated_at else association.created_at.isoformat(),
+        form_name=form.name if form else "Unknown",
+        form_description=form.description if form else None,
+        form_is_active=form.is_active if form else False
+    )
