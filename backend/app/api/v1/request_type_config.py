@@ -31,6 +31,8 @@ class RequestTypeConfigCreate(BaseModel):
     allowed_roles: Optional[List[str]] = None
     description: Optional[str] = None
     icon_class: Optional[str] = None
+    icon_name: Optional[str] = None  # Frontend compat
+    sort_order: Optional[int] = None  # Frontend compat
     config_options: Optional[Dict[str, Any]] = None
     is_active: bool = Field(default=True)
     is_default: bool = Field(default=False)
@@ -48,6 +50,8 @@ class RequestTypeConfigUpdate(BaseModel):
     allowed_roles: Optional[List[str]] = None
     description: Optional[str] = None
     icon_class: Optional[str] = None
+    icon_name: Optional[str] = None  # Frontend compat
+    sort_order: Optional[int] = None  # Frontend compat
     config_options: Optional[Dict[str, Any]] = None
     is_active: Optional[bool] = None
     is_default: Optional[bool] = None
@@ -55,28 +59,70 @@ class RequestTypeConfigUpdate(BaseModel):
 
 class RequestTypeConfigResponse(BaseModel):
     """Request type configuration response"""
-    id: str
-    tenant_id: str
+    id: UUID
+    tenant_id: UUID
     request_type: str
     display_name: str
-    visibility_scope: str
-    is_enabled: bool
-    show_tenant_name: bool
-    tenant_display_format: Optional[str]
-    internal_portal_order: Optional[int]
-    external_portal_order: Optional[int]
-    allowed_roles: Optional[List[str]]
-    description: Optional[str]
-    icon_class: Optional[str]
-    config_options: Optional[Dict[str, Any]]
-    is_active: bool
-    is_default: bool
-    created_by: Optional[str]
-    created_at: str
-    updated_at: str
+    visibility_scope: VisibilityScope
+    is_active: bool = True
+    show_tenant_name: bool = False
+    tenant_display_format: Optional[str] = None
+    internal_portal_order: Optional[int] = None
+    external_portal_order: Optional[int] = None
+    allowed_roles: Optional[List[str]] = None
+    description: Optional[str] = None
+    icon_class: Optional[str] = None
+    icon_name: Optional[str] = None  # Frontend compat
+    sort_order: Optional[int] = None  # Frontend compat
+    extra_metadata: Optional[Dict[str, Any]] = None
+    config_options: Optional[Dict[str, Any]] = None
+    is_enabled: bool = True
+    is_default: bool = False
+    created_by: Optional[UUID] = None
+    created_at: datetime
+    updated_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
+        populate_by_name = True
+
+    @classmethod
+    def from_orm(cls, obj: Any) -> "RequestTypeConfigResponse":
+        """Custom from_orm to handle field mapping"""
+        if hasattr(obj, "_mapping"): # Handle Row objects
+            obj = dict(obj._mapping)
+        
+        data = {}
+        # Basic fields
+        for field in [
+            "id", "tenant_id", "request_type", "display_name", "visibility_scope",
+            "is_active", "show_tenant_name", "tenant_display_format",
+            "internal_portal_order", "external_portal_order", "allowed_roles",
+            "description", "icon_class", "extra_metadata", "is_enabled",
+            "is_default", "created_by", "created_at", "updated_at"
+        ]:
+            val = getattr(obj, field, None) if not isinstance(obj, dict) else obj.get(field)
+            
+            # Default missing booleans - handle falsy but non-None values
+            if field in ["is_active", "is_enabled"]:
+                if val is None:
+                    val = True
+                else:
+                    val = bool(val)
+            if field in ["show_tenant_name", "is_default"]:
+                if val is None:
+                    val = False
+                else:
+                    val = bool(val)
+                
+            data[field] = val
+        
+        # Map aliases
+        data["icon_name"] = data["icon_class"]
+        data["sort_order"] = data["internal_portal_order"]
+        data["config_options"] = data["extra_metadata"]
+        
+        return cls(**data)
 
 
 class TenantMappingCreate(BaseModel):
@@ -123,14 +169,18 @@ class FormAssociationCreate(BaseModel):
     """Create form association with request type"""
     form_layout_id: UUID
     display_order: int = 0
+    sort_order: Optional[int] = None  # Frontend compat
     is_primary: bool = False
+    is_default: Optional[bool] = None  # Frontend compat
     form_variation_type: Optional[str] = None
 
 
 class FormAssociationUpdate(BaseModel):
     """Update form association"""
     display_order: Optional[int] = None
+    sort_order: Optional[int] = None  # Frontend compat
     is_primary: Optional[bool] = None
+    is_default: Optional[bool] = None  # Frontend compat
     form_variation_type: Optional[str] = None
 
 
@@ -188,6 +238,10 @@ async def create_request_type_config(
             detail=f"Request type configuration already exists for {config_data.request_type}"
         )
     
+    # Handle frontend field names
+    icon_class = config_data.icon_class or config_data.icon_name
+    portal_order = config_data.internal_portal_order or config_data.sort_order
+
     # Create new config
     config = RequestTypeConfig(
         tenant_id=effective_tenant_id,
@@ -197,12 +251,12 @@ async def create_request_type_config(
         is_enabled=config_data.is_enabled,
         show_tenant_name=config_data.show_tenant_name,
         tenant_display_format=config_data.tenant_display_format,
-        internal_portal_order=config_data.internal_portal_order,
-        external_portal_order=config_data.external_portal_order,
+        internal_portal_order=portal_order,
+        external_portal_order=config_data.external_portal_order or portal_order,
         allowed_roles=config_data.allowed_roles,
         description=config_data.description,
-        icon_class=config_data.icon_class,
-        config_options=config_data.config_options,
+        icon_class=icon_class,
+        extra_metadata=config_data.config_options,
         is_active=config_data.is_active,
         is_default=config_data.is_default,
         created_by=current_user.id
@@ -212,7 +266,7 @@ async def create_request_type_config(
     db.commit()
     db.refresh(config)
     
-    return config
+    return RequestTypeConfigResponse.from_orm(config)
 
 
 @router.get("/", response_model=List[RequestTypeConfigResponse])
@@ -240,12 +294,16 @@ async def list_request_type_configs(
     if visibility_scope:
         query = query.filter(RequestTypeConfig.visibility_scope == visibility_scope)
     
+    # Optimize ordering - use indexed column
+    # IMPORTANT: order_by must come BEFORE limit/offset in SQLAlchemy Query objects
+    query = query.order_by(RequestTypeConfig.created_at.desc())
+    
     # Add limit for performance
     query = query.limit(limit)
     
-    # Optimize ordering - use indexed column
-    configs = query.order_by(RequestTypeConfig.created_at.desc()).all()
-    return configs
+    configs = query.all()
+    # Use from_orm for each config to ensure field mapping
+    return [RequestTypeConfigResponse.from_orm(c) for c in configs]
 
 
 @router.get("/{config_id}", response_model=RequestTypeConfigResponse)
@@ -274,9 +332,10 @@ async def get_request_type_config(
             detail="Request type configuration not found"
         )
     
-    return config
+    return RequestTypeConfigResponse.from_orm(config)
 
 
+@router.patch("/{config_id}", response_model=RequestTypeConfigResponse)
 @router.put("/{config_id}", response_model=RequestTypeConfigResponse)
 async def update_request_type_config(
     config_id: UUID,
@@ -313,14 +372,26 @@ async def update_request_type_config(
     
     # Update fields
     update_data = config_data.dict(exclude_unset=True)
+    
+    # Map frontend fields
+    if "icon_name" in update_data:
+        update_data["icon_class"] = update_data.pop("icon_name")
+    if "sort_order" in update_data:
+        order = update_data.pop("sort_order")
+        update_data["internal_portal_order"] = order
+        update_data["external_portal_order"] = order
+    if "config_options" in update_data:
+        update_data["extra_metadata"] = update_data.pop("config_options")
+
     for field, value in update_data.items():
-        setattr(config, field, value)
+        if hasattr(config, field):
+            setattr(config, field, value)
     
     config.updated_at = datetime.utcnow()
     db.commit()
     db.refresh(config)
     
-    return config
+    return RequestTypeConfigResponse.from_orm(config)
 
 
 @router.delete("/{config_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -356,9 +427,13 @@ async def delete_request_type_config(
             detail="Request type configuration not found"
         )
     
-    # Delete related tenant mappings first
+    # Delete related associations first to satisfy foreign key constraints
     db.query(RequestTypeTenantMapping).filter(
         RequestTypeTenantMapping.request_type_config_id == config_id
+    ).delete()
+    
+    db.query(RequestTypeFormAssociation).filter(
+        RequestTypeFormAssociation.request_type_config_id == config_id
     ).delete()
     
     # Delete the config
@@ -679,18 +754,22 @@ async def add_form_to_request_type(
             detail="Form is already associated with this request type"
         )
     
+    # Handle frontend fields
+    is_primary = association_data.is_primary or association_data.is_default or False
+    display_order = association_data.display_order or association_data.sort_order or 0
+
     # If setting as primary, unset other primary associations
-    if association_data.is_primary:
+    if is_primary:
         db.query(RequestTypeFormAssociation).filter(
             RequestTypeFormAssociation.request_type_config_id == config_id
-        ).update({RequestTypeFormAssociation.is_primary: False})
+        ).update({"is_primary": False})
     
     # Create new association
     association = RequestTypeFormAssociation(
         request_type_config_id=config_id,
         form_layout_id=association_data.form_layout_id,
-        display_order=association_data.display_order,
-        is_primary=association_data.is_primary,
+        display_order=display_order,
+        is_primary=is_primary,
         form_variation_type=association_data.form_variation_type
     )
     
@@ -814,15 +893,24 @@ async def update_form_association(
         )
     
     # If setting as primary, unset other primary associations
-    if update_data.is_primary is not None and update_data.is_primary:
+    is_primary = update_data.is_primary or update_data.is_default or False
+    if is_primary:
         db.query(RequestTypeFormAssociation).filter(
             RequestTypeFormAssociation.request_type_config_id == config_id
-        ).update({RequestTypeFormAssociation.is_primary: False})
+        ).update({"is_primary": False})
     
     # Update fields
     update_dict = update_data.dict(exclude_unset=True)
+    
+    # Map frontend fields
+    if "sort_order" in update_dict:
+        update_dict["display_order"] = update_dict.pop("sort_order")
+    if "is_default" in update_dict:
+        update_dict["is_primary"] = update_dict.pop("is_default")
+
     for field, value in update_dict.items():
-        setattr(association, field, value)
+        if hasattr(association, field):
+            setattr(association, field, value)
     
     association.updated_at = datetime.utcnow()
     db.commit()
@@ -840,7 +928,7 @@ async def update_form_association(
         form_variation_type=association.form_variation_type,
         created_at=association.created_at.isoformat(),
         updated_at=association.updated_at.isoformat() if association.updated_at else association.created_at.isoformat(),
-        form_name=form.name if form else "Unknown",
-        form_description=form.description if form else None,
-        form_is_active=form.is_active if form else False
+        form_name=str(form.name) if form else "Unknown",
+        form_description=str(form.description) if form and getattr(form, 'description', None) is not None else None,
+        form_is_active=bool(form.is_active) if form else False
     )

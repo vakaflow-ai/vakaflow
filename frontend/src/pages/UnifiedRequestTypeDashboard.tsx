@@ -728,8 +728,172 @@ export default function UnifiedRequestTypeDashboard() {
           </div>
         </div>
 
-        {/* Modals would go here - keeping this example concise */}
-        {/* Create/Edit modals, Form association modal, etc. */}
+        {/* Create/Edit Modal */}
+        {(showCreateModal || showEditModal) && (
+          <div className="fixed inset-0 z-50 overflow-y-auto">
+            <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+              <div className="fixed inset-0 transition-opacity" aria-hidden="true" onClick={() => { setShowCreateModal(false); setShowEditModal(false); }}>
+                <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
+              </div>
+              <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+              <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-medium text-gray-900">
+                      {showCreateModal ? 'New Request Type' : 'Edit Request Type'}
+                    </h3>
+                    <button onClick={() => { setShowCreateModal(false); setShowEditModal(false); }} className="text-gray-400 hover:text-gray-500">
+                      <XIcon className="h-6 w-6" />
+                    </button>
+                  </div>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Display Name</label>
+                      <MaterialInput
+                        fullWidth
+                        value={formData.display_name}
+                        onChange={(e) => setFormData({ ...formData, display_name: e.target.value })}
+                        placeholder="e.g. Agent Onboarding"
+                      />
+                    </div>
+                    {showCreateModal && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700">Request Type ID</label>
+                        <MaterialInput
+                          fullWidth
+                          value={formData.request_type}
+                          onChange={(e) => setFormData({ ...formData, request_type: e.target.value })}
+                          placeholder="e.g. agent_onboarding_workflow"
+                        />
+                      </div>
+                    )}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Visibility Scope</label>
+                      <MaterialSelect
+                        fullWidth
+                        value={formData.visibility_scope}
+                        onChange={(e) => setFormData({ ...formData, visibility_scope: e.target.value as VisibilityScope })}
+                        options={VISIBILITY_OPTIONS}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Sort Order</label>
+                      <MaterialInput
+                        fullWidth
+                        type="number"
+                        value={formData.sort_order}
+                        onChange={(e) => setFormData({ ...formData, sort_order: parseInt(e.target.value) || 0 })}
+                      />
+                    </div>
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={formData.is_active}
+                        onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
+                        className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+                      />
+                      <label className="ml-2 block text-sm text-gray-900">Active</label>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                  <MaterialButton
+                    variant="contained"
+                    color="primary"
+                    onClick={showCreateModal ? handleCreate : handleUpdate}
+                    className="sm:ml-3"
+                    disabled={createMutation.isPending || updateMutation.isPending}
+                  >
+                    {showCreateModal ? 'Create' : 'Save Changes'}
+                  </MaterialButton>
+                  <MaterialButton
+                    variant="outlined"
+                    onClick={() => { setShowCreateModal(false); setShowEditModal(false); }}
+                  >
+                    Cancel
+                  </MaterialButton>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Form Association Modal */}
+        {showFormAssociationModal && (
+          <div className="fixed inset-0 z-50 overflow-y-auto">
+            <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+              <div className="fixed inset-0 transition-opacity" aria-hidden="true" onClick={() => setShowFormAssociationModal(false)}>
+                <div className="absolute inset-0 bg-gray-500 opacity-75"></div>
+              </div>
+              <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+              <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-medium text-gray-900">Associate Form</h3>
+                    <button onClick={() => setShowFormAssociationModal(false)} className="text-gray-400 hover:text-gray-500">
+                      <XIcon className="h-6 w-6" />
+                    </button>
+                  </div>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Select Form</label>
+                      <MaterialSelect
+                        fullWidth
+                        value={formAssociationData.form_layout_id}
+                        onChange={(e) => setFormAssociationData({ ...formAssociationData, form_layout_id: e.target.value })}
+                        options={allForms.map(f => ({ value: f.id, label: f.name }))}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Variation Type</label>
+                      <MaterialSelect
+                        fullWidth
+                        value={formAssociationData.form_variation_type}
+                        onChange={(e) => setFormAssociationData({ ...formAssociationData, form_variation_type: e.target.value })}
+                        options={FORM_VARIATION_TYPES}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Display Order</label>
+                      <MaterialInput
+                        fullWidth
+                        type="number"
+                        value={formAssociationData.display_order}
+                        onChange={(e) => setFormAssociationData({ ...formAssociationData, display_order: parseInt(e.target.value) || 0 })}
+                      />
+                    </div>
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={formAssociationData.is_primary}
+                        onChange={(e) => setFormAssociationData({ ...formAssociationData, is_primary: e.target.checked })}
+                        className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+                      />
+                      <label className="ml-2 block text-sm text-gray-900">Primary Form</label>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                  <MaterialButton
+                    variant="contained"
+                    color="primary"
+                    onClick={handleAssociateForm}
+                    className="sm:ml-3"
+                    disabled={associateFormMutation.isPending}
+                  >
+                    Associate
+                  </MaterialButton>
+                  <MaterialButton
+                    variant="outlined"
+                    onClick={() => setShowFormAssociationModal(false)}
+                  >
+                    Cancel
+                  </MaterialButton>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </Layout>
   )
