@@ -424,9 +424,27 @@ async def list_agents(
     
     # Get all metadata, vendors, and onboarding requests in batch
     agent_ids = [agent.id for agent in agents]
-    metadata_map = {
-        m.agent_id: m for m in db.query(AgentMetadata).filter(AgentMetadata.agent_id.in_(agent_ids)).all()
-    }
+    
+    # Safely query metadata with error handling for schema mismatches
+    metadata_map = {}
+    if agent_ids:
+        try:
+            metadata_records = db.query(AgentMetadata).filter(AgentMetadata.agent_id.in_(agent_ids)).all()
+            metadata_map = {m.agent_id: m for m in metadata_records}
+        except Exception as e:
+            # Handle schema mismatch - SQLAlchemy trying to access columns that don't exist in DB
+            if 'does not exist' in str(e) or 'UndefinedColumn' in str(e):
+                logger.warning(
+                    f"Schema mismatch in agent_metadata table: {e}\n"
+                    f"Continuing with empty metadata - some agent details may be missing."
+                )
+                # Return empty metadata map - agents will still be returned without metadata
+                metadata_map = {}
+            else:
+                logger.error(f"Failed to load agent metadata: {e}")
+                metadata_map = {}
+    else:
+        metadata_map = {}
     vendor_ids = list(set([agent.vendor_id for agent in agents]))
     vendor_map = {
         v.id: v for v in db.query(Vendor).filter(Vendor.id.in_(vendor_ids)).all()

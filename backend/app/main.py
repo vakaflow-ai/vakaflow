@@ -198,7 +198,7 @@ async def serve_upload_file(file_path: str, request: Request):
 
 
 # Include routers
-from app.api.v1 import auth, agents, knowledge, reviews, tenants, onboarding, compliance, audit, analytics, messages, approvals, offboarding, adoption, integrations, webhooks, recommendations, export, mfa, sso, oauth2, integration_config, predictive, marketplace, cross_tenant, fine_tuning, metrics, logs, tickets, vendors, users, submission_requirements, assessments, agent_connections, frameworks, workflow_config, workflow_actions, workflow_stage_settings, workflow_orchestration, reminders, vendor_invitations, otp, smtp_settings, sso_settings, scim, api_gateway, api_token_management, integration_help, user_sync, platform_config, cluster_nodes, agentic_agents, studio, external_agents, presentation, actions, question_library, assessment_rules, business_rules, role_permissions, role_configurations, security_incidents, custom_fields, entity_fields, suppliers_master, products, services, incident_reports, workflow_templates, ecosystem_map, qualifications, incident_configs, workflow_analytics, files
+from app.api.v1 import auth, agents, knowledge, reviews, tenants, onboarding, compliance, audit, analytics, messages, approvals, offboarding, adoption, integrations, webhooks, recommendations, export, mfa, sso, oauth2, integration_config, predictive, marketplace, cross_tenant, fine_tuning, metrics, logs, tickets, vendors, users, submission_requirements, assessments, agent_connections, frameworks, workflow_config, workflow_actions, workflow_stage_settings, workflow_orchestration, reminders, vendor_invitations, otp, smtp_settings, sso_settings, scim, api_gateway, api_token_management, integration_help, user_sync, platform_config, cluster_nodes, agentic_agents, studio, external_agents, presentation, actions, question_library, assessment_rules, business_rules, role_permissions, role_configurations, security_incidents, custom_fields, entity_fields, suppliers_master, products, services, incident_reports, workflow_templates, ecosystem_map, qualifications, incident_configs, workflow_analytics, files, agent_studio
 
 # Import form_layouts with error handling
 try:
@@ -231,6 +231,14 @@ try:
 except Exception as e:
     logger.error(f"Failed to import master_data_lists module: {e}", exc_info=True)
     master_data_lists = None
+
+# Import request type config module
+try:
+    from app.api.v1 import request_type_config
+    logger.info("Request type config module imported successfully")
+except Exception as e:
+    logger.error(f"Failed to import request_type_config module: {e}", exc_info=True)
+    request_type_config = None
 
 app.include_router(auth.router, prefix="/api/v1")
 app.include_router(users.router, prefix="/api/v1")
@@ -266,6 +274,7 @@ app.include_router(products.router, prefix="/api/v1")
 app.include_router(services.router, prefix="/api/v1")
 app.include_router(incident_reports.router, prefix="/api/v1")
 app.include_router(incident_configs.router, prefix="/api/v1")
+app.include_router(agent_studio.router, prefix="/api/v1")  # Agent Studio - Centralized governance management
 app.include_router(submission_requirements.router, prefix="/api/v1")
 app.include_router(assessments.router, prefix="/api/v1")
 app.include_router(assessments.template_router, prefix="/api/v1")
@@ -325,7 +334,13 @@ if master_data_lists:
     logger.info("Master data lists router registered successfully")
 else:
     logger.warning("Master data lists router not registered")
-    logger.warning("Form layouts router not registered due to import error")
+
+# Register request type config router
+if request_type_config:
+    app.include_router(request_type_config.router, prefix="/api/v1")  # Request type visibility configuration
+    logger.info("Request type config router registered successfully")
+else:
+    logger.warning("Request type config router not registered")
 
 
 @app.on_event("startup")

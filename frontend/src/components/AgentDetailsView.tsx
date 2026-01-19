@@ -658,10 +658,10 @@ export default function AgentDetailsView({
       )}
 
       {/* Capabilities & Features */}
-      {shouldShowSection(['capabilities', 'features', 'use_cases']) &&
+      {shouldShowSection(['capabilities', 'features', 'skills']) &&
        (agent.capabilities && agent.capabilities.length > 0 || 
         agent.features && agent.features.length > 0 || 
-        agent.use_cases && agent.use_cases.length > 0) && (
+        agent.skills && agent.skills.length > 0) && (
         <MaterialCard elevation={1} className="p-6 border-none overflow-hidden">
           <h3 className="text-lg font-medium text-gray-900 mb-6 flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-primary-50 text-blue-600 flex items-center justify-center">
@@ -694,18 +694,15 @@ export default function AgentDetailsView({
                 </dd>
               </div>
             )}
-            {agent.use_cases && agent.use_cases.length > 0 && (
+            {agent.skills && agent.skills.length > 0 && (
               <div>
-                <dt className="text-label text-gray-500 mb-3 font-medium">Use Cases</dt>
+                <dt className="text-label text-gray-500 mb-3 font-medium">Skills</dt>
                 <dd>
-                  <ul className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                    {agent.use_cases.map((useCase: string, idx: number) => (
-                      <li key={idx} className="flex items-start gap-2 text-sm text-gray-600 bg-gray-50 p-2 rounded-lg border border-gray-100">
-                        <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-primary-400 flex-shrink-0" />
-                        {useCase}
-                      </li>
+                  <div className="flex flex-wrap gap-2">
+                    {agent.skills.map((skill: string, idx: number) => (
+                      <MaterialChip key={idx} label={skill} color="primary" size="small" variant="outlined" />
                     ))}
-                  </ul>
+                  </div>
                 </dd>
               </div>
             )}

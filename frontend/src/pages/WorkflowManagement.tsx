@@ -2048,12 +2048,12 @@ function BusinessTab({ request, agent, agentLoading, formatDate, requestedByUser
                 <p className="font-medium">{agent.vendor_name}</p>
               </div>
             )}
-            {agent.use_cases && agent.use_cases.length > 0 && (
+            {agent.skills && agent.skills.length > 0 && (
               <div>
-                <h5 className="font-medium mb-2">Use Cases</h5>
+                <h5 className="font-medium mb-2">Skills</h5>
                 <ul className="list-disc list-inside space-y-1">
-                  {agent.use_cases.map((useCase: string, idx: number) => (
-                    <li key={idx} className="text-sm">{useCase}</li>
+                  {agent.skills.map((skill: string, idx: number) => (
+                    <li key={idx} className="text-sm">{skill}</li>
                   ))}
                 </ul>
               </div>

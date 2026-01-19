@@ -341,8 +341,21 @@ export default function FormDesignerEditor() {
   // Determine if this is an assessment workflow (check both URL param and loaded layout)
   const isAssessmentWorkflow = useMemo(() => {
     const urlParamMatch = requestTypeParam === 'assessment_workflow'
-    const layoutTypeMatch = editingLayout?.request_type === 'assessment_workflow'
-    const arrayMatch = Array.isArray(editingLayout?.request_type) && editingLayout.request_type.includes('assessment_workflow')
+    
+    // Handle request_type which could be string, array, or null/undefined
+    let layoutTypeMatch = false
+    let arrayMatch = false
+    
+    if (editingLayout?.request_type) {
+      if (typeof editingLayout.request_type === 'string') {
+        layoutTypeMatch = editingLayout.request_type === 'assessment_workflow'
+      } else if (Array.isArray(editingLayout.request_type)) {
+        const requestTypeArray = editingLayout.request_type as string[]
+        arrayMatch = requestTypeArray.includes('assessment_workflow')
+        // Also check if any array element matches
+        layoutTypeMatch = requestTypeArray.some((rt: string) => rt === 'assessment_workflow')
+      }
+    }
     
     // Fallback: Check if layout name contains "Assessment" (case-insensitive)
     const nameMatch = editingLayout?.name?.toLowerCase().includes('assessment') || false
@@ -354,6 +367,7 @@ export default function FormDesignerEditor() {
       console.log('🔍 Assessment Workflow Check:', {
         requestTypeParam,
         layoutRequestType: editingLayout?.request_type,
+        layoutRequestTypeType: typeof editingLayout?.request_type,
         layoutName: editingLayout?.name,
         urlParamMatch,
         layoutTypeMatch,

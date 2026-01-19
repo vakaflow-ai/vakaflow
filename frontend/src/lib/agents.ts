@@ -14,7 +14,7 @@ export interface Agent {
   risk_score?: number
   submission_date?: string
   created_at: string
-  use_cases?: string[]
+  skills?: string[]
   features?: string[]
   capabilities?: string[]
   data_types?: string[]
@@ -80,7 +80,7 @@ export interface AgentCreate {
   data_types?: string[]
   regions?: string[]
   integrations?: any[]
-  use_cases?: string[]
+  skills?: string[]
   features?: string[]
   personas?: Array<{ name: string; description: string }>
   version_info?: {

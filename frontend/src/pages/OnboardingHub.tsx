@@ -7,8 +7,17 @@ import { servicesApi } from '../lib/services'
 import { vendorsApi } from '../lib/vendors'
 import Layout from '../components/Layout'
 import { MaterialCard, MaterialButton } from '../components/material'
-import { Package, Briefcase, Bot, ArrowRight, Clock, CheckCircle, XCircle, Building2 } from 'lucide-react'
+import { Package, Briefcase, Bot, ArrowRight, Clock, CheckCircle, XCircle, Building2, Users, Shield, FileText, ClipboardCheck } from 'lucide-react'
 import toast from 'react-hot-toast'
+
+// API client for request type config
+const requestTypeConfigApi = {
+  getHubOptions: async (portalType: 'internal' | 'external' = 'internal') => {
+    const response = await fetch(`/api/v1/request-type-config/hub/options?portal_type=${portalType}`);
+    if (!response.ok) throw new Error('Failed to fetch onboarding options');
+    return response.json();
+  }
+};
 
 export default function OnboardingHub() {
   const navigate = useNavigate()
@@ -43,6 +52,13 @@ export default function OnboardingHub() {
   const { data: allServices } = useQuery({
     queryKey: ['services-stats'],
     queryFn: () => servicesApi.list(undefined, undefined, undefined, 1, 1),
+    enabled: !!user
+  })
+
+  // Fetch onboarding hub options
+  const { data: onboardingOptions } = useQuery({
+    queryKey: ['onboarding-options', 'internal'],
+    queryFn: () => requestTypeConfigApi.getHubOptions('internal'),
     enabled: !!user
   })
 
@@ -93,71 +109,127 @@ export default function OnboardingHub() {
           <p className="text-gray-600 mt-2">Onboard new vendors, products, services, or agents to start qualification workflows</p>
         </div>
 
-        {/* Quick Action Cards */}
+        {/* Quick Action Cards - Dynamic based on request type configurations */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <MaterialCard className="p-6 hover:shadow-lg transition-shadow cursor-pointer" onClick={() => navigate('/onboarding/product')}>
-            <div className="flex items-start justify-between mb-4">
-              <div className="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center">
-                <Package className="w-6 h-6 text-blue-600" />
-              </div>
-              <ArrowRight className="w-5 h-5 text-gray-400" />
-            </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Onboard Product</h3>
-            <p className="text-sm text-gray-600 mb-4">
-              Add software, hardware, or SaaS products for qualification and assessment
-            </p>
-            <MaterialButton variant="contained" className="w-full">
-              Create Product
-            </MaterialButton>
-          </MaterialCard>
+          {onboardingOptions && onboardingOptions.length > 0 ? (
+            onboardingOptions.map((option: any) => {
+              // Map request types to appropriate routes and icons
+              const getRouteAndIcon = (requestType: string) => {
+                switch (requestType) {
+                  case 'agent_onboarding_workflow':
+                    return { route: '/agents/new', icon: Bot, colorClass: 'bg-green-100', iconColor: 'text-green-600' };
+                  case 'vendor_submission_workflow':
+                    return { route: '/onboarding/vendor', icon: Building2, colorClass: 'bg-orange-100', iconColor: 'text-orange-600' };
+                  case 'product_onboarding_workflow':
+                    return { route: '/onboarding/product', icon: Package, colorClass: 'bg-blue-100', iconColor: 'text-blue-600' };
+                  case 'service_onboarding_workflow':
+                    return { route: '/onboarding/service', icon: Briefcase, colorClass: 'bg-purple-100', iconColor: 'text-purple-600' };
+                  case 'assessment_workflow':
+                    return { route: '/assessments/new', icon: ClipboardCheck, colorClass: 'bg-indigo-100', iconColor: 'text-indigo-600' };
+                  default:
+                    return { route: '#', icon: FileText, colorClass: 'bg-gray-100', iconColor: 'text-gray-600' };
+                }
+              };
+              
+              const { route, icon: IconComponent, colorClass, iconColor } = getRouteAndIcon(option.request_type);
+              
+              return (
+                <MaterialCard 
+                  key={option.request_type}
+                  className="p-6 hover:shadow-lg transition-shadow cursor-pointer"
+                  onClick={() => route !== '#' ? navigate(route) : toast.error('Feature not implemented yet')}
+                >
+                  <div className="flex items-start justify-between mb-4">
+                    <div className={`w-12 h-12 rounded-lg ${colorClass} flex items-center justify-center`}>
+                      <IconComponent className={`w-6 h-6 ${iconColor}`} />
+                    </div>
+                    <ArrowRight className="w-5 h-5 text-gray-400" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                    {option.display_name}
+                    {option.tenant_specific && option.tenant_display_name && (
+                      <span className="text-xs text-gray-500 ml-2">
+                        ({option.tenant_display_name})
+                      </span>
+                    )}
+                  </h3>
+                  <p className="text-sm text-gray-600 mb-4">
+                    {option.description || `Create new ${option.display_name.toLowerCase()}`}
+                  </p>
+                  <MaterialButton variant="contained" className="w-full">
+                    Create {option.display_name.replace(' Onboarding', '')}
+                  </MaterialButton>
+                </MaterialCard>
+              );
+            })
+          ) : (
+            // Fallback to static cards if API fails
+            <>
+              <MaterialCard className="p-6 hover:shadow-lg transition-shadow cursor-pointer" onClick={() => navigate('/onboarding/product')}>
+                <div className="flex items-start justify-between mb-4">
+                  <div className="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center">
+                    <Package className="w-6 h-6 text-blue-600" />
+                  </div>
+                  <ArrowRight className="w-5 h-5 text-gray-400" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Onboard Product</h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  Add software, hardware, or SaaS products for qualification and assessment
+                </p>
+                <MaterialButton variant="contained" className="w-full">
+                  Create Product
+                </MaterialButton>
+              </MaterialCard>
 
-          <MaterialCard className="p-6 hover:shadow-lg transition-shadow cursor-pointer" onClick={() => navigate('/onboarding/service')}>
-            <div className="flex items-start justify-between mb-4">
-              <div className="w-12 h-12 rounded-lg bg-purple-100 flex items-center justify-center">
-                <Briefcase className="w-6 h-6 text-purple-600" />
-              </div>
-              <ArrowRight className="w-5 h-5 text-gray-400" />
-            </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Onboard Service</h3>
-            <p className="text-sm text-gray-600 mb-4">
-              Add consulting, support, or managed services for qualification workflows
-            </p>
-            <MaterialButton variant="contained" className="w-full">
-              Create Service
-            </MaterialButton>
-          </MaterialCard>
+              <MaterialCard className="p-6 hover:shadow-lg transition-shadow cursor-pointer" onClick={() => navigate('/onboarding/service')}>
+                <div className="flex items-start justify-between mb-4">
+                  <div className="w-12 h-12 rounded-lg bg-purple-100 flex items-center justify-center">
+                    <Briefcase className="w-6 h-6 text-purple-600" />
+                  </div>
+                  <ArrowRight className="w-5 h-5 text-gray-400" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Onboard Service</h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  Add consulting, support, or managed services for qualification workflows
+                </p>
+                <MaterialButton variant="contained" className="w-full">
+                  Create Service
+                </MaterialButton>
+              </MaterialCard>
 
-          <MaterialCard className="p-6 hover:shadow-lg transition-shadow cursor-pointer" onClick={() => navigate('/agents/new')}>
-            <div className="flex items-start justify-between mb-4">
-              <div className="w-12 h-12 rounded-lg bg-green-100 flex items-center justify-center">
-                <Bot className="w-6 h-6 text-green-600" />
-              </div>
-              <ArrowRight className="w-5 h-5 text-gray-400" />
-            </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Onboard Agent</h3>
-            <p className="text-sm text-gray-600 mb-4">
-              Add AI agents or bots for qualification and compliance assessment
-            </p>
-            <MaterialButton variant="contained" className="w-full">
-              Create Agent
-            </MaterialButton>
-          </MaterialCard>
+              <MaterialCard className="p-6 hover:shadow-lg transition-shadow cursor-pointer" onClick={() => navigate('/agents/new')}>
+                <div className="flex items-start justify-between mb-4">
+                  <div className="w-12 h-12 rounded-lg bg-green-100 flex items-center justify-center">
+                    <Bot className="w-6 h-6 text-green-600" />
+                  </div>
+                  <ArrowRight className="w-5 h-5 text-gray-400" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Onboard Agent</h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  Add AI agents or bots for qualification and compliance assessment
+                </p>
+                <MaterialButton variant="contained" className="w-full">
+                  Create Agent
+                </MaterialButton>
+              </MaterialCard>
 
-          <MaterialCard className="p-6 hover:shadow-lg transition-shadow cursor-pointer" onClick={() => navigate('/onboarding/vendor')}>
-            <div className="flex items-start justify-between mb-4">
-              <div className="w-12 h-12 rounded-lg bg-orange-100 flex items-center justify-center">
-                <Building2 className="w-6 h-6 text-orange-600" />
-              </div>
-              <ArrowRight className="w-5 h-5 text-gray-400" />
-            </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Onboard Vendor</h3>
-            <p className="text-sm text-gray-600 mb-4">
-              Create a new vendor and send notification to vendor coordinator
-            </p>
-            <MaterialButton variant="contained" className="w-full">
-              Create Vendor
-            </MaterialButton>
-          </MaterialCard>
+              <MaterialCard className="p-6 hover:shadow-lg transition-shadow cursor-pointer" onClick={() => navigate('/onboarding/vendor')}>
+                <div className="flex items-start justify-between mb-4">
+                  <div className="w-12 h-12 rounded-lg bg-orange-100 flex items-center justify-center">
+                    <Building2 className="w-6 h-6 text-orange-600" />
+                  </div>
+                  <ArrowRight className="w-5 h-5 text-gray-400" />
+                </div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Onboard Vendor</h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  Create a new vendor and send notification to vendor coordinator
+                </p>
+                <MaterialButton variant="contained" className="w-full">
+                  Create Vendor
+                </MaterialButton>
+              </MaterialCard>
+            </>
+          )}
         </div>
 
         {/* Quick Stats */}

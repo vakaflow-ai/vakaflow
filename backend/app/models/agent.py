@@ -1,7 +1,7 @@
 """
 Agent models
 """
-from sqlalchemy import Column, String, DateTime, Text, Integer, ForeignKey, JSON, UniqueConstraint
+from sqlalchemy import Column, String, DateTime, Text, Integer, ForeignKey, JSON, UniqueConstraint, Boolean
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 import uuid
@@ -42,8 +42,18 @@ class Agent(Base):
     created_at: datetime = Column(DateTime, default=datetime.utcnow)  # type: ignore
     updated_at: Optional[datetime] = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)  # type: ignore
     
-    # Ecosystem mapping fields (MVP - simple fields)
-    use_cases: Optional[str] = Column(Text, nullable=True)  # type: ignore  # Rich text area - list of use cases (simple text, no separate model)
+    # Governance and Identity fields
+    service_account: Optional[str] = Column(String(255), nullable=True)  # type: ignore  # Service account used by agent
+    department: Optional[str] = Column(String(100), nullable=True)  # type: ignore  # Department owning the agent
+    organization: Optional[str] = Column(String(255), nullable=True)  # type: ignore  # Organization/unit using the agent
+    kill_switch_enabled: bool = Column(Boolean, default=False, nullable=False)  # type: ignore  # Emergency disable capability
+    last_governance_review: Optional[datetime] = Column(DateTime, nullable=True)  # type: ignore  # Last compliance review date
+    governance_owner_id: Optional[uuid.UUID] = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)  # type: ignore  # User responsible for governance
+    
+    # Ecosystem relationships
+    skills: Optional[List[str]] = Column(JSON, nullable=True)  # type: ignore  # List of skills this agent possesses (replaces use_cases)
+    related_product_ids: Optional[List[uuid.UUID]] = Column(JSON, nullable=True)  # type: ignore  # Related products this agent integrates with
+    related_service_ids: Optional[List[uuid.UUID]] = Column(JSON, nullable=True)  # type: ignore  # Related services this agent depends on
     
     # Relationships
     # vendor = relationship("Vendor", back_populates="agents")
@@ -52,7 +62,7 @@ class Agent(Base):
 
 
 class AgentMetadata(Base):
-    """Agent metadata model"""
+    """Agent metadata model with comprehensive governance and compliance fields"""
     __tablename__ = "agent_metadata"
     
     # Prevent SQLAlchemy from using 'metadata' attribute
@@ -60,24 +70,76 @@ class AgentMetadata(Base):
     
     id: uuid.UUID = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)  # type: ignore
     agent_id: uuid.UUID = Column(UUID(as_uuid=True), ForeignKey("agents.id"), nullable=False)  # type: ignore
-    capabilities: Optional[List[str]] = Column(JSON, nullable=True)  # type: ignore
-    data_types: Optional[List[str]] = Column(JSON, nullable=True)  # type: ignore
-    regions: Optional[List[str]] = Column(JSON, nullable=True)  # type: ignore
-    integrations: Optional[List[Dict[str, Any]]] = Column(JSON, nullable=True)  # type: ignore
-    dependencies: Optional[Dict[str, Any]] = Column(JSON, nullable=True)  # type: ignore
-    architecture_info: Optional[Dict[str, Any]] = Column(JSON, nullable=True)  # type: ignore
-    # New fields for enhanced agent information
-    use_cases: Optional[List[str]] = Column(JSON, nullable=True)  # List of use cases  # type: ignore
-    features: Optional[List[str]] = Column(JSON, nullable=True)  # List of features  # type: ignore
-    personas: Optional[List[Dict[str, Any]]] = Column(JSON, nullable=True)  # List of target personas  # type: ignore
-    version_info: Optional[Dict[str, Any]] = Column(JSON, nullable=True)  # Enhanced version information (release notes, changelog, etc.)  # type: ignore
-    # AI/LLM information for risk assessment
-    llm_vendor: Optional[str] = Column(String(100), nullable=True)  # e.g., OpenAI, Anthropic, Google, etc.  # type: ignore
-    llm_model: Optional[str] = Column(String(100), nullable=True)  # e.g., GPT-4, Claude-3, Gemini-Pro, etc.  # type: ignore
-    deployment_type: Optional[str] = Column(String(50), nullable=True)  # cloud, on_premise, hybrid  # type: ignore
-    data_sharing_scope: Optional[Dict[str, Any]] = Column(JSON, nullable=True)  # Information about what data is shared with LLM  # type: ignore
-    data_usage_purpose: Optional[str] = Column(Text, nullable=True)  # How the agent uses data with the LLM  # type: ignore
-    extra_data: Optional[Dict[str, Any]] = Column(JSON, nullable=True)  # Additional unstructured data  # type: ignore
+    
+    # === CORE FUNCTIONALITY ===
+    capabilities: Optional[List[str]] = Column(JSON, nullable=True)  # type: ignore  # Core agent capabilities
+    skills: Optional[List[str]] = Column(JSON, nullable=True)  # type: ignore  # Specific skills the agent can perform
+    features: Optional[List[str]] = Column(JSON, nullable=True)  # type: ignore  # Detailed features offered
+    
+    # === DATA HANDLING ===
+    data_types: Optional[List[str]] = Column(JSON, nullable=True)  # type: ignore  # Types of data processed
+    data_classification_levels: Optional[List[str]] = Column(JSON, nullable=True)  # type: ignore  # Confidentiality levels (public, internal, confidential, restricted)
+    data_retention_period: Optional[str] = Column(String(50), nullable=True)  # type: ignore  # How long data is retained
+    
+    # === GEOGRAPHIC SCOPE ===
+    regions: Optional[List[str]] = Column(JSON, nullable=True)  # type: ignore  # Geographic regions of operation
+    jurisdictions: Optional[List[str]] = Column(JSON, nullable=True)  # type: ignore  # Legal jurisdictions
+    
+    # === INTEGRATIONS & DEPENDENCIES ===
+    integrations: Optional[List[Dict[str, Any]]] = Column(JSON, nullable=True)  # type: ignore  # Connected systems
+    dependencies: Optional[Dict[str, Any]] = Column(JSON, nullable=True)  # type: ignore  # Software/hardware dependencies
+    related_product_ids: Optional[List[uuid.UUID]] = Column(JSON, nullable=True)  # type: ignore  # Related products this agent integrates with
+    related_service_ids: Optional[List[uuid.UUID]] = Column(JSON, nullable=True)  # type: ignore  # Related services this agent depends on
+    
+    # === TECHNICAL ARCHITECTURE ===
+    architecture_info: Optional[Dict[str, Any]] = Column(JSON, nullable=True)  # type: ignore  # Technical architecture details
+    deployment_type: Optional[str] = Column(String(50), nullable=True)  # type: ignore  # cloud, on_premise, hybrid
+    hosting_provider: Optional[str] = Column(String(100), nullable=True)  # type: ignore  # Cloud provider or hosting solution
+    
+    # === AI/ML SPECIFICS ===
+    ai_ml_info: Optional[Dict[str, Any]] = Column(JSON, nullable=True)  # type: ignore  # AI/ML framework and models used
+    llm_vendor: Optional[str] = Column(String(100), nullable=True)  # type: ignore  # e.g., OpenAI, Anthropic, Google
+    llm_model: Optional[str] = Column(String(100), nullable=True)  # type: ignore  # e.g., GPT-4, Claude-3, Gemini-Pro
+    training_data_source: Optional[str] = Column(Text, nullable=True)  # type: ignore  # Source of training data
+    
+    # === SECURITY & COMPLIANCE ===
+    security_controls: Optional[List[str]] = Column(JSON, nullable=True)  # type: ignore  # Implemented security measures
+    compliance_standards: Optional[List[str]] = Column(JSON, nullable=True)  # type: ignore  # e.g., SOC2, ISO27001, GDPR, HIPAA
+    certification_status: Optional[Dict[str, Any]] = Column(JSON, nullable=True)  # type: ignore  # Certification details and dates
+    incident_response_plan: Optional[bool] = Column(Boolean, nullable=True)  # type: ignore  # Has incident response procedures
+    audit_trail_enabled: Optional[bool] = Column(Boolean, nullable=True)  # type: ignore  # Maintains activity logs
+    
+    # === DATA PRIVACY ===
+    data_sharing_scope: Optional[Dict[str, Any]] = Column(JSON, nullable=True)  # type: ignore  # What data is shared externally
+    data_usage_purpose: Optional[str] = Column(Text, nullable=True)  # type: ignore  # Purpose of data processing
+    privacy_policy_url: Optional[str] = Column(String(500), nullable=True)  # type: ignore  # Link to privacy policy
+    data_protection_officer: Optional[str] = Column(String(255), nullable=True)  # type: ignore  # DPO contact
+    
+    # === VERSION & CHANGE MANAGEMENT ===
+    version_info: Optional[Dict[str, Any]] = Column(JSON, nullable=True)  # type: ignore  # Release notes, changelog, etc.
+    change_log: Optional[List[Dict[str, Any]]] = Column(JSON, nullable=True)  # type: ignore  # History of changes
+    rollback_procedures: Optional[str] = Column(Text, nullable=True)  # type: ignore  # How to rollback changes
+    
+    # === BUSINESS CONTEXT ===
+    business_purpose: Optional[str] = Column(Text, nullable=True)  # type: ignore  # Primary business purpose
+    target_audience: Optional[List[str]] = Column(JSON, nullable=True)  # type: ignore  # Intended user groups
+    competitive_advantage: Optional[str] = Column(Text, nullable=True)  # type: ignore  # What makes this agent unique
+    
+    # === MONITORING & GOVERNANCE ===
+    monitoring_tools: Optional[List[str]] = Column(JSON, nullable=True)  # type: ignore  # Tools used for monitoring
+    governance_framework: Optional[str] = Column(String(100), nullable=True)  # type: ignore  # Governance approach
+    service_level_agreements: Optional[Dict[str, Any]] = Column(JSON, nullable=True)  # type: ignore  # SLA commitments
+    
+    # === DOCUMENTATION & ARTIFACTS ===
+    documentation_urls: Optional[Dict[str, str]] = Column(JSON, nullable=True)  # type: ignore  # Links to docs, diagrams, specs
+    architecture_diagrams: Optional[List[str]] = Column(JSON, nullable=True)  # type: ignore  # Architecture diagram URLs/paths
+    landscape_diagrams: Optional[List[str]] = Column(JSON, nullable=True)  # type: ignore  # System landscape diagrams
+    
+    # === LEGACY FIELDS (deprecated but kept for backward compatibility) ===
+    use_cases: Optional[List[str]] = Column(JSON, nullable=True)  # type: ignore  # Legacy field - use skills instead
+    personas: Optional[List[Dict[str, Any]]] = Column(JSON, nullable=True)  # type: ignore  # Legacy field - use target_audience instead
+    extra_data: Optional[Dict[str, Any]] = Column(JSON, nullable=True)  # type: ignore  # Legacy field for unstructured data
+    
     created_at: datetime = Column(DateTime, default=datetime.utcnow)  # type: ignore
     updated_at: Optional[datetime] = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)  # type: ignore
     

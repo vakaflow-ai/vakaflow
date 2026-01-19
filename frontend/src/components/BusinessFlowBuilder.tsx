@@ -40,8 +40,29 @@ export default function BusinessFlowBuilder({ onSave, onCancel, initialFlow }: B
     queryFn: () => studioApi.getAgents()
   })
 
-  // Filter agents by selected vendor
-  const vendorAgents = agentsData?.agents.filter(agent => agent.vendor_id === selectedVendorId) || []
+  // Filter agents by selected vendor - handle potential data type mismatches
+  const vendorAgents = agentsData?.agents.filter(agent => {
+    // Ensure both IDs are strings for comparison
+    const agentVendorId = String(agent.vendor_id).trim();
+    const selectedId = String(selectedVendorId).trim();
+    
+    // Debug logging to help troubleshoot
+    if (selectedId && agentVendorId !== selectedId) {
+      console.debug(`Agent ${agent.id} vendor mismatch: agent.vendor_id='${agentVendorId}', selectedVendorId='${selectedId}'`);
+    }
+    
+    return agentVendorId === selectedId && agentVendorId !== '' && selectedId !== '';
+  }) || []
+  
+  // Debug: Log vendor agents count
+  useEffect(() => {
+    if (selectedVendorId && agentsData?.agents) {
+      console.debug(`Selected vendor: ${selectedVendorId}`);
+      console.debug(`Total agents loaded: ${agentsData.agents.length}`);
+      console.debug(`Filtered agents for vendor: ${vendorAgents.length}`);
+      console.debug(`Sample agent vendor_ids:`, agentsData.agents.slice(0, 3).map(a => a.vendor_id));
+    }
+  }, [selectedVendorId, agentsData, vendorAgents]);
 
   // Helper to get agent by ID
   const getAgentById = (agentId: string) => {

@@ -11,6 +11,7 @@ import { frameworksApi, RequirementTree, RequirementResponse } from '../lib/fram
 import { agentConnectionsApi, ConnectionCreate } from '../lib/agentConnections'
 import { formLayoutsApi, FormLayout, CustomField, SectionDefinition } from '../lib/formLayouts'
 import { masterDataListsApi, MasterDataList } from '../lib/masterDataLists'
+import { getRequestTypeForEntityType } from '../utils/businessProcessMapping'
 import RequirementTreeComponent from '../components/RequirementTree'
 import Layout from '../components/Layout'
 import PageContainer, { PageHeader } from '../components/PageContainer'
@@ -87,7 +88,7 @@ export default function AgentSubmission() {
     mermaid_diagram: '', // Architecture diagram
     
     // Rich text fields
-    use_cases: '', // Use cases (rich text)
+    skills: '', // Agent skills (rich text) - replaces use_cases
     personas: '', // Target personas (rich text)
     features: '', // Features (rich text)
     version_info: {
@@ -140,6 +141,27 @@ export default function AgentSubmission() {
   const [connectionDiagram, setConnectionDiagram] = useState<string>('')
   const [isEditingConnectionDiagram, setIsEditingConnectionDiagram] = useState(false)
   const [editedConnectionDiagram, setEditedConnectionDiagram] = useState<string>('')
+  
+  // Business process mapping - determine request type dynamically
+  const [requestType, setRequestType] = useState<string>('agent_onboarding_workflow')
+  
+  useEffect(() => {
+    const fetchRequestType = async () => {
+      try {
+        const entityType = 'agent'
+        const mappedRequestType = await getRequestTypeForEntityType(entityType)
+        console.log('Determined request type from business process mapping:', mappedRequestType, 'for entity type:', entityType)
+        setRequestType(mappedRequestType)
+      } catch (error) {
+        console.warn('Failed to get request type from business process mapping, using default:', error)
+        setRequestType('agent_onboarding_workflow')
+      }
+    }
+    
+    if (user) {
+      fetchRequestType()
+    }
+  }, [user])
   
   // Predefined options for multiselect
   const dataTypeOptions = [
@@ -627,9 +649,9 @@ export default function AgentSubmission() {
   const finalRenderedFieldsLoggedRef = useRef<string | null>(null) // Track if final rendered fields has been logged for this layout+step
   
   const { data: formLayout, isLoading: layoutLoading, error: layoutError, refetch: refetchLayout } = useQuery({
-    queryKey: ['form-layout', 'vendor_submission_workflow', 'new', 'active'],
+    queryKey: ['form-layout', requestType, 'new', 'active'],
     queryFn: async () => {
-      const layout = await formLayoutsApi.getActiveForScreen('vendor_submission_workflow', 'new')
+      const layout = await formLayoutsApi.getActiveForScreen(requestType, 'new')
       // Debug: Log the full layout response (commented out to reduce console noise)
       // console.log('🔍 Layout fetched from API (getActiveForScreen):', {
       //   id: layout.id,
@@ -676,7 +698,7 @@ export default function AgentSubmission() {
       
       return layout
     },
-    enabled: !!user,
+    enabled: !!user && !!requestType,
     staleTime: 0, // Always fetch fresh data to ensure we get the latest layout with all sections
     gcTime: 0, // Don't cache to ensure we always get the latest from server
     // Note: onError is deprecated in newer versions of react-query, errors are handled via error state
@@ -687,7 +709,7 @@ export default function AgentSubmission() {
     mutationFn: (layoutUpdate: { id: string; sections: SectionDefinition[] }) => 
       formLayoutsApi.update(layoutUpdate.id, { sections: layoutUpdate.sections }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['form-layout', 'vendor_submission_workflow', 'new', 'active'] })
+      queryClient.invalidateQueries({ queryKey: ['form-layout', requestType, 'new', 'active'] })
     },
     onError: (error: any) => {
       console.error('Failed to update layout:', error)
@@ -1442,7 +1464,7 @@ export default function AgentSubmission() {
   // Backend expects: capabilities/use_cases as List[str], personas as List[dict]
   const convertRichTextToBackendFormat = (
     value: string | string[] | Array<{ name: string; description: string }>,
-    fieldType: 'capabilities' | 'use_cases' | 'personas'
+    fieldType: 'capabilities' | 'use_cases' | 'skills' | 'personas'
   ): string[] | Array<{ name: string; description: string }> => {
     // If already an array, return as-is (backward compatibility)
     if (Array.isArray(value)) {
@@ -1626,7 +1648,7 @@ export default function AgentSubmission() {
             capabilities: convertRichTextToBackendFormat(formData.capabilities, 'capabilities') as string[],
             data_types: formData.data_types,
             regions: formData.regions,
-            use_cases: convertRichTextToBackendFormat(formData.use_cases, 'use_cases') as string[],
+            skills: convertRichTextToBackendFormat(formData.skills, 'skills') as string[],
             personas: convertRichTextToBackendFormat(formData.personas, 'personas') as Array<{ name: string; description: string }>,
             connection_diagram: finalDiagram,
           } as any) // Type assertion needed for connections
@@ -1683,9 +1705,9 @@ export default function AgentSubmission() {
           }
           
           // Third batch: rich text fields (if they exist)
-          if (formData.use_cases || formData.personas) {
+          if (formData.skills || formData.personas) {
             await agentsApi.update(agent.id, {
-              use_cases: convertRichTextToBackendFormat(formData.use_cases, 'use_cases') as string[],
+              skills: convertRichTextToBackendFormat(formData.skills, 'skills') as string[],
               personas: convertRichTextToBackendFormat(formData.personas, 'personas') as Array<{ name: string; description: string }>,
             } as any)
           }
@@ -3383,8 +3405,8 @@ Please try:
 
   // Fetch field access for current user role (optional - if fails, allow all fields)
   const { data: fieldAccess } = useQuery({
-    queryKey: ['field-access', 'vendor_submission_workflow', user?.role, formData.type, 'new'],
-    queryFn: () => formLayoutsApi.getFieldsWithAccessForRole('vendor_submission_workflow', user?.role || '', formData.type, 'new').catch((error) => {
+    queryKey: ['field-access', requestType, user?.role, formData.type, 'new'],
+    queryFn: () => formLayoutsApi.getFieldsWithAccessForRole(requestType, user?.role || '', formData.type, 'new').catch((error) => {
       // If field access API fails (400, 422, etc.), return empty array - fields will be visible by default
       if (error?.response?.status === 400 || error?.response?.status === 422 || error?.response?.status === 404) {
         console.warn('Field access API returned error, allowing all fields by default:', error?.response?.status)
@@ -3392,7 +3414,7 @@ Please try:
       }
       throw error
     }),
-    enabled: !!user && !!user?.role,
+    enabled: !!user && !!user?.role && !!requestType,
     retry: false, // Don't retry on validation errors
   })
 
@@ -3445,7 +3467,7 @@ Please try:
     // Warn if layout has very few sections (might be incomplete) - only log once per layout
     if (formLayout.sections.length === 1 && singleSectionWarningLoggedRef.current !== formLayout.id) {
       singleSectionWarningLoggedRef.current = formLayout.id
-      console.warn('Layout has only 1 section. Expected multiple sections for vendor submission workflow.', {
+      console.warn('Layout has only 1 section. Expected multiple sections for agent onboarding workflow.', {
         layoutId: formLayout.id,
         layoutName: formLayout.name,
         sections: formLayout.sections.map((s: any) => ({ id: s.id, title: s.title, fieldsCount: (s.fields || []).length }))
@@ -3486,8 +3508,9 @@ Please try:
     })
     
     const visibleFields = validFields.filter((fieldName: string) => {
-      // For vendor submissions, always show all fields from layout (permissions don't matter)
-      if (formLayout?.request_type === 'vendor_submission_workflow') {
+      // For agent onboarding, ignore permissions - show all fields from layout
+      // The form is controlled by tenant admin, users should fill all fields as asked
+      if (formLayout?.request_type === 'agent_onboarding_workflow') {
         return true
       }
       // For other workflows, check permissions
@@ -3521,10 +3544,10 @@ Please try:
       .map((fieldName: string, idx: number) => {
         try {
           const access = fieldAccessMap.get(fieldName)
-          // For vendor submissions, ignore edit permissions - allow editing all fields
+          // For agent onboarding, ignore edit permissions - allow editing all fields
           // For other workflows, check edit permissions
-          const isReadOnly = formLayout?.request_type === 'vendor_submission_workflow'
-            ? false // Always allow editing for vendor submissions
+          const isReadOnly = formLayout?.request_type === 'agent_onboarding_workflow'
+            ? false // Always allow editing for agent onboarding
             : (fieldAccess && fieldAccess.length > 0 && access && !access.can_edit)
           
           // Check for required override from layout section
@@ -4834,23 +4857,23 @@ Please try:
             </div>
 
             <div>
-              <h3 className="text-md font-medium mb-3">Use Cases (5-10 recommended for assessment)</h3>
+              <h3 className="text-md font-medium mb-3">Skills (What this agent can do)</h3>
               <div className="space-y-3">
                 <div className="rich-text-editor-wrapper">
                   <ReactQuillWrapper
                     theme="snow"
-                    value={typeof formData.use_cases === 'string' 
-                      ? formData.use_cases 
-                      : (Array.isArray(formData.use_cases) 
-                          ? (formData.use_cases as unknown as string[]).map((uc: string) => `<p>${uc}</p>`).join('')
+                    value={typeof formData.skills === 'string' 
+                      ? formData.skills 
+                      : (Array.isArray(formData.skills) 
+                          ? (formData.skills as unknown as string[]).map((skill: string) => `<p>${skill}</p>`).join('')
                           : '')}
                     onChange={(content: string) => {
                       setFormData({
                         ...formData,
-                        use_cases: content,
+                        skills: content,
                       })
                     }}
-                    placeholder="Describe the agent's use cases (e.g., Automated customer support, Data analysis and reporting, Content generation)"
+                    placeholder="Describe the agent's skills (e.g., Threat detection, Log analysis, Vulnerability scanning, Incident response)"
                     modules={{
                       toolbar: [
                         [{ 'header': [1, 2, 3, false] }],
@@ -4864,7 +4887,7 @@ Please try:
                   />
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Use the rich text editor to format and describe the agent's use cases. Recommended: 5-10 use cases for assessment.
+                  Use the rich text editor to format and describe the agent's core skills. Focus on capabilities rather than specific use cases.
                 </p>
               </div>
             </div>
@@ -5657,16 +5680,16 @@ Please try:
                     </div>
                   </div>
                   <div>
-                    <span className="text-sm text-muted-foreground">Use Cases:</span>
+                    <span className="text-sm text-muted-foreground">Skills:</span>
                     <div className="mt-1 prose prose-sm max-w-none">
                       {(() => {
-                        const useCasesValue = typeof formData.use_cases === 'string' 
-                          ? formData.use_cases 
-                          : (Array.isArray(formData.use_cases) 
-                              ? (formData.use_cases as unknown as string[]).map((uc: string) => `<p>${uc}</p>`).join('')
+                        const skillsValue = typeof formData.skills === 'string' 
+                          ? formData.skills 
+                          : (Array.isArray(formData.skills) 
+                              ? (formData.skills as unknown as string[]).map((skill: string) => `<p>${skill}</p>`).join('')
                               : '')
-                        return useCasesValue.trim() ? (
-                          <div dangerouslySetInnerHTML={{ __html: useCasesValue }} />
+                        return skillsValue.trim() ? (
+                          <div dangerouslySetInnerHTML={{ __html: skillsValue }} />
                         ) : (
                           <span className="text-xs text-muted-foreground">None</span>
                         )
