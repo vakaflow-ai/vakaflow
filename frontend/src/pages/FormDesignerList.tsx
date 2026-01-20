@@ -555,7 +555,7 @@ export default function FormDesignerList() {
       showToast.error('No layout mapped for this group')
       return
     }
-    navigate(`/admin/form-designer/${layoutId}?mode=edit`)
+    navigate(`/admin/form-library/designer/${layoutId}?mode=edit`)
   }
 
   if (groupsLoading || libraryLoading || formsLoading) {

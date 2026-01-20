@@ -24,6 +24,7 @@ export interface RequestTypeConfigCreate {
   request_type: string
   display_name: string
   visibility_scope: VisibilityScope
+  description?: string
   icon_name?: string
   sort_order?: number
   workflow_id?: string
@@ -51,18 +52,28 @@ export interface FormAssociation {
   id: string
   request_type_config_id: string
   form_layout_id: string
-  sort_order: number
-  is_default: boolean
+  display_order: number
+  is_primary: boolean
+  form_variation_type?: string
   created_at: string
   updated_at: string
+  // Form details from backend response
+  form_name: string
+  form_description?: string
+  form_is_active: boolean
   // Related objects
   form_layout?: FormLayout
 }
 
+// Helper functions for frontend compatibility
+export const getFormAssociationSortOrder = (form: FormAssociation): number => form.display_order;
+export const getFormAssociationIsDefault = (form: FormAssociation): boolean => form.is_primary;
+
 export interface FormAssociationCreate {
   form_layout_id: string
-  sort_order?: number
-  is_default?: boolean
+  display_order?: number
+  is_primary?: boolean
+  form_variation_type?: string
 }
 
 export interface FormAssociationUpdate {

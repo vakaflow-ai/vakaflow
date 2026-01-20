@@ -11,6 +11,8 @@ from app.core.database import get_db
 from app.models.user import User
 from app.models.service import Service, ServiceStatus
 from app.models.vendor import Vendor
+from app.models.request_type_config import RequestTypeConfig
+from app.models.workflow_config import WorkflowConfiguration, WorkflowConfigStatus
 from app.api.v1.auth import get_current_user
 from app.core.security_middleware import sanitize_input
 from app.core.tenant_utils import get_effective_tenant_id
@@ -223,11 +225,25 @@ async def create_service(
                 "status": service.status
             }
             
-            workflow_config = orchestration.get_workflow_for_entity(
-                entity_type="service",
-                entity_data=entity_data,
-                request_type="service_qualification_workflow"
-            )
+            # Get the proper request type for services
+            request_type_config = db.query(RequestTypeConfig).filter(
+                RequestTypeConfig.tenant_id == effective_tenant_id,
+                RequestTypeConfig.request_type == "service_onboarding_workflow",
+                RequestTypeConfig.is_active == True
+            ).first()
+            
+            if request_type_config and request_type_config.workflow_id:
+                # Use the workflow associated with this request type
+                workflow_config = db.query(WorkflowConfiguration).filter(
+                    WorkflowConfiguration.id == request_type_config.workflow_id,
+                    WorkflowConfiguration.status == "active"
+                ).first()
+            else:
+                # Fallback: try to find any active workflow for this tenant
+                workflow_config = db.query(WorkflowConfiguration).filter(
+                    WorkflowConfiguration.tenant_id == effective_tenant_id,
+                    WorkflowConfiguration.status == WorkflowConfigStatus.ACTIVE.value
+                ).first()
             
             if workflow_config:
                 # Store workflow info in metadata

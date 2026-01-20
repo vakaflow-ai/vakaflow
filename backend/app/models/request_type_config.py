@@ -32,6 +32,7 @@ class RequestTypeConfig(Base):
     
     # Visibility configuration
     visibility_scope: VisibilityScope = Column(Enum(VisibilityScope), nullable=False, default=VisibilityScope.BOTH)  # type: ignore
+    is_enabled: bool = Column(Boolean, default=True, nullable=False)  # type: ignore
     is_active: bool = Column(Boolean, default=True, nullable=False)  # type: ignore
     
     # Tenant-specific display configuration
@@ -55,6 +56,9 @@ class RequestTypeConfig(Base):
     
     # Status
     is_default: bool = Column(Boolean, default=False, nullable=False)  # type: ignore
+    
+    # Workflow association
+    workflow_id: Optional[uuid.UUID] = Column(UUID(as_uuid=True), ForeignKey("workflow_configurations.id"), nullable=True, index=True)  # type: ignore
     
     # Metadata
     created_by: Optional[uuid.UUID] = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)  # type: ignore

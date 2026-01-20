@@ -1,5 +1,5 @@
 import React from 'react'
-import { RequestTypeConfig, FormAssociation } from '../lib/requestTypeConfig'
+import { RequestTypeConfig, FormAssociation, getFormAssociationSortOrder, getFormAssociationIsDefault } from '../lib/requestTypeConfig'
 import { FormLayout } from '../lib/formLayouts'
 import { 
   DocumentTextIcon,
@@ -134,7 +134,7 @@ export default function RequestTypeCardWithForms({
                       {form.form_layout?.name || 'Unnamed Form'}
                     </p>
                     <p className="text-xs text-gray-500 truncate">
-                      Order: {form.sort_order} {form.is_default && '• Default'}
+                      Order: {getFormAssociationSortOrder(form)} {getFormAssociationIsDefault(form) && '• Default'}
                     </p>
                   </div>
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">

@@ -1,20 +1,25 @@
 """
 Product management API endpoints
 """
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query, Request, BackgroundTasks
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field, validator
 from typing import Optional, List, Dict, Any
 from uuid import UUID
 from datetime import datetime
 from app.core.database import get_db
-from app.models.user import User
+from app.models.user import User, UserRole
 from app.models.product import Product, ProductStatus
 from app.models.vendor import Vendor
 from app.models.agent import Agent, AgentProduct
+from app.models.request_type_config import RequestTypeConfig
+from app.models.workflow_config import WorkflowConfiguration, WorkflowConfigStatus, OnboardingRequest
 from app.api.v1.auth import get_current_user
 from app.core.security_middleware import sanitize_input
 from app.core.tenant_utils import get_effective_tenant_id
+from app.services.workflow_orchestration import WorkflowOrchestrationService
+from app.core.audit import audit_service, AuditAction
+from app.core.cache import invalidate_cache
 import logging
 
 logger = logging.getLogger(__name__)
@@ -226,34 +231,8 @@ async def create_product(
         
         logger.info(f"Product {product.id} created by user {current_user.id}")
         
-        # Auto-trigger workflow if matching workflow found
-        try:
-            from app.services.workflow_orchestration import WorkflowOrchestrationService
-            orchestration = WorkflowOrchestrationService(db, effective_tenant_id)
-            
-            entity_data = {
-                "product_type": product.product_type,
-                "category": product.category,
-                "status": product.status
-            }
-            
-            workflow_config = orchestration.get_workflow_for_entity(
-                entity_type="product",
-                entity_data=entity_data,
-                request_type="product_qualification_workflow"
-            )
-            
-            if workflow_config:
-                # Store workflow info in metadata
-                if not product.extra_metadata:
-                    product.extra_metadata = {}
-                product.extra_metadata["workflow_id"] = str(workflow_config.id)
-                product.extra_metadata["workflow_stage"] = "new"
-                db.commit()
-                logger.info(f"Workflow {workflow_config.id} auto-triggered for product {product.id}")
-        except Exception as e:
-            # Don't fail product creation if workflow trigger fails
-            logger.warning(f"Failed to auto-trigger workflow for product {product.id}: {e}", exc_info=True)
+        # Product created successfully
+        logger.info(f"Product {product.id} created by user {current_user.id}")
         
         return ProductResponse(
             id=str(product.id),
@@ -442,7 +421,7 @@ async def get_product(
         integration_points=product.integration_points,
         business_value=product.business_value,
         deployment_info=product.deployment_info,
-        extra_metadata=product.extra_metadata,
+        metadata=product.extra_metadata,
         created_at=product.created_at.isoformat() if product.created_at else datetime.utcnow().isoformat(),
         updated_at=product.updated_at.isoformat() if product.updated_at else None,
         vendor_name=vendor.name if vendor else None
@@ -538,7 +517,7 @@ async def update_product(
         integration_points=product.integration_points,
         business_value=product.business_value,
         deployment_info=product.deployment_info,
-        extra_metadata=product.extra_metadata,
+        metadata=product.extra_metadata,
         created_at=product.created_at.isoformat() if product.created_at else datetime.utcnow().isoformat(),
         updated_at=product.updated_at.isoformat() if product.updated_at else None,
         vendor_name=vendor.name if vendor else None

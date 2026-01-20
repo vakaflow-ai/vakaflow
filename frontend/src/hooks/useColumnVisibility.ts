@@ -1,87 +1,77 @@
-/**
- * Custom hook for managing column visibility preferences
- * Persists to localStorage for user preferences
- * 
- * @module hooks/useColumnVisibility
- */
+import { useState, useEffect } from 'react'
 
-import { useState, useEffect, useCallback } from 'react'
-
-export interface ColumnVisibilityConfig {
-  catalogId: boolean
-  requirementType: boolean
-  label: boolean
-  type: boolean
-  description: boolean
-  metadata: boolean
-  status: boolean
-  actions: boolean // Always visible
+interface ColumnVisibilityConfig {
+  [key: string]: boolean
 }
 
-const DEFAULT_COLUMNS: ColumnVisibilityConfig = {
-  catalogId: true,
-  requirementType: true,
-  label: true,
-  type: false, // Hidden by default - only shown in edit/view modals
-  description: true,
-  metadata: true,
-  status: true,
-  actions: true
-}
+export function useColumnVisibility(
+  storageKey: string,
+  defaultColumns: ColumnVisibilityConfig
+) {
+  const [columnVisibility, setColumnVisibility] = useState<ColumnVisibilityConfig>(defaultColumns)
 
-const STORAGE_KEY = 'requirements-grid-columns'
-
-/**
- * Hook for managing column visibility with localStorage persistence
- */
-export function useColumnVisibility() {
-  const [columnVisibility, setColumnVisibility] = useState<ColumnVisibilityConfig>(() => {
-    // Load saved preferences from localStorage
-    const saved = localStorage.getItem(STORAGE_KEY)
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved)
-        // Migrate old 'id' key to 'catalogId' if present
-        if (parsed.id !== undefined) {
-          parsed.catalogId = parsed.id
-          delete parsed.id
-        }
-        // Ensure all required columns exist with defaults
-        return {
-          ...DEFAULT_COLUMNS,
-          ...parsed,
-          actions: true // Always visible
-        }
-      } catch {
-        // If parsing fails, use defaults
-        return DEFAULT_COLUMNS
-      }
-    }
-    return DEFAULT_COLUMNS
-  })
-
-  // Save to localStorage whenever visibility changes
+  // Load saved column visibility from localStorage
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(columnVisibility))
-  }, [columnVisibility])
+    try {
+      const saved = localStorage.getItem(storageKey)
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        // Merge with defaults to handle new columns
+        setColumnVisibility(prev => ({
+          ...defaultColumns,
+          ...parsed
+        }))
+      }
+    } catch (error) {
+      console.warn('Failed to load column visibility settings:', error)
+      setColumnVisibility(defaultColumns)
+    }
+  }, [storageKey, defaultColumns])
 
-  const toggleColumn = useCallback((columnKey: keyof ColumnVisibilityConfig) => {
-    // Don't allow hiding actions column
-    if (columnKey === 'actions') return
+  // Save column visibility to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(columnVisibility))
+    } catch (error) {
+      console.warn('Failed to save column visibility settings:', error)
+    }
+  }, [columnVisibility, storageKey])
 
+  const toggleColumn = (columnKey: string) => {
     setColumnVisibility(prev => ({
       ...prev,
       [columnKey]: !prev[columnKey]
     }))
-  }, [])
+  }
 
-  const resetColumns = useCallback(() => {
-    setColumnVisibility(DEFAULT_COLUMNS)
-  }, [])
+  const showColumn = (columnKey: string) => {
+    setColumnVisibility(prev => ({
+      ...prev,
+      [columnKey]: true
+    }))
+  }
+
+  const hideColumn = (columnKey: string) => {
+    setColumnVisibility(prev => ({
+      ...prev,
+      [columnKey]: false
+    }))
+  }
+
+  const resetColumns = () => {
+    setColumnVisibility(defaultColumns)
+  }
+
+  const setVisibleColumns = (columns: ColumnVisibilityConfig) => {
+    setColumnVisibility(columns)
+  }
 
   return {
     columnVisibility,
     toggleColumn,
-    resetColumns
+    showColumn,
+    hideColumn,
+    resetColumns,
+    setVisibleColumns
   }
 }

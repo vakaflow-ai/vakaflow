@@ -1,0 +1,74 @@
+/* Chart and Visualization CSS Fixes */
+
+/* Prevent negative dimensions that cause Recharts errors */
+.recharts-wrapper,
+.recharts-surface {
+  min-width: 200px !important;
+  min-height: 200px !important;
+}
+
+/* Ensure chart containers have proper sizing */
+.chart-container {
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 200px !important;
+  min-height: 200px !important;
+  position: relative !important;
+}
+
+/* Fix axis and tooltip styling */
+.recharts-cartesian-axis-tick-value,
+.recharts-tooltip-label,
+.recharts-tooltip-item {
+  font-size: 12px !important;
+  font-weight: normal !important;
+}
+
+/* Prevent invalid CSS values */
+*[style*="width:-"] {
+  width: auto !important;
+}
+
+*[style*="height:-"] {
+  height: auto !important;
+}
+
+*[style*="font-size:-"] {
+  font-size: 14px !important;
+}
+
+*[style*="letter-spacing:-"] {
+  letter-spacing: normal !important;
+}
+
+/* Responsive chart handling */
+@media (max-width: 768px) {
+  .chart-container {
+    min-width: 280px !important;
+    min-height: 280px !important;
+  }
+}
+
+/* Loading state for charts */
+.chart-loading {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-width: 200px !important;
+  min-height: 200px !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Ensure proper stacking context */
+.chart-wrapper {
+  position: relative !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Fix for responsive container issues */
+.recharts-responsive-container {
+  width: 100% !important;
+  height: 100% !important;
+}

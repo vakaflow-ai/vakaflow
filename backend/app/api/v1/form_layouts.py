@@ -1923,10 +1923,14 @@ async def get_form_library(
     effective_tenant_id = get_effective_tenant_id(current_user, db)
     
     # Load forms from the Forms entity (new table for forms, separate from processes)
-    forms = db.query(Form).filter(
-        Form.tenant_id == effective_tenant_id,
-        Form.is_active == True
-    ).all()
+    # Platform admins can access all forms regardless of tenant
+    query = db.query(Form).filter(Form.is_active == True)
+    
+    # Apply tenant filter only for non-platform admins
+    if current_user.role.value != "platform_admin":
+        query = query.filter(Form.tenant_id == effective_tenant_id)
+    
+    forms = query.all()
     
     results = []
     for form in forms:

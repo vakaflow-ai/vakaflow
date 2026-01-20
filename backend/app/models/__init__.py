@@ -14,6 +14,7 @@ from app.models.vendor_invitation import VendorInvitation
 from app.models.otp import OTPCode
 from app.models.platform_config import PlatformConfiguration
 from app.models.cluster_node import ClusterNode, ClusterHealthCheck
+from app.models.workflow_config import WorkflowConfiguration
 from app.models.workflow_stage import WorkflowStageAction, WorkflowAuditTrail
 from app.models.workflow_reminder import WorkflowReminder
 from app.models.tenant import Tenant  # Import Tenant before MasterDataList for relationship resolution
@@ -96,6 +97,7 @@ __all__ = [
     "PlatformConfiguration",
     "ClusterNode",
     "ClusterHealthCheck",
+    "WorkflowConfiguration",
     "WorkflowStageAction",
     "WorkflowAuditTrail",
     "WorkflowReminder",

@@ -134,6 +134,7 @@ class RolePermissionService:
             "menu.services": ("Services", "Access to Services management page"),
             "menu.incident_reports": ("Incident Reports", "Access to Incident Reports page"),
             "menu.workflow_config": ("Workflow Configuration", "Access to Workflow Configuration page"),
+            "menu.request_types": ("Request Type Management", "Access to Request Type Management page"),
         },
         "forms_and_data_fields": {
             # Submission Data Level - Agent Core Fields
@@ -209,7 +210,7 @@ class RolePermissionService:
                 "menu.approvals", "menu.policies", "menu.business_rules", "menu.compliance_checks", "menu.cve_tracking",
                 "menu.question_library", "menu.submission_requirements", "menu.assessments", "menu.admin_panel",
                 "menu.users", "menu.role_permissions", "menu.entity_fields_catalog", "menu.tenant_settings",
-                "menu.tenants", "menu.workflows", "menu.workflow_management", "menu.workflow_templates", "menu.workflow_analytics", "menu.screen_designer", "menu.form_designer", "menu.workflow_config", "menu.master_data", "menu.platform_config",
+                "menu.tenants", "menu.workflows", "menu.workflow_management", "menu.workflow_templates", "menu.workflow_analytics", "menu.screen_designer", "menu.form_designer", "menu.workflow_config", "menu.request_types", "menu.master_data", "menu.platform_config",
                 "menu.cluster_nodes", "menu.audit_trail", "menu.studio", "menu.offboarding", "menu.export_data",
                 "menu.integrations", "menu.webhooks", "menu.application_logs", "menu.messages", "menu.mfa_settings",
                 "menu.products", "menu.services", "menu.incident_reports"
@@ -249,7 +250,7 @@ class RolePermissionService:
                 "menu.tickets", "menu.reviews", "menu.approvals", "menu.policies", "menu.business_rules",
                 "menu.compliance_checks", "menu.cve_tracking", "menu.question_library", "menu.submission_requirements",
                 "menu.assessments", "menu.admin_panel", "menu.users", "menu.role_permissions",
-                "menu.entity_fields_catalog", "menu.tenant_settings", "menu.workflows", "menu.workflow_management", "menu.workflow_templates", "menu.workflow_analytics", "menu.screen_designer", "menu.form_designer", "menu.workflow_config",
+                "menu.entity_fields_catalog", "menu.tenant_settings", "menu.workflows", "menu.workflow_management", "menu.workflow_templates", "menu.workflow_analytics", "menu.screen_designer", "menu.form_designer", "menu.workflow_config", "menu.request_types",
                 "menu.master_data", "menu.audit_trail", "menu.studio", "menu.offboarding", "menu.export_data",
                 "menu.integrations", "menu.webhooks", "menu.application_logs", "menu.messages", "menu.mfa_settings",
                 "menu.products", "menu.services", "menu.incident_reports"

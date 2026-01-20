@@ -109,7 +109,7 @@ export default function AdminDashboard() {
                 </MaterialButton>
                 <MaterialButton
                   variant="outlined"
-                  onClick={() => navigate('/admin/form-designer')}
+                  onClick={() => navigate('/admin/form-library')}
                   className="justify-start h-9"
                   fullWidth
                 >

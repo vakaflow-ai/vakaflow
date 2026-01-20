@@ -25,7 +25,7 @@ build/
 *~
 
 # Logs
-*.log
+*.log.*
 .logs/
 .backend.log
 .frontend.log
@@ -61,3 +61,23 @@ backend/uploads/
 
 # Docker
 .dockerignore
+backend/logs/application.log.1
+backend/logs/application.log.2
+backend/logs/application.log.3
+backend/logs/application.log.4
+backend/logs/application.log.1
+backend/logs/application.log.2
+backend/logs/application.log.3
+.gitignore
+backend.log
+backend/backend_nohup.log
+backend/backend.log
+backend/logs/application.log
+backend/logs/application.log.1
+backend/logs/application.log.2
+backend/logs/application.log.3
+backend/logs/errors.log
+backend/logs/application.log.2
+backend/logs/application.log.1
+backend/logs/application.log.2
+backend/logs/application.log.3

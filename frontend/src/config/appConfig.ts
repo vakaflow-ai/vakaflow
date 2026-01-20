@@ -42,6 +42,34 @@ export const FORM_CONFIG = {
   defaultStepCount: 10, // Default number of steps for vendor forms
 }
 
+// Request Type Configuration
+export const REQUEST_TYPE_CONFIG = {
+  // Action types that can be combined with entities
+  actionTypes: [
+    { id: 'onboarding', name: 'Onboarding', description: 'New entity setup and initialization' },
+    { id: 'offboarding', name: 'Offboarding', description: 'Entity termination and cleanup' },
+    { id: 'information_request', name: 'Information Request', description: 'Gather information or updates' },
+    { id: 'status_change', name: 'Status Change', description: 'Modify entity status or properties' },
+    { id: 'approval', name: 'Approval', description: 'Review and approve entity actions' },
+    { id: 'verification', name: 'Verification', description: 'Verify entity compliance or credentials' },
+    { id: 'custom', name: 'Custom', description: 'Custom workflow for specific needs' }
+  ],
+  
+  // Default action type if none selected
+  defaultActionType: 'onboarding',
+  
+  // Whether to allow custom action type names
+  allowCustomActionTypes: true,
+  
+  // Validation rules
+  validation: {
+    minLength: 3,
+    maxLength: 50,
+    allowedCharacters: /^[a-zA-Z0-9_-]+$/,
+    reservedWords: ['admin', 'system', 'internal']
+  }
+}
+
 // Export all config
 export const APP_CONFIG = {
   api: API_CONFIG,
@@ -50,6 +78,7 @@ export const APP_CONFIG = {
   features: FEATURE_FLAGS,
   ui: UI_CONFIG,
   form: FORM_CONFIG,
+  requestType: REQUEST_TYPE_CONFIG,
 }
 
 export default APP_CONFIG

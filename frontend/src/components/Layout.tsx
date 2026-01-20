@@ -223,8 +223,9 @@ export default function Layout({ children, user }: LayoutProps) {
     '/workflows': 'menu.workflow_management',
     '/workflows/templates': 'menu.workflow_templates',
     '/workflows/analytics': 'menu.workflow_analytics',
-    '/form-designer': 'menu.form_designer',
-    '/admin/workflow-config': 'menu.workflow_config',
+    '/admin/form-library': 'menu.form_designer',
+    '/admin/request-types-list': 'menu.request_types',
+
     '/assessments': 'menu.assessments',
     '/question-library': 'menu.question_library',
     '/submission-requirements': 'menu.submission_requirements',
@@ -375,15 +376,13 @@ export default function Layout({ children, user }: LayoutProps) {
     if (isAdmin && checkPermission('/workflows/templates')) {
       workflowItems.push({ path: '/workflows/templates', label: 'Workflow Templates', icon: BookOpenIcon, show: true })
     }
-    if (isAdmin && checkPermission('/workflows/analytics')) {
-      workflowItems.push({ path: '/workflows/analytics', label: 'Workflow Analytics', icon: ChartBarIcon, show: true })
+    if (isAdmin && checkPermission('/admin/form-library')) {
+      workflowItems.push({ path: '/admin/form-library', label: 'Form Library', icon: DocumentTextIcon, show: true })
     }
-    if (isAdmin && checkPermission('/form-designer')) {
-      workflowItems.push({ path: '/form-designer', label: 'Form Designer', icon: DocumentTextIcon, show: true })
+    if (isAdmin && checkPermission('/admin/request-types-list')) {
+      workflowItems.push({ path: '/admin/request-types-list', label: 'Request Types List', icon: DocumentTextIcon, show: true })
     }
-    if (isAdmin && checkPermission('/admin/workflow-config')) {
-      workflowItems.push({ path: '/admin/workflow-config', label: 'Workflow Configuration', icon: CogIcon, show: true })
-    }
+
     if (isAdmin && checkPermission('/studio')) {
       workflowItems.push({ path: '/studio', label: 'Studio', icon: CogIcon, show: true })
     }
@@ -401,6 +400,9 @@ export default function Layout({ children, user }: LayoutProps) {
     }
     if (canViewAssessmentAnalytics && checkPermission('/assessments/analytics')) {
       analyticsItems.push({ path: '/assessments/analytics', label: 'Assessment Analytics', icon: ChartBarIcon, show: true })
+    }
+    if (isAdmin && checkPermission('/workflows/analytics')) {
+      analyticsItems.push({ path: '/workflows/analytics', label: 'Workflow Analytics', icon: ChartBarIcon, show: true })
     }
     if (canViewAIPosture && checkPermission('/ai-posture')) {
       analyticsItems.push({ path: '/ai-posture', label: 'AI Posture', icon: AIPostureIcon, show: true })

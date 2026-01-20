@@ -8,15 +8,30 @@ from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
 from uuid import UUID
 from datetime import datetime
+import logging
 from app.core.database import get_db
 from app.models.user import User
 from app.models.request_type_config import RequestTypeConfig, RequestTypeTenantMapping, RequestTypeFormAssociation, VisibilityScope
 from app.models.form_layout import FormLayout
+from app.models.forms import Form
+from app.models.workflow_config import WorkflowConfiguration
 from app.api.v1.auth import get_current_user
 from app.core.tenant_utils import get_effective_tenant_id
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/request-type-config", tags=["request-type-config"])
 
+
+# Move FormAssociationCreate here to avoid circular imports
+class FormAssociationCreate(BaseModel):
+    """Create form association with request type"""
+    form_layout_id: UUID
+    display_order: int = 0
+    sort_order: Optional[int] = None  # Frontend compat
+    is_primary: bool = False
+    is_default: Optional[bool] = None  # Frontend compat
+    form_variation_type: Optional[str] = None
 
 class RequestTypeConfigCreate(BaseModel):
     """Create request type configuration"""
@@ -36,6 +51,8 @@ class RequestTypeConfigCreate(BaseModel):
     config_options: Optional[Dict[str, Any]] = None
     is_active: bool = Field(default=True)
     is_default: bool = Field(default=False)
+    workflow_id: Optional[UUID] = None
+    form_associations: Optional[List[FormAssociationCreate]] = None
 
 
 class RequestTypeConfigUpdate(BaseModel):
@@ -55,6 +72,8 @@ class RequestTypeConfigUpdate(BaseModel):
     config_options: Optional[Dict[str, Any]] = None
     is_active: Optional[bool] = None
     is_default: Optional[bool] = None
+    workflow_id: Optional[UUID] = None
+    form_associations: Optional[List[FormAssociationCreate]] = None
 
 
 class RequestTypeConfigResponse(BaseModel):
@@ -78,6 +97,7 @@ class RequestTypeConfigResponse(BaseModel):
     config_options: Optional[Dict[str, Any]] = None
     is_enabled: bool = True
     is_default: bool = False
+    workflow_id: Optional[UUID] = None
     created_by: Optional[UUID] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
@@ -99,7 +119,7 @@ class RequestTypeConfigResponse(BaseModel):
             "is_active", "show_tenant_name", "tenant_display_format",
             "internal_portal_order", "external_portal_order", "allowed_roles",
             "description", "icon_class", "extra_metadata", "is_enabled",
-            "is_default", "created_by", "created_at", "updated_at"
+            "is_default", "workflow_id", "created_by", "created_at", "updated_at"
         ]:
             val = getattr(obj, field, None) if not isinstance(obj, dict) else obj.get(field)
             
@@ -165,16 +185,6 @@ class OnboardingOption(BaseModel):
     allowed_roles: Optional[List[str]]
 
 
-class FormAssociationCreate(BaseModel):
-    """Create form association with request type"""
-    form_layout_id: UUID
-    display_order: int = 0
-    sort_order: Optional[int] = None  # Frontend compat
-    is_primary: bool = False
-    is_default: Optional[bool] = None  # Frontend compat
-    form_variation_type: Optional[str] = None
-
-
 class FormAssociationUpdate(BaseModel):
     """Update form association"""
     display_order: Optional[int] = None
@@ -210,7 +220,15 @@ async def create_request_type_config(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Create a new request type configuration"""
+    """Create a new request type configuration with workflow and form associations"""
+    # Debug logging
+    logger.info(f"Received request type creation data: {config_data.dict()}")
+    logger.info(f"Workflow ID present: {bool(config_data.workflow_id)}")
+    logger.info(f"Form associations present: {bool(config_data.form_associations)}")
+    if config_data.form_associations:
+        logger.info(f"Number of form associations: {len(config_data.form_associations)}")
+        for i, assoc in enumerate(config_data.form_associations):
+            logger.info(f"Form association {i}: form_layout_id={assoc.form_layout_id}, display_order={assoc.display_order}")
     # Check permissions - only tenant_admin and platform_admin can create
     if current_user.role.value not in ["tenant_admin", "platform_admin"]:
         raise HTTPException(
@@ -263,6 +281,137 @@ async def create_request_type_config(
     )
     
     db.add(config)
+    db.flush()  # Flush to get config.id without committing
+    
+    # If workflow_id is provided, create workflow association
+    if config_data.workflow_id:
+        # Verify workflow exists and belongs to same tenant
+        workflow = db.query(WorkflowConfiguration).filter(
+            WorkflowConfiguration.id == config_data.workflow_id,
+            WorkflowConfiguration.tenant_id == effective_tenant_id
+        ).first()
+        
+        if not workflow:
+            # Rollback the config creation since workflow validation failed
+            db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Workflow not found or access denied"
+            )
+        
+        # Update config with workflow_id
+        config.workflow_id = config_data.workflow_id
+        
+        # Create FormType (Workflow Layout Group) to link workflow to forms
+        from app.models.form_layout import FormType
+        
+        # Check if FormType already exists for this request type
+        existing_form_type = db.query(FormType).filter(
+            FormType.tenant_id == effective_tenant_id,
+            FormType.request_type == config_data.request_type
+        ).first()
+        
+        if not existing_form_type:
+            # Create default FormType for this request type
+            logger.info(f"Creating FormType for request type {config_data.request_type} with workflow {config_data.workflow_id}")
+            form_type = FormType(
+                tenant_id=effective_tenant_id,
+                name=f"{config.display_name} Layout Group",
+                request_type=config_data.request_type,
+                description=f"Form layouts for {config.display_name}",
+                workflow_config_id=config_data.workflow_id,
+                covered_entities=["users", "agent", "vendor", "master_data", "workflow_ticket"],
+                stage_mappings={},  # Will be populated when forms are associated
+                is_active=True,
+                is_default=True,
+                created_by=current_user.id
+            )
+            db.add(form_type)
+            logger.info(f"Added FormType to database session")
+    
+    # If form associations are provided in the request, create them
+    if hasattr(config_data, 'form_associations') and config_data.form_associations:
+        logger.info(f"Processing {len(config_data.form_associations)} form associations")
+        
+        for form_assoc_data in config_data.form_associations:
+            # Verify form exists and belongs to same tenant
+            # Forms from library come from the Form entity - we need to create FormLayout entries
+            logger.info(f"Checking form {form_assoc_data.form_layout_id} for tenant {effective_tenant_id}")
+            
+            # First check if form exists at all in the Forms table
+            form_any_tenant = db.query(Form).filter(
+                Form.id == form_assoc_data.form_layout_id
+            ).first()
+            
+            if form_any_tenant:
+                logger.info(f"Form found with tenant_id: {form_any_tenant.tenant_id}")
+            else:
+                logger.info(f"Form {form_assoc_data.form_layout_id} not found in Forms table")
+            
+            form = db.query(Form).filter(
+                Form.id == form_assoc_data.form_layout_id,
+                Form.tenant_id == effective_tenant_id
+            ).first()
+            
+            if not form:
+                # Rollback since form validation failed
+                db.rollback()
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"Form layout {form_assoc_data.form_layout_id} not found or access denied"
+                )
+            
+            # Create FormLayout entry from the Form (library form)
+            # This bridges the gap between Forms (library) and FormLayouts (process-specific)
+            form_layout_entry = FormLayout(
+                tenant_id=effective_tenant_id,
+                name=form.name,
+                request_type=config_data.request_type,
+                workflow_stage="new",  # Default to new stage
+                layout_type=form.layout_type or "submission",
+                description=form.description,
+                sections=form.sections,
+                field_dependencies=form.field_dependencies,
+                custom_field_ids=form.custom_field_ids,
+                is_active=True,
+                is_default=False,
+                is_template=False,
+                created_by=current_user.id
+            )
+            db.add(form_layout_entry)
+            db.flush()  # Get the ID without committing
+            
+            # Use the new FormLayout ID for the association
+            form_layout_id_to_use = form_layout_entry.id
+            
+            # Check if association already exists
+            existing_assoc = db.query(RequestTypeFormAssociation).filter(
+                RequestTypeFormAssociation.request_type_config_id == config.id,
+                RequestTypeFormAssociation.form_layout_id == form_layout_id_to_use
+            ).first()
+            
+            if not existing_assoc:
+                # Handle frontend fields
+                is_primary = form_assoc_data.is_primary or form_assoc_data.is_default or False
+                display_order = form_assoc_data.display_order or form_assoc_data.sort_order or 0
+                
+                # If setting as primary, unset other primary associations
+                if is_primary:
+                    db.query(RequestTypeFormAssociation).filter(
+                        RequestTypeFormAssociation.request_type_config_id == config.id
+                    ).update({"is_primary": False})
+                
+                # Create new association using the FormLayout ID
+                association = RequestTypeFormAssociation(
+                    request_type_config_id=config.id,
+                    form_layout_id=form_layout_id_to_use,
+                    display_order=display_order,
+                    is_primary=is_primary,
+                    form_variation_type=form_assoc_data.get("form_variation_type")
+                )
+                db.add(association)
+    
+    # Commit all changes
     db.commit()
     db.refresh(config)
     
@@ -372,6 +521,91 @@ async def update_request_type_config(
     
     # Update fields
     update_data = config_data.dict(exclude_unset=True)
+    
+    # Handle workflow ID update
+    if "workflow_id" in update_data:
+        workflow_id = update_data.pop("workflow_id")
+        if workflow_id:
+            # Verify workflow exists and belongs to same tenant
+            workflow = db.query(WorkflowConfiguration).filter(
+                WorkflowConfiguration.id == workflow_id,
+                WorkflowConfiguration.tenant_id == effective_tenant_id
+            ).first()
+            
+            if not workflow:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Workflow not found or access denied"
+                )
+            
+            config.workflow_id = workflow_id
+        else:
+            config.workflow_id = None
+    
+    # Handle form associations update
+    if "form_associations" in update_data:
+        form_associations = update_data.pop("form_associations")
+        if form_associations is not None:
+            # Clear existing associations
+            db.query(RequestTypeFormAssociation).filter(
+                RequestTypeFormAssociation.request_type_config_id == config_id
+            ).delete()
+            
+            # Add new associations
+            for form_assoc_data in form_associations:
+                # Verify form exists and belongs to same tenant
+                form = db.query(Form).filter(
+                    Form.id == form_assoc_data["form_layout_id"],
+                    Form.tenant_id == effective_tenant_id
+                ).first()
+                
+                if not form:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        detail=f"Form layout {form_assoc_data.form_layout_id} not found or access denied"
+                    )
+                
+                # Create FormLayout entry from the Form (library form)
+                form_layout_entry = FormLayout(
+                    tenant_id=effective_tenant_id,
+                    name=form.name,
+                    request_type=config.request_type,
+                    workflow_stage="new",
+                    layout_type=form.layout_type or "submission",
+                    description=form.description,
+                    sections=form.sections,
+                    field_dependencies=form.field_dependencies,
+                    custom_field_ids=form.custom_field_ids,
+                    is_active=True,
+                    is_default=False,
+                    is_template=False,
+                    created_by=current_user.id
+                )
+                db.add(form_layout_entry)
+                db.flush()
+                
+                # Use the new FormLayout ID for the association
+                form_layout_id_to_use = form_layout_entry.id
+                
+                # Handle frontend fields
+                is_primary = form_assoc_data.get("is_primary") or form_assoc_data.get("is_default") or False
+                display_order = form_assoc_data.get("display_order") or form_assoc_data.get("sort_order") or 0
+                
+                # If setting as primary, unset other primary associations
+                if is_primary:
+                    db.query(RequestTypeFormAssociation).filter(
+                        RequestTypeFormAssociation.request_type_config_id == config.id
+                    ).update({"is_primary": False})
+                
+                # Create new association using the FormLayout ID
+                association = RequestTypeFormAssociation(
+                    request_type_config_id=config.id,
+                    form_layout_id=form_layout_id_to_use,
+                    display_order=display_order,
+                    is_primary=is_primary,
+                    form_variation_type=form_assoc_data.get("form_variation_type")
+                )
+                db.add(association)
     
     # Map frontend fields
     if "icon_name" in update_data:

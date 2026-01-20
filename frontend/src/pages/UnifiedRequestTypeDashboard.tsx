@@ -1,50 +1,27 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query'
-import { MaterialButton, MaterialCard, MaterialChip, MaterialInput, MaterialSelect } from '../components/material'
-import { 
-  requestTypeConfigApi, 
-  RequestTypeConfig, 
-  RequestTypeConfigCreate, 
-  RequestTypeConfigUpdate, 
-  VisibilityScope,
-  FormAssociation
-} from '../lib/requestTypeConfig'
-import { formLayoutsApi, FormLayout } from '../lib/formLayouts'
-import { workflowConfigApi, WorkflowConfig } from '../lib/workflowConfig'
-import { authApi } from '../lib/auth'
 import Layout from '../components/Layout'
-import { 
-  PlusIcon, 
-  EditIcon, 
-  TrashIcon, 
-  SaveIcon, 
-  EyeIcon, 
-  SearchIcon, 
-  FileTextIcon, 
-  CogIcon,
-  LinkIcon,
-  XIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon
-} from '../components/Icons'
+import { MaterialButton, MaterialCard, MaterialChip, MaterialInput, MaterialSelect } from '../components/material'
+import { requestTypeConfigApi, RequestTypeConfig, RequestTypeConfigCreate, RequestTypeConfigUpdate, VisibilityScope, FormAssociation, getFormAssociationSortOrder, getFormAssociationIsDefault } from '../lib/requestTypeConfig'
+import { workflowConfigApi, WorkflowConfig } from '../lib/workflowConfig'
+import { formLayoutsApi, FormLayout } from '../lib/formLayouts'
+import { authApi } from '../lib/auth'
+import GuidedRequestTypeCreator from '../components/GuidedRequestTypeCreator'
 import { showToast } from '../utils/toast'
+import { PlusIcon, EditIcon, TrashIcon, SearchIcon, FileTextIcon, CogIcon, LinkIcon, EyeIcon, XIcon } from '../components/Icons'
 import { CACHE_CONFIG, QUERY_KEYS } from '../utils/cacheUtils'
 
-// Types for our unified dashboard
+// Types
 interface UnifiedRequestType extends RequestTypeConfig {
   associatedForms: FormAssociation[]
 }
 
+// Constants
 const VISIBILITY_OPTIONS = [
   { value: VisibilityScope.INTERNAL, label: 'Internal Portal Only' },
   { value: VisibilityScope.EXTERNAL, label: 'External Portal Only' },
   { value: VisibilityScope.BOTH, label: 'Both Portals' }
-]
-
-const STATUS_OPTIONS = [
-  { value: 'active', label: 'Active' },
-  { value: 'inactive', label: 'Inactive' }
 ]
 
 const FORM_VARIATION_TYPES = [
@@ -142,10 +119,10 @@ export default function UnifiedRequestTypeDashboard() {
     ...CACHE_CONFIG.WORKFLOWS
   })
 
-  // Fetch all form layouts for association modal
+  // Fetch form library for association modal (only library forms)
   const { data: allForms = [], isLoading: formsLoading } = useQuery<FormLayout[]>({
-    queryKey: ['form-layouts', 'all'],
-    queryFn: () => formLayoutsApi.list(),
+    queryKey: ['form-library', 'association'],
+    queryFn: () => formLayoutsApi.getLibrary(),
     enabled: !!user,
     staleTime: 10 * 60 * 1000
   })
@@ -590,6 +567,16 @@ export default function UnifiedRequestTypeDashboard() {
                       <p className="text-gray-600 mt-1">{selectedRequestType.request_type}</p>
                     </div>
                     <div className="flex gap-2">
+                      {/* Navigate to Workflows */}
+                      <MaterialButton
+                        variant="outlined"
+                        size="small"
+                        startIcon={<CogIcon />}
+                        onClick={() => navigate('/admin/workflows')}
+                        title="Manage Workflows"
+                      >
+                        Workflows
+                      </MaterialButton>
                       <MaterialButton
                         variant="outlined"
                         size="small"
@@ -673,7 +660,7 @@ export default function UnifiedRequestTypeDashboard() {
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-2 mb-1">
                                     <h4 className="font-medium text-gray-900 truncate">{form.form_layout?.name || 'Unnamed Form'}</h4>
-                                    {getFormVariationBadge(form.is_default ? 'primary' : 'standard')}
+                                    {getFormVariationBadge(getFormAssociationIsDefault(form) ? 'primary' : 'standard')}
                                   </div>
                                   {form.form_layout?.description && (
                                     <p className="text-sm text-gray-600 mb-2 line-clamp-2">
@@ -681,7 +668,7 @@ export default function UnifiedRequestTypeDashboard() {
                                     </p>
                                   )}
                                   <div className="flex items-center gap-4 text-xs text-gray-500">
-                                    <span>Order: {form.sort_order}</span>
+                                    <span>Order: {getFormAssociationSortOrder(form)}</span>
                                     <span className={`inline-flex items-center ${form.form_layout?.is_active ? 'text-green-600' : 'text-red-600'}`}>
                                       {form.form_layout?.is_active ? '● Active' : '● Inactive'}
                                     </span>
@@ -693,7 +680,7 @@ export default function UnifiedRequestTypeDashboard() {
                                     variant="text"
                                     size="small"
                                     startIcon={<EyeIcon />}
-                                    onClick={() => navigate(`/admin/form-designer/${form.form_layout_id}`)}
+                                    onClick={() => navigate(`/admin/form-library/designer/${form.form_layout_id}`)}
                                   >
                                     Edit Form
                                   </MaterialButton>

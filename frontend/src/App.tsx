@@ -63,6 +63,8 @@ import FormDesignerEditor from './pages/FormDesignerEditor'
 import RequestTypeManagement from './pages/RequestTypeManagement'
 import FormLibrary from './pages/FormLibrary'
 import UnifiedRequestTypeDashboard from './pages/UnifiedRequestTypeDashboard'
+import RequestTypeListPage from './pages/RequestTypeListPage'
+import ConfigurationBackbone from './pages/ConfigurationBackbone'
 import MasterData from './pages/MasterData'
 import Studio from './pages/Studio'
 import AgentStudioPage from './components/AgentStudioPage'
@@ -173,7 +175,7 @@ function App() {
           <Route path="/workflows/templates" element={<WorkflowTemplates />} />
           <Route path="/workflows/analytics" element={<WorkflowAnalytics />} />
           <Route path="/workflows" element={<StandardizedWorkflows />} />
-          <Route path="/form-designer" element={<FormDesignerList />} />
+          <Route path="/form-designer" element={<Navigate to="/admin/form-library" replace />} />
           <Route path="/compliance/:agentId" element={<ComplianceChecks />} />
           <Route path="/compliance" element={<ComplianceChecks />} />
           <Route path="/frameworks" element={<Navigate to="/compliance" replace />} />
@@ -199,12 +201,11 @@ function App() {
           <Route path="/assessment_question_responses/:id" element={<AssessmentAssignmentRedirect />} />
           <Route path="/my-assessments" element={<MyAssessments />} />
           <Route path="/assessments" element={<Navigate to="/admin/assessments" replace />} />
-          <Route path="/admin/form-designer" element={<FormDesignerList />} />
-          <Route path="/admin/form-designer/new" element={<FormDesignerEditor />} />
-          <Route path="/admin/form-designer/:id" element={<FormDesignerEditor />} />
-          <Route path="/admin/request-types" element={<UnifiedRequestTypeDashboard />} />
-          <Route path="/admin/forms" element={<FormLibrary />} />
-          <Route path="/admin/workflow-config" element={<UnifiedRequestTypeDashboard />} />
+          <Route path="/admin/form-library" element={<FormLibrary />} />
+          <Route path="/admin/form-library/designer" element={<FormDesignerEditor />} />
+          <Route path="/admin/form-library/designer/:id" element={<FormDesignerEditor />} />
+          <Route path="/admin/request-types-list" element={<RequestTypeListPage />} />
+          <Route path="/admin/forms" element={<Navigate to="/admin/form-library" replace />} />
           <Route path="/admin/master-data" element={<MasterData />} />
           <Route path="/suppliers-master" element={<SuppliersMasterView />} />
           <Route path="/vendors/:vendorId" element={<VendorProfile />} />

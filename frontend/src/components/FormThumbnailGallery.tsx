@@ -1,5 +1,5 @@
 import React from 'react'
-import { FormAssociation } from '../lib/requestTypeConfig'
+import { FormAssociation, getFormAssociationSortOrder, getFormAssociationIsDefault } from '../lib/requestTypeConfig'
 import { 
   DocumentTextIcon,
   EyeIcon,
@@ -77,9 +77,9 @@ export default function FormThumbnailGallery({
             </div>
             
             <div className="flex items-center justify-between">
-              {getFormVariationBadge(form.is_default)}
+              {getFormVariationBadge(getFormAssociationIsDefault(form))}
               <span className="text-xs text-gray-500">
-                Order: {form.sort_order}
+                Order: {getFormAssociationSortOrder(form)}
               </span>
             </div>
           </div>
@@ -151,7 +151,7 @@ export default function FormThumbnailGallery({
                   >
                     <EyeIcon className="w-4 h-4" />
                   </button>
-                  {editable && onSetDefault && !form.is_default && (
+                  {editable && onSetDefault && !getFormAssociationIsDefault(form) && (
                     <button
                       onClick={() => onSetDefault(form.form_layout_id)}
                       className="p-1 text-gray-500 hover:text-yellow-600 rounded transition-colors"

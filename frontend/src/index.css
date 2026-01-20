@@ -1,5 +1,6 @@
 /* Import unified styles first */
 @import "./styles/unified.css";
+@import "./styles/chart-fixes.css";
 
 /* Cache bust: 2025-01-02 - Fixed font-size/letter-spacing conflicts */
 

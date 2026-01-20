@@ -45,12 +45,12 @@ export default function ChartContainer({
                          computedStyle.visibility !== 'hidden' &&
                          computedStyle.opacity !== '0'
         
-        const width = rect.width
-        const height = rect.height
+        const width = Math.max(0, rect.width)
+        const height = Math.max(0, rect.height)
         
         // Only render chart if container has valid dimensions (> 0) and is visible
         // Use a minimum threshold to avoid rendering with tiny dimensions
-        if (isVisible && width > 10 && height > 10) {
+        if (isVisible && width >= 200 && height >= 200) {
           setDimensions({ width, height })
           setHasDimensions(true)
         } else {
@@ -95,12 +95,23 @@ export default function ChartContainer({
         minWidth: '200px', // Ensure minimum width
         position: 'relative',
         width: '100%',
-        overflow: 'hidden' // Prevent overflow issues
+        overflow: 'hidden', // Prevent overflow issues
+        display: 'block' // Ensure proper display
       }}
     >
-      {hasDimensions && dimensions.width > 10 && dimensions.height > 10 ? (
-        <div style={{ width: '100%', height: '100%', minWidth: '200px', minHeight: '200px' }}>
-          <ResponsiveContainer width="100%" height="100%">
+      {hasDimensions && dimensions.width >= 200 && dimensions.height >= 200 ? (
+        <div style={{ 
+          width: '100%', 
+          height: '100%', 
+          minWidth: '200px', 
+          minHeight: '200px',
+          position: 'relative'
+        }}>
+          <ResponsiveContainer 
+            width="100%" 
+            height="100%"
+            debounce={100} // Add debounce to prevent rapid re-renders
+          >
             {children}
           </ResponsiveContainer>
         </div>
@@ -111,7 +122,10 @@ export default function ChartContainer({
             width: '100%', 
             height: '100%',
             minHeight: minHeightValue,
-            minWidth: '200px'
+            minWidth: '200px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
           }}
         >
           <div className="text-sm text-gray-400">Loading chart...</div>

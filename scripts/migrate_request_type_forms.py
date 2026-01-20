@@ -14,7 +14,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'backend'))
 
 from app.models.request_type_config import RequestTypeConfig, RequestTypeFormAssociation
 from app.models.form_layout import FormLayout
-from app.database import SessionLocal
+from app.core.database import SessionLocal
 
 # Configure logging
 logging.basicConfig(
@@ -82,8 +82,8 @@ class RequestTypeFormMigration:
                         association = RequestTypeFormAssociation(
                             request_type_config_id=request_type.id,
                             form_layout_id=form.id,
-                            sort_order=i,
-                            is_default=(i == 0)  # First form is default
+                            display_order=i,
+                            is_primary=(i == 0)  # First form is default
                         )
                         self.db.add(association)
                         associations_created += 1

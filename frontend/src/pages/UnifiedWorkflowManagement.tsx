@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { workflowConfigApi, WorkflowConfig } from '../lib/workflowConfig'
@@ -9,8 +9,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/shared/Ca
 import { Button } from '@/components/shared/Button'
 import { Input } from '@/components/shared/Input'
 import UnifiedWorkflowDesigner from '../components/workflow/UnifiedWorkflowDesigner'
-import { Plus, Edit, Trash2, Play, Eye, Settings } from 'lucide-react'
+import { Plus, Edit, Trash2, Play, Eye, Settings, FileText, EyeIcon, EyeOffIcon, CogIcon, ChevronDownIcon, ChevronUpIcon } from 'lucide-react'
 import { showToast } from '../utils/toast'
+import { useColumnVisibility } from '../hooks/useColumnVisibility'
+import { cn } from '@/lib/utils'
 
 export default function UnifiedWorkflowManagement() {
   const navigate = useNavigate()
@@ -20,6 +22,12 @@ export default function UnifiedWorkflowManagement() {
   const [editingWorkflowId, setEditingWorkflowId] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatus, setFilterStatus] = useState<string>('all')
+  const [filterEngine, setFilterEngine] = useState<string>('all')
+  const [sortBy, setSortBy] = useState<string>('name')
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
+  const [showColumnMenu, setShowColumnMenu] = useState(false)
+  const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set())
+  const [selectAll, setSelectAll] = useState(false)
 
   // Load user
   useEffect(() => {
@@ -27,6 +35,37 @@ export default function UnifiedWorkflowManagement() {
       navigate('/login')
     })
   }, [navigate])
+
+  // Column visibility configuration - memoized to prevent infinite loops
+  const COLUMN_DEFINITIONS = useMemo(() => ({
+    name: { label: 'Workflow Name', visible: true },
+    description: { label: 'Description', visible: true },
+    status: { label: 'Status', visible: true },
+    engine: { label: 'Engine', visible: true },
+    steps: { label: 'Steps', visible: true },
+    created: { label: 'Created', visible: true },
+    modified: { label: 'Modified', visible: true },
+    actions: { label: 'Actions', visible: true }
+  }), [])
+
+  const defaultColumnVisibility = useMemo(() => 
+    Object.fromEntries(Object.entries(COLUMN_DEFINITIONS).map(([key, def]) => [key, (def as {visible: boolean}).visible])),
+    [COLUMN_DEFINITIONS]
+  )
+
+  const { columnVisibility, toggleColumn, resetColumns } = useColumnVisibility(
+    'workflow-management-columns',
+    defaultColumnVisibility
+  )
+
+  // Get visible columns in desired order
+  const visibleColumns = Object.entries(columnVisibility)
+    .filter(([_, visible]) => visible)
+    .map(([key]) => key)
+    .sort((a, b) => {
+      const order = ['name', 'description', 'status', 'engine', 'steps', 'created', 'modified', 'actions']
+      return order.indexOf(a) - order.indexOf(b)
+    })
 
   // Load workflows
   const { data: workflows, isLoading, refetch } = useQuery({
@@ -40,7 +79,43 @@ export default function UnifiedWorkflowManagement() {
     const matchesSearch = workflow.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          workflow.description?.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesStatus = filterStatus === 'all' || workflow.status === filterStatus
-    return matchesSearch && matchesStatus
+    const matchesEngine = filterEngine === 'all' || workflow.workflow_engine === filterEngine
+    return matchesSearch && matchesStatus && matchesEngine
+  }).sort((a, b) => {
+    let aValue, bValue
+    
+    switch (sortBy) {
+      case 'name':
+        aValue = a.name.toLowerCase()
+        bValue = b.name.toLowerCase()
+        break
+      case 'status':
+        aValue = a.status
+        bValue = b.status
+        break
+      case 'engine':
+        aValue = a.workflow_engine
+        bValue = b.workflow_engine
+        break
+      case 'steps':
+        aValue = a.workflow_steps?.length || 0
+        bValue = b.workflow_steps?.length || 0
+        break
+      case 'created':
+        aValue = new Date(a.created_at).getTime()
+        bValue = new Date(b.created_at).getTime()
+        break
+      case 'modified':
+        aValue = new Date(a.updated_at || a.created_at).getTime()
+        bValue = new Date(b.updated_at || b.created_at).getTime()
+        break
+      default:
+        return 0
+    }
+    
+    if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1
+    if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1
+    return 0
   }) || []
 
   const getStatusColor = (status: string) => {
@@ -50,6 +125,27 @@ export default function UnifiedWorkflowManagement() {
       case 'inactive': return 'bg-gray-100 text-gray-800 border-gray-200'
       default: return 'bg-gray-100 text-gray-800 border-gray-200'
     }
+  }
+
+  // Row selection handlers
+  const handleSelectRow = (workflowId: string) => {
+    const newSelected = new Set(selectedRows)
+    if (newSelected.has(workflowId)) {
+      newSelected.delete(workflowId)
+    } else {
+      newSelected.add(workflowId)
+    }
+    setSelectedRows(newSelected)
+    setSelectAll(newSelected.size === filteredWorkflows.length && filteredWorkflows.length > 0)
+  }
+
+  const handleSelectAll = () => {
+    if (selectAll) {
+      setSelectedRows(new Set())
+    } else {
+      setSelectedRows(new Set(filteredWorkflows.map(w => w.id)))
+    }
+    setSelectAll(!selectAll)
   }
 
   const handleCreateWorkflow = () => {
@@ -140,27 +236,129 @@ export default function UnifiedWorkflowManagement() {
         {/* Filters */}
         <Card>
           <CardContent className="pt-6">
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="flex-1">
-                <Input
-                  label="Search workflows"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Search by name or description..."
-                />
+            <div className="space-y-4">
+              <div className="flex flex-col sm:flex-row gap-4">
+                <div className="flex-1">
+                  <Input
+                    label="Search workflows"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    placeholder="Search by name or description..."
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Status</label>
+                    <select
+                      value={filterStatus}
+                      onChange={(e) => setFilterStatus(e.target.value)}
+                      className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 w-32"
+                    >
+                      <option value="all">All Statuses</option>
+                      <option value="active">Active</option>
+                      <option value="draft">Draft</option>
+                      <option value="inactive">Inactive</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Engine</label>
+                    <select
+                      value={filterEngine}
+                      onChange={(e) => setFilterEngine(e.target.value)}
+                      className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 w-32"
+                    >
+                      <option value="all">All Engines</option>
+                      <option value="internal">Internal</option>
+                      <option value="external">External</option>
+                    </select>
+                  </div>
+                </div>
               </div>
-              <div className="w-full sm:w-48">
-                <label className="block text-sm font-medium mb-2">Status</label>
-                <select
-                  value={filterStatus}
-                  onChange={(e) => setFilterStatus(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="all">All Statuses</option>
-                  <option value="active">Active</option>
-                  <option value="draft">Draft</option>
-                  <option value="inactive">Inactive</option>
-                </select>
+              
+              {/* Controls Row */}
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                {/* Sort Controls */}
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="text-gray-600">Sort by:</span>
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value)}
+                    className="px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  >
+                    <option value="name">Name</option>
+                    <option value="status">Status</option>
+                    <option value="engine">Engine</option>
+                    <option value="steps">Steps</option>
+                    <option value="created">Created</option>
+                    <option value="modified">Modified</option>
+                  </select>
+                  <button
+                    onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                    className="px-2 py-1 border border-gray-300 rounded text-sm hover:bg-gray-50"
+                  >
+                    {sortOrder === 'asc' ? '↑' : '↓'}
+                  </button>
+                </div>
+                
+                {/* Column Visibility Controls */}
+                <div className="relative">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="gap-2"
+                    onClick={() => setShowColumnMenu(!showColumnMenu)}
+                  >
+                    <CogIcon className="w-4 h-4" />
+                    Columns
+                    {showColumnMenu ? (
+                      <ChevronUpIcon className="w-4 h-4" />
+                    ) : (
+                      <ChevronDownIcon className="w-4 h-4" />
+                    )}
+                  </Button>
+                  
+                  {showColumnMenu && (
+                    <div className="absolute right-0 mt-2 w-56 bg-white border rounded-lg shadow-lg z-50">
+                      <div className="p-2">
+                        <div className="px-2 py-1.5 text-sm font-semibold border-b mb-1">Show/Hide Columns</div>
+                        <div className="max-h-96 overflow-y-auto">
+                          {Object.entries(COLUMN_DEFINITIONS).map(([key, def]) => {
+                            const isVisible = columnVisibility[key]
+                            const isActions = key === 'actions'
+                            
+                            return (
+                              <button
+                                key={key}
+                                onClick={() => !isActions && toggleColumn(key)}
+                                disabled={isActions}
+                                className={cn(
+                                  "w-full flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-gray-100 transition-colors",
+                                  isActions && "opacity-50 cursor-not-allowed"
+                                )}
+                              >
+                                {isVisible ? (
+                                  <EyeIcon className="w-4 h-4" />
+                                ) : (
+                                  <EyeOffIcon className="w-4 h-4 opacity-50" />
+                                )}
+                                <span className={cn("flex-1 text-left", !isVisible && 'opacity-50')}>{def.label}</span>
+                                {isActions && <span className="text-xs text-gray-500">Always visible</span>}
+                              </button>
+                            )
+                          })}
+                        </div>
+                        <div className="border-t mt-1 pt-1">
+                          <button
+                            onClick={resetColumns}
+                            className="w-full px-2 py-1.5 text-sm rounded hover:bg-gray-100 transition-colors text-left"
+                          >
+                            Reset to Default
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </CardContent>
@@ -182,11 +380,11 @@ export default function UnifiedWorkflowManagement() {
               </div>
               <h3 className="text-lg font-medium text-gray-900 mb-2">No workflows found</h3>
               <p className="text-gray-500 mb-6">
-                {searchTerm || filterStatus !== 'all' 
+                {searchTerm || filterStatus !== 'all' || filterEngine !== 'all'
                   ? 'Try adjusting your search or filter criteria' 
                   : 'Get started by creating your first workflow'}
               </p>
-              {!searchTerm && filterStatus === 'all' && (
+              {!searchTerm && filterStatus === 'all' && filterEngine === 'all' && (
                 <Button onClick={handleCreateWorkflow}>
                   <Plus className="h-4 w-4 mr-2" />
                   Create Your First Workflow
@@ -195,79 +393,213 @@ export default function UnifiedWorkflowManagement() {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredWorkflows.map((workflow) => (
-              <Card key={workflow.id} className="hover:shadow-md transition-shadow">
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <CardTitle className="text-lg mb-2">{workflow.name}</CardTitle>
-                      {workflow.description && (
-                        <p className="text-sm text-gray-600 line-clamp-2">
-                          {workflow.description}
-                        </p>
-                      )}
-                    </div>
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(workflow.status)}`}>
-                      {workflow.status}
-                    </span>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between text-sm text-gray-600">
-                      <span>Steps</span>
-                      <span className="font-medium">{workflow.workflow_steps?.length || 0}</span>
-                    </div>
-                    
-                    <div className="flex items-center justify-between text-sm text-gray-600">
-                      <span>Engine</span>
-                      <span className="font-medium capitalize">{workflow.workflow_engine}</span>
-                    </div>
-
-                    <div className="flex items-center justify-between text-sm text-gray-600">
-                      <span>Created</span>
-                      <span className="font-medium">
-                        {new Date(workflow.created_at).toLocaleDateString()}
-                      </span>
-                    </div>
-
-                    {/* Action Buttons */}
-                    <div className="flex gap-2 pt-4">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="flex-1"
-                        onClick={() => handleEditWorkflow(workflow.id)}
-                      >
-                        <Edit className="h-4 w-4 mr-1" />
-                        Edit
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => {
-                          // Preview functionality would go here
-                          showToast.info('Preview functionality coming soon')
-                        }}
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 hover:border-red-300"
-                        onClick={() => handleDeleteWorkflow(workflow.id, workflow.name)}
-                      >
-                        <Trash2 className="h-4 w-4 mr-1" />
-                        Delete
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+          <Card>
+            <CardContent className="p-0">
+              <div className="overflow-x-hidden">
+                <table className="w-full table-fixed">
+                  <colgroup>
+                    {visibleColumns.includes('name') && <col style={{ width: '15%' }} />}
+                    {visibleColumns.includes('description') && <col style={{ width: '20%' }} />}
+                    {visibleColumns.includes('status') && <col style={{ width: '10%' }} />}
+                    {visibleColumns.includes('engine') && <col style={{ width: '10%' }} />}
+                    {visibleColumns.includes('steps') && <col style={{ width: '8%' }} />}
+                    {visibleColumns.includes('created') && <col style={{ width: '12%' }} />}
+                    {visibleColumns.includes('modified') && <col style={{ width: '12%' }} />}
+                    {visibleColumns.includes('actions') && <col style={{ width: '13%' }} />}
+                  </colgroup>
+                  <thead>
+                    <tr className="border-b bg-gray-50">
+                      {/* Checkbox column */}
+                      <th className="px-4 py-3 w-12">
+                        <input
+                          type="checkbox"
+                          checked={selectAll}
+                          onChange={handleSelectAll}
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                      </th>
+                      {visibleColumns.map((columnKey) => {
+                        const def = COLUMN_DEFINITIONS[columnKey as keyof typeof COLUMN_DEFINITIONS]
+                        return (
+                          <th 
+                            key={columnKey}
+                            className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider truncate"
+                            title={def?.label}
+                          >
+                            {def?.label || columnKey}
+                          </th>
+                        )
+                      })}
+                      {/* Column visibility control column */}
+                      <th className="px-4 py-3 w-32 text-right">
+                        <div className="relative inline-block">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="gap-1 h-8 px-2"
+                            onClick={() => setShowColumnMenu(!showColumnMenu)}
+                          >
+                            <CogIcon className="w-4 h-4" />
+                            <span className="text-xs">Columns</span>
+                            {showColumnMenu ? (
+                              <ChevronUpIcon className="w-3 h-3" />
+                            ) : (
+                              <ChevronDownIcon className="w-3 h-3" />
+                            )}
+                          </Button>
+                          
+                          {showColumnMenu && (
+                            <div className="absolute right-0 top-full mt-1 w-56 bg-white border rounded-lg shadow-lg z-50">
+                              <div className="p-2">
+                                <div className="px-2 py-1.5 text-sm font-semibold border-b mb-1">Show/Hide Columns</div>
+                                <div className="max-h-96 overflow-y-auto">
+                                  {Object.entries(COLUMN_DEFINITIONS).map(([key, def]) => {
+                                    const isVisible = columnVisibility[key]
+                                    const isActions = key === 'actions'
+                                    
+                                    return (
+                                      <button
+                                        key={key}
+                                        onClick={() => !isActions && toggleColumn(key)}
+                                        disabled={isActions}
+                                        className={cn(
+                                          "w-full flex items-center gap-2 px-2 py-1.5 text-sm rounded hover:bg-gray-100 transition-colors",
+                                          isActions && "opacity-50 cursor-not-allowed"
+                                        )}
+                                      >
+                                        {isVisible ? (
+                                          <EyeIcon className="w-4 h-4" />
+                                        ) : (
+                                          <EyeOffIcon className="w-4 h-4 opacity-50" />
+                                        )}
+                                        <span className={cn("flex-1 text-left", !isVisible && 'opacity-50')}>{def.label}</span>
+                                        {isActions && <span className="text-xs text-gray-500">Always visible</span>}
+                                      </button>
+                                    )
+                                  })}
+                                </div>
+                                <div className="border-t mt-1 pt-1">
+                                  <button
+                                    onClick={resetColumns}
+                                    className="w-full px-2 py-1.5 text-sm rounded hover:bg-gray-100 transition-colors text-left"
+                                  >
+                                    Reset to Default
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {filteredWorkflows.map((workflow) => (
+                      <tr key={workflow.id} className={`hover:bg-gray-50 ${selectedRows.has(workflow.id) ? 'bg-blue-50' : ''}`}>
+                        {/* Checkbox cell */}
+                        <td className="px-4 py-3 w-12">
+                          <input
+                            type="checkbox"
+                            checked={selectedRows.has(workflow.id)}
+                            onChange={() => handleSelectRow(workflow.id)}
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          />
+                        </td>
+                        {visibleColumns.includes('name') && (
+                          <td className="px-4 py-3">
+                            <div className="font-medium text-gray-900 truncate" title={workflow.name}>
+                              {workflow.name}
+                            </div>
+                          </td>
+                        )}
+                        {visibleColumns.includes('description') && (
+                          <td className="px-4 py-3 max-w-xs">
+                            <div className="text-gray-600 text-sm line-clamp-2" title={workflow.description || 'No description'}>
+                              {workflow.description || 'No description'}
+                            </div>
+                          </td>
+                        )}
+                        {visibleColumns.includes('status') && (
+                          <td className="px-4 py-3">
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(workflow.status)}`}>
+                              {workflow.status}
+                            </span>
+                          </td>
+                        )}
+                        {visibleColumns.includes('engine') && (
+                          <td className="px-4 py-3">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 capitalize">
+                              {workflow.workflow_engine}
+                            </span>
+                          </td>
+                        )}
+                        {visibleColumns.includes('steps') && (
+                          <td className="px-4 py-3 text-sm text-gray-900">
+                            {workflow.workflow_steps?.length || 0}
+                          </td>
+                        )}
+                        {visibleColumns.includes('created') && (
+                          <td className="px-4 py-3 text-sm text-gray-600">
+                            {new Date(workflow.created_at).toLocaleDateString()}
+                          </td>
+                        )}
+                        {visibleColumns.includes('modified') && (
+                          <td className="px-4 py-3 text-sm text-gray-600">
+                            {new Date(workflow.updated_at || workflow.created_at).toLocaleDateString()}
+                          </td>
+                        )}
+                        {visibleColumns.includes('actions') && (
+                          <td className="px-4 py-3">
+                            <div className="flex flex-wrap gap-1">
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => navigate('/admin/form-library')}
+                                className="h-8 text-xs px-2"
+                              >
+                                <FileText className="h-3 w-3 mr-1" />
+                                Form
+                              </Button>
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => handleEditWorkflow(workflow.id)}
+                                className="h-8 text-xs px-2"
+                              >
+                                <Edit className="h-3 w-3 mr-1" />
+                                Edit
+                              </Button>
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => {
+                                  showToast.info('Preview functionality coming soon')
+                                }}
+                                className="h-8 text-xs px-2"
+                              >
+                                <Eye className="h-3 w-3" />
+                              </Button>
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                className="h-8 text-xs px-2 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 hover:border-red-300"
+                                onClick={() => handleDeleteWorkflow(workflow.id, workflow.name)}
+                              >
+                                <Trash2 className="h-3 w-3 mr-1" />
+                                Del
+                              </Button>
+                            </div>
+                          </td>
+                        )}
+                        {/* Empty cell for column controls */}
+                        <td className="px-4 py-3 w-32"></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
         )}
       </div>
     </Layout>

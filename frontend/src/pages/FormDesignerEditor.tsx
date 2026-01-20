@@ -446,11 +446,39 @@ export default function FormDesignerEditor() {
         order: idx + 1,
       }))
 
+      // Check for pending form details from library
+      let formName = 'New Form'
+      let formDescription = ''
+      let formType: 'submission' | 'approver' | 'completed' = 'submission'
+      
+      try {
+        const pendingFormDetails = sessionStorage.getItem('pendingFormDetails')
+        if (pendingFormDetails) {
+          const details = JSON.parse(pendingFormDetails)
+          formName = details.name || formName
+          formDescription = details.description || formDescription
+          // Map form type to layout type
+          const typeMapping: Record<string, 'submission' | 'approver' | 'completed'> = {
+            'agent_onboarding_workflow': 'submission',
+            'vendor_submission_workflow': 'submission',
+            'product_submission_workflow': 'submission',
+            'service_submission_workflow': 'submission'
+          }
+          formType = typeMapping[details.type] || 'submission'
+          
+          // Clear the pending details
+          sessionStorage.removeItem('pendingFormDetails')
+        }
+      } catch (error) {
+        console.warn('Failed to parse pending form details:', error)
+      }
+      
       // Forms are workflow-agnostic - no request_type or workflow_stage
       setEditingLayout({
-        name: 'New Form',
+        name: formName,
+        description: formDescription,
         // request_type: undefined, // Forms don't have request_type
-        layout_type: 'submission', // Default to submission layout type
+        layout_type: formType, // Use mapped type from library
         // workflow_stage: undefined, // Forms don't have workflow_stage
         sections: defaultSections,
         is_default: false,
@@ -620,10 +648,38 @@ export default function FormDesignerEditor() {
       // Backend stores single values or comma-separated strings, but frontend multi-selects expect arrays
       const requestType = existingLayout.request_type
       const workflowStage = existingLayout.workflow_stage
-      const layoutType = existingLayout.layout_type || (workflowStage ? 
+      
+      // Sanitize layout_type to remove deprecated values (rejection, completed)
+      // Only allow submission and approver values
+      let rawLayoutType: string | string[] | undefined = existingLayout.layout_type || (workflowStage ? 
         (workflowStage === 'new' || workflowStage === 'needs_revision' || workflowStage === 'rejected' ? 'submission' :
          workflowStage === 'pending_approval' || workflowStage === 'pending_review' || workflowStage === 'in_progress' || workflowStage === 'approved' || workflowStage === 'closed' || workflowStage === 'cancelled' ? 'approver' :
          'submission') : 'submission')
+      
+      // Parse and sanitize layout_type values
+      let sanitizedLayoutTypes: string[] = []
+      if (rawLayoutType) {
+        if (Array.isArray(rawLayoutType)) {
+          sanitizedLayoutTypes = (rawLayoutType as string[])
+            .map((v: string) => String(v).trim().toLowerCase())
+            .filter((v: string) => v === 'submission' || v === 'approver')
+        } else if (typeof rawLayoutType === 'string') {
+          // Split comma-separated values and filter out deprecated values
+          sanitizedLayoutTypes = rawLayoutType
+            .split(',')
+            .map((v: string) => v.trim().toLowerCase())
+            .filter((v: string) => v === 'submission' || v === 'approver') // Only keep valid values
+        }
+      }
+      
+      // If no valid layout types remain, default to submission
+      if (sanitizedLayoutTypes.length === 0) {
+        sanitizedLayoutTypes = ['submission']
+      }
+      
+      // Convert back to comma-separated string for backend compatibility
+      const layoutType = sanitizedLayoutTypes.join(',')
+      
       const agentType = existingLayout.agent_type
       
       // Helper function to convert value to array (handles single values, arrays, and comma-separated strings)
@@ -767,11 +823,11 @@ export default function FormDesignerEditor() {
         setLayoutId(createdLayout.id)
         setCurrentStep(2)
         // Update URL to include the layout ID
-        navigate(`/admin/form-designer/${createdLayout.id}`, { replace: true })
+        navigate(`/admin/form-library/designer/${createdLayout.id}`, { replace: true })
         queryClient.invalidateQueries({ queryKey: ['form-layout', createdLayout.id] })
       } else if (currentStep === 2) {
         // Finished review and submitted
-        navigate('/admin/form-designer')
+        navigate('/admin/form-library')
       }
     },
     onError: (error: any) => {
@@ -797,10 +853,10 @@ export default function FormDesignerEditor() {
       queryClient.invalidateQueries({ queryKey: ['form-library'] })
       if (currentStep === 2) {
         // Finished review and submitted
-        navigate('/admin/form-designer')
+        navigate('/admin/form-library')
       } else {
         // Just saved from design view, maybe?
-        navigate('/admin/form-designer')
+        navigate('/admin/form-library')
       }
     },
     onError: (error: any) => {
@@ -817,7 +873,7 @@ export default function FormDesignerEditor() {
         })
         showToast.error('Access Denied: You don\'t have permission to update this layout. It may belong to a different tenant.')
         // Navigate back to list on 403
-        navigate('/admin/form-designer')
+        navigate('/admin/form-library')
         return
       }
       
@@ -1429,10 +1485,20 @@ export default function FormDesignerEditor() {
         ? customFields.filter(cf => cf.id).map(cf => cf.id!)
         : undefined
       
+      // Convert to comma-separated string (backend supports comma-separated values for multiple stages)
+      const toCommaString = (value: any): string | undefined => {
+        if (!value) return undefined
+        if (Array.isArray(value)) {
+          return value.length > 0 ? value.join(',') : undefined
+        }
+        return typeof value === 'string' ? value : undefined
+      }
+      
       const updatePayload: FormLayoutUpdate = {
         sections: sectionsToSave,
         custom_field_ids: customFieldIds, // Prefer IDs (no duplication)
         custom_fields: (customFields && customFields.length > 0 && !customFieldIds) ? customFields : undefined, // Legacy fallback
+        layout_type: toCommaString(editingLayout.layout_type) as any, // Include layout_type in update
       }
       
       updateLayoutMutation.mutate({ id: layoutId!, layout: updatePayload }, {
@@ -1464,7 +1530,7 @@ export default function FormDesignerEditor() {
               }
             }
             showToast.success('Layout saved successfully! The vendor submission form will now use this layout.')
-            navigate('/admin/form-designer')
+            navigate('/admin/form-library')
           }
         }
       })
@@ -1616,7 +1682,7 @@ export default function FormDesignerEditor() {
           // Only navigate if we're on step 3 (final step), otherwise stay on current step
           if ((currentStep as any) === 3) {
           showToast.success('Layout saved successfully! The vendor submission form will now use this layout.')
-            navigate('/admin/form-designer')
+            navigate('/admin/form-library')
           } else {
             showToast.success('Layout saved successfully!')
           }
@@ -1843,7 +1909,7 @@ export default function FormDesignerEditor() {
                 Layout ID: {id}
               </p>
               <button
-                onClick={() => navigate('/admin/form-designer')}
+                onClick={() => navigate('/admin/form-library')}
                 className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
               >
                 Back to Process Designer List
@@ -1937,7 +2003,7 @@ export default function FormDesignerEditor() {
             <p className="mb-2">Error: Failed to initialize layout.</p>
             <p className="text-sm text-gray-600">Layout ID: {id}</p>
             <button
-              onClick={() => navigate('/admin/form-designer')}
+              onClick={() => navigate('/admin/form-library')}
               className="mt-4 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
             >
               Back to Activity Designer List
@@ -1955,7 +2021,7 @@ export default function FormDesignerEditor() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <button
-              onClick={() => navigate('/admin/form-designer')}
+              onClick={() => navigate('/admin/form-library')}
               className="p-2 hover:bg-gray-100 rounded-full transition-colors text-gray-500"
               title="Back to List"
             >
@@ -1988,7 +2054,7 @@ export default function FormDesignerEditor() {
                 <>
                   <MaterialButton
                     variant="text"
-                    onClick={() => navigate('/admin/form-designer')}
+                    onClick={() => navigate('/admin/form-library')}
                     className="text-gray-600"
                   >
                     Cancel
@@ -2216,7 +2282,7 @@ export default function FormDesignerEditor() {
                           setRoleMatrix({})
                           setActiveSectionId(null)
                           fieldsAssignedRef.current = false
-                          navigate('/admin/form-designer/new', { replace: true })
+                          navigate('/admin/form-library/designer', { replace: true })
                           queryClient.invalidateQueries({ queryKey: ['form-layout'] })
                           showToast.success('Ready to create new layout')
                         }}
@@ -2513,7 +2579,7 @@ export default function FormDesignerEditor() {
                                 onClick={() => {
                                   // Navigate to form designer with this layout's ID to load it for editing
                                   if (template.id) {
-                                    navigate(`/admin/form-designer/${template.id}?mode=edit`)
+                                    navigate(`/admin/form-library/designer/${template.id}?mode=edit`)
                                     setShowLibraryList(false)
                                   }
                                 }}
@@ -2543,7 +2609,7 @@ export default function FormDesignerEditor() {
                                     e.stopPropagation()
                                     // Navigate to load this form for editing
                                     if (template.id) {
-                                      navigate(`/admin/form-designer/${template.id}?mode=edit`)
+                                      navigate(`/admin/form-library/designer/${template.id}?mode=edit`)
                                       setShowLibraryList(false)
                                     }
                                   }}
@@ -3119,13 +3185,13 @@ export default function FormDesignerEditor() {
             />
             <div className="mt-4 flex gap-2">
               <button
-                onClick={() => navigate(`/admin/form-designer/${id}?mode=edit`)}
+                onClick={() => navigate(`/admin/form-library/designer/${id}?mode=edit`)}
                 className="shadow-md-elevation-2 rounded-lg px-4 py-2 font-medium text-sm bg-blue-600 text-white hover:bg-primary-700 transition-all flex items-center gap-2 px-md-4 py-md-2"
               >
                 Edit Layout
               </button>
               <button
-                onClick={() => navigate('/admin/form-designer')}
+                onClick={() => navigate('/admin/form-library')}
                 className="rounded-lg px-4 py-2 font-medium text-sm text-gray-600 hover:bg-gray-50 transition-all flex items-center gap-2 px-md-4 py-md-2"
               >
                 Back to Layouts
@@ -3190,7 +3256,7 @@ export default function FormDesignerEditor() {
                           <button
                             onClick={() => {
                               if (template.id) {
-                                navigate(`/admin/form-designer/${template.id}?mode=edit`)
+                                navigate(`/admin/form-library/designer/${template.id}?mode=edit`)
                                 setShowLibraryModal(false)
                               }
                             }}

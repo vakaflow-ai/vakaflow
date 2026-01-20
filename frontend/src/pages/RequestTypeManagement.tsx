@@ -6,6 +6,7 @@ import { requestTypeConfigApi, RequestTypeConfig, RequestTypeConfigCreate, Reque
 import { workflowConfigApi, WorkflowConfig } from '../lib/workflowConfig'
 import { authApi } from '../lib/auth'
 import Layout from '../components/Layout'
+import GuidedRequestTypeCreator from '../components/GuidedRequestTypeCreator'
 import { PlusIcon, EditIcon, TrashIcon, SaveIcon, XIcon, EyeIcon, SearchIcon, FileTextIcon, CogIcon } from '../components/Icons'
 import { showToast } from '../utils/toast'
 
@@ -26,6 +27,8 @@ export default function RequestTypeManagement() {
   const [user, setUser] = useState<any>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [showCreateModal, setShowCreateModal] = useState(false)
+  const [showGuidedCreator, setShowGuidedCreator] = useState(false)
+  const [showGuidedEditor, setShowGuidedEditor] = useState(false)
   const [editingConfig, setEditingConfig] = useState<RequestTypeConfig | null>(null)
   const [formData, setFormData] = useState<Partial<RequestTypeConfigCreate>>({
     request_type: '',
@@ -210,7 +213,7 @@ export default function RequestTypeManagement() {
               variant="contained"
               color="primary"
               startIcon={<PlusIcon />}
-              onClick={() => setShowCreateModal(true)}
+              onClick={() => setShowGuidedCreator(true)}
             >
               New Request Type
             </MaterialButton>
@@ -277,13 +280,7 @@ export default function RequestTypeManagement() {
                         size="small"
                         onClick={() => {
                           setEditingConfig(config)
-                          setFormData({
-                            display_name: config.display_name,
-                            visibility_scope: config.visibility_scope,
-                            icon_name: config.icon_name || '',
-                            sort_order: config.sort_order,
-                            is_active: config.is_active
-                          })
+                          setShowGuidedEditor(true)
                         }}
                       >
                         <EditIcon className="w-4 h-4" />
@@ -518,6 +515,34 @@ export default function RequestTypeManagement() {
               </div>
             </div>
           </div>
+        )}
+        {/* Guided Request Type Creator */}
+        {showGuidedCreator && (
+          <GuidedRequestTypeCreator
+            onClose={() => setShowGuidedCreator(false)}
+            onSubmit={(requestType) => {
+              setShowGuidedCreator(false)
+              queryClient.invalidateQueries({ queryKey: ['request-type-configs'] })
+              showToast.success('Request type created successfully')
+            }}
+          />
+        )}
+
+        {/* Guided Request Type Editor */}
+        {showGuidedEditor && editingConfig && (
+          <GuidedRequestTypeCreator
+            onClose={() => {
+              setShowGuidedEditor(false)
+              setEditingConfig(null)
+            }}
+            initialData={editingConfig}
+            onSubmit={(updatedRequestType) => {
+              setShowGuidedEditor(false)
+              setEditingConfig(null)
+              queryClient.invalidateQueries({ queryKey: ['request-type-configs'] })
+              showToast.success('Request type updated successfully')
+            }}
+          />
         )}
       </div>
     </Layout>
